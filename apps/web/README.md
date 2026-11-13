@@ -39,3 +39,15 @@ O mapa em `/modulos` reúne as 43 vistas identificadas no frontend legado e perm
 nome, caminho ou área do produto. Formulários e listas que precisam de persistência funcionam
 apenas como prévia local; não enviam nem armazenam dados. A integração com a API será feita
 conforme os contratos publicados em `docs/api`.
+
+## Demonstração da jornada de peladas
+
+Em `/eventos/novo`, crie uma pelada de demonstração e continue pela agenda em `/peladas`.
+Em `/peladas/abertas`, `/presenca` e `/presenca/check-in`, é possível simular confirmações e
+check-in. A prévia também simula lista de espera e promoção para uma vaga liberada. O estado
+existe apenas em memória durante a sessão no navegador: atualizar a página ou abrir outra sessão
+reinicia a demonstração. Em `/partidas/ao-vivo`, registre gols e acompanhe o placar; em
+`/partidas/ao-vivo`, inicie e encerre a partida depois de pelo menos dois check-ins; o placar
+encerrado fica indicado como aguardando conferência. Só então `/destaques/votacao` libera a
+escolha de destaque entre as pessoas presentes. Nenhum dado é enviado à API ou gravado no
+navegador.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
+import { CreatedMatchScheduleRow } from "@/components/match-demo";
 
 const matches = [
   { day: "19", weekday: "QUI", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "14 / 18", state: "Inscrições abertas", status: "open" },
@@ -69,9 +70,10 @@ export default function MatchesPage() {
               <p className="eyebrow">PRÓXIMOS ENCONTROS</p>
               <h2>Agenda do grupo</h2>
             </div>
-            <span className="quiet-label">3 partidas programadas</span>
+            <span className="quiet-label">Agenda do grupo e prévia desta sessão</span>
           </div>
           <div className="schedule-list">
+            <CreatedMatchScheduleRow />
             {matches.map((match) => (
               <article className="schedule-row" key={`${match.day}-${match.title}`}>
                 <span className="date-tile"><span>{match.weekday}</span><strong>{match.day}</strong></span>

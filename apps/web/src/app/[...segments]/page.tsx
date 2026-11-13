@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { GameDemoPanel } from "@/components/game-demo";
+import { MatchCreationForm, MatchDemoMetrics, MatchDemoPanel } from "@/components/match-demo";
 import { PreviewForm, type FormField } from "@/components/preview-form";
 import { ScreenCatalog, type ScreenCatalogItem } from "@/components/screen-catalog";
 import { ScreenDirectory, type DirectoryRecord } from "@/components/screen-directory";
@@ -208,6 +210,25 @@ async function LegacyScreenContent({
   });
   const records = recordsByGroup[screen.group];
   const isModuleCatalog = screen.legacyView === "modules";
+  const isMatchCreation = screen.legacyView === "events-new";
+  const matchDemoMode = screen.legacyView === "open-matches"
+    ? "open"
+    : screen.legacyView === "presence-center" ? "presence" : "checkin";
+  const hasMatchDemo = ["open-matches", "presence-center", "checkin-center"].includes(screen.legacyView);
+  const isGameDemo = screen.legacyView === "match-center" || screen.legacyView === "highlight-vote";
+  const gameDemoMode = screen.legacyView === "highlight-vote" ? "highlights" : "live";
+  const isMatchFlow = isMatchCreation || hasMatchDemo || isGameDemo;
+  const primaryTitle = isMatchCreation
+    ? "Detalhes da pelada"
+    : hasMatchDemo
+      ? "Organização da partida"
+      : isGameDemo
+        ? gameDemoMode === "live" ? "Placar e lances" : "Destaque da partida"
+        : form ? "Informações do grupo" : isModuleCatalog ? "Todas as áreas" : "Movimento recente";
+  const primaryLabel = isMatchCreation
+    ? "Crie e continue a demonstração"
+    : isMatchFlow ? "Etapa demonstrativa"
+      : form ? "Preencha para visualizar" : isModuleCatalog ? "Vistas do produto" : "Conteúdo ilustrativo";
 
   return (
     <AppShell active={screen.group} activePath={screen.path} title={screen.title}>
@@ -226,39 +247,47 @@ async function LegacyScreenContent({
           ) : null}
         </section>
 
-        <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
-          <article className="screen-metric-card">
-            <span className="stat-icon stat-icon-green"><Icon name="sparkles" /></span>
-            <span className="eyebrow">{screen.metrics[0]}</span>
-            <strong>{screen.metrics[1]}</strong>
-          </article>
-          <article className="screen-metric-card">
-            <span className="stat-icon stat-icon-blue"><Icon name="calendar" /></span>
-            <span className="eyebrow">CONTEXTO</span>
-            <strong>{screen.metrics[2]}</strong>
-          </article>
-          <article className="screen-metric-card screen-metric-note">
-            <span className="eyebrow">SOBRE ESTA TELA</span>
-            <strong>Dados de exemplo, sem ligação com contas reais.</strong>
-            <span>Esta prévia não grava nem envia informações.</span>
-          </article>
-        </section>
+        {isMatchFlow ? (
+          <MatchDemoMetrics mode={isGameDemo ? "game" : "attendance"} />
+        ) : (
+          <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
+            <article className="screen-metric-card">
+              <span className="stat-icon stat-icon-green"><Icon name="sparkles" /></span>
+              <span className="eyebrow">{screen.metrics[0]}</span>
+              <strong>{screen.metrics[1]}</strong>
+            </article>
+            <article className="screen-metric-card">
+              <span className="stat-icon stat-icon-blue"><Icon name="calendar" /></span>
+              <span className="eyebrow">CONTEXTO</span>
+              <strong>{screen.metrics[2]}</strong>
+            </article>
+            <article className="screen-metric-card screen-metric-note">
+              <span className="eyebrow">SOBRE ESTA TELA</span>
+              <strong>Dados de exemplo, sem ligação com contas reais.</strong>
+              <span>Esta prévia não grava nem envia informações.</span>
+            </article>
+          </section>
+        )}
 
         <section className="screen-workspace">
           <article className="surface-card screen-primary-card" id={form ? "formulario" : undefined}>
             <div className="section-title-row">
               <div>
-                <p className="eyebrow">{form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
-                <h2>{form ? "Informações do grupo" : isModuleCatalog ? "Todas as áreas" : "Movimento recente"}</h2>
+                <p className="eyebrow">{isMatchFlow ? "DEMONSTRAÇÃO DA JORNADA" : form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
+                <h2>{primaryTitle}</h2>
               </div>
-              <span className="quiet-label">
-                {form ? "Preencha para visualizar" : isModuleCatalog ? "Vistas do produto" : "Conteúdo ilustrativo"}
-              </span>
+              <span className="quiet-label">{primaryLabel}</span>
             </div>
-            {form ? (
+            {isMatchCreation ? (
+              <MatchCreationForm />
+            ) : form ? (
               <PreviewForm fields={form.fields} submitLabel={form.submitLabel} />
             ) : isModuleCatalog ? (
               <ScreenCatalog items={screenCatalogItems} />
+            ) : isGameDemo ? (
+              <GameDemoPanel mode={gameDemoMode} />
+            ) : hasMatchDemo ? (
+              <MatchDemoPanel mode={matchDemoMode} />
             ) : (
               <ScreenDirectory records={records} related={relatedLinks} />
             )}
