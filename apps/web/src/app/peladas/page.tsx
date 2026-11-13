@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
-import { CreatedMatchScheduleRow } from "@/components/match-demo";
+import { MatchSchedule, type ScheduledMatch } from "@/components/match-demo";
 
-const matches = [
-  { day: "19", weekday: "QUI", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "14 / 18", state: "Inscrições abertas", status: "open" },
-  { day: "22", weekday: "DOM", title: "Desafio de domingo", time: "09h – 10h30", place: "Parque da Água Branca", confirmed: "8 / 16", state: "Inscrições abertas", status: "open" },
-  { day: "26", weekday: "QUI", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "—", state: "Em organização", status: "planned" },
+const matches: ScheduledMatch[] = [
+  { date: "2026-11-19", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "14 / 18", state: "Inscrições abertas", status: "open" },
+  { date: "2026-11-22", title: "Desafio de domingo", time: "09h – 10h30", place: "Parque da Água Branca", confirmed: "8 / 16", state: "Inscrições abertas", status: "open" },
+  { date: "2026-11-26", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "—", state: "Em organização", status: "planned" },
 ];
 
 export default function MatchesPage() {
@@ -73,18 +73,7 @@ export default function MatchesPage() {
             <span className="quiet-label">Agenda do grupo e prévia desta sessão</span>
           </div>
           <div className="schedule-list">
-            <CreatedMatchScheduleRow />
-            {matches.map((match) => (
-              <article className="schedule-row" key={`${match.day}-${match.title}`}>
-                <span className="date-tile"><span>{match.weekday}</span><strong>{match.day}</strong></span>
-                <span className="schedule-info">
-                  <strong>{match.title}</strong>
-                  <span>{match.time} <span className="dot-separator">·</span> {match.place}</span>
-                </span>
-                <span className="schedule-attendance">{match.confirmed}<span>jogadores</span></span>
-                <span className={`mini-pill ${match.status === "open" ? "pill-green" : "pill-neutral"}`}>{match.state}</span>
-              </article>
-            ))}
+            <MatchSchedule matches={matches} />
           </div>
         </section>
         <p className="demo-note">Prévia visual com dados ilustrativos. Inscrições, vagas e partidas ainda não estão conectadas à API.</p>

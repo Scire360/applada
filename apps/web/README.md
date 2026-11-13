@@ -42,7 +42,7 @@ conforme os contratos publicados em `docs/api`.
 
 ## Demonstração da jornada de peladas
 
-Em `/eventos/novo`, crie uma pelada de demonstração e continue pela agenda em `/peladas`.
+Em `/eventos/novo`, crie uma pelada de demonstração com data de hoje ou futura; para hoje, o horário também precisa estar no futuro. Continue pela agenda em `/peladas`.
 Em `/peladas/abertas`, `/presenca` e `/presenca/check-in`, é possível simular confirmações e
 check-in. A prévia também simula lista de espera e promoção para uma vaga liberada. O estado
 existe apenas em memória durante a sessão no navegador: atualizar a página ou abrir outra sessão

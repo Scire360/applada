@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/icon";
 import { demoPlayers, useMatchDemo } from "@/components/match-demo-provider";
 import type { MatchDraft } from "@/components/match-demo-provider";
@@ -11,10 +11,37 @@ type MatchDemoPanelProps = {
   mode: "open" | "presence" | "checkin";
 };
 
+export type ScheduledMatch = {
+  date: string;
+  title: string;
+  time: string;
+  place: string;
+  confirmed: string;
+  state: string;
+  status: "open" | "planned";
+};
+
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "long",
   timeZone: "UTC",
 });
+
+const weekdayFormatter = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "short",
+  timeZone: "UTC",
+});
+
+const dayFormatter = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  timeZone: "UTC",
+});
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export function MatchDemoMetrics({ mode }: { mode: "attendance" | "game" }) {
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
@@ -55,6 +82,12 @@ export function MatchCreationForm() {
   const { createMatch } = useMatchDemo();
   const router = useRouter();
   const [error, setError] = useState("");
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (dateInputRef.current) dateInputRef.current.min = formatLocalDate(new Date());
+  }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,8 +101,23 @@ export function MatchCreationForm() {
       notes: String(formData.get("match-notes")).trim(),
     };
 
-    if (!draft.title || !draft.date || !draft.time || !draft.location || draft.capacity < 1) {
+    if (!draft.title || !draft.date || !draft.time || !draft.location) {
       setError("Preencha os campos obrigatórios e informe pelo menos uma vaga.");
+      return;
+    }
+    if (!Number.isSafeInteger(draft.capacity) || draft.capacity < 1) {
+      setError("Informe uma quantidade inteira de vagas igual ou maior que 1.");
+      return;
+    }
+
+    const now = new Date();
+    const today = formatLocalDate(now);
+    if (draft.date < today) {
+      setError("Escolha uma data de hoje ou posterior.");
+      return;
+    }
+    if (draft.date === today && new Date(`${draft.date}T${draft.time}:00`) <= now) {
+      setError("Escolha um horário futuro para a partida de hoje.");
       return;
     }
 
@@ -87,11 +135,29 @@ export function MatchCreationForm() {
         </label>
         <label className="preview-field" htmlFor="match-date">
           <span>Data<span aria-hidden="true"> *</span></span>
-          <input id="match-date" name="match-date" required type="date" />
+          <input
+            id="match-date"
+            name="match-date"
+            onChange={(event) => {
+              const now = new Date();
+              if (timeInputRef.current) {
+                if (event.currentTarget.value === formatLocalDate(now)) {
+                  now.setSeconds(0, 0);
+                  now.setMinutes(now.getMinutes() + 1);
+                  timeInputRef.current.min = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                } else {
+                  timeInputRef.current.min = "";
+                }
+              }
+            }}
+            ref={dateInputRef}
+            required
+            type="date"
+          />
         </label>
         <label className="preview-field" htmlFor="match-time">
           <span>Horário<span aria-hidden="true"> *</span></span>
-          <input id="match-time" name="match-time" required type="time" />
+          <input id="match-time" name="match-time" ref={timeInputRef} required type="time" />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-location">
           <span>Local e campo<span aria-hidden="true"> *</span></span>
@@ -99,7 +165,7 @@ export function MatchCreationForm() {
         </label>
         <label className="preview-field" htmlFor="match-capacity">
           <span>Número de vagas<span aria-hidden="true"> *</span></span>
-          <input id="match-capacity" min="1" name="match-capacity" placeholder="18" required type="number" />
+          <input id="match-capacity" min="1" name="match-capacity" placeholder="18" required step="1" type="number" />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-notes">
           <span>Detalhes para o time</span>
@@ -115,31 +181,54 @@ export function MatchCreationForm() {
   );
 }
 
-export function CreatedMatchScheduleRow() {
+export function MatchSchedule({ matches }: { matches: ScheduledMatch[] }) {
   const { match, attendees, waitlist } = useMatchDemo();
-  if (!match) return null;
-
-  const date = new Date(`${match.date}T12:00:00Z`);
-  const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" })
-    .format(date)
-    .replace(".", "")
-    .toLocaleUpperCase("pt-BR");
-  const day = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", timeZone: "UTC" }).format(date);
-  const isFull = attendees.length >= match.capacity;
+  const items = [
+    ...matches.map((item) => ({ ...item, isDemo: false })),
+    ...(match ? [{
+      date: match.date,
+      title: match.title,
+      time: match.time,
+      place: match.location,
+      confirmed: `${attendees.length} / ${match.capacity}`,
+      state: attendees.length >= match.capacity
+        ? waitlist.length ? `${waitlist.length} na espera` : "Lista completa"
+        : "Prévia local",
+      status: attendees.length >= match.capacity ? "planned" as const : "open" as const,
+      isDemo: true,
+    }] : []),
+  ].sort((first, second) => first.date.localeCompare(second.date));
 
   return (
-    <article className="schedule-row schedule-row-demo">
-      <span className="date-tile"><span>{weekday}</span><strong>{day}</strong></span>
-      <span className="schedule-info">
-        <strong>{match.title}</strong>
-        <span>{dateFormatter.format(date)} · {match.time} · {match.location}</span>
-      </span>
-      <span className="schedule-attendance">{attendees.length} / {match.capacity}<span>confirmados</span></span>
-      <span className={`mini-pill ${isFull ? "pill-neutral" : "pill-green"}`}>
-        {isFull ? waitlist.length ? `${waitlist.length} na espera` : "Lista completa" : "Prévia local"}
-      </span>
-      <Link className="demo-match-link" href="/peladas/abertas">Ver encontro</Link>
-    </article>
+    <>
+      {items.map((item) => {
+        const date = new Date(`${item.date}T12:00:00Z`);
+        const weekday = weekdayFormatter.format(date).replace(".", "").toLocaleUpperCase("pt-BR");
+        const day = dayFormatter.format(date);
+
+        return (
+          <article className={`schedule-row${item.isDemo ? " schedule-row-demo" : ""}`} key={`${item.date}-${item.title}-${item.isDemo}`}>
+            <time aria-label={dateFormatter.format(date)} className="date-tile" dateTime={item.date}>
+              <span>{weekday}</span>
+              <strong>{day}</strong>
+            </time>
+            <span className="schedule-info">
+              <strong>{item.title}</strong>
+              <span>{item.isDemo ? dateFormatter.format(date) : item.time} · {item.isDemo ? item.time : item.place}{item.isDemo ? ` · ${item.place}` : ""}</span>
+            </span>
+            <span className="schedule-attendance">{item.confirmed}<span>{item.isDemo ? "confirmados" : "jogadores"}</span></span>
+            {item.isDemo ? (
+              <>
+                <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
+                <Link className="demo-match-link" href="/peladas/abertas">Ver encontro</Link>
+              </>
+            ) : (
+              <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
+            )}
+          </article>
+        );
+      })}
+    </>
   );
 }
 
@@ -161,6 +250,7 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
     ? demoPlayers.filter((player) => attendees.includes(player))
     : mode === "open" ? [demoPlayers[0]] : demoPlayers;
   const isFull = attendees.length >= match.capacity;
+  const remainingSlots = Math.max(0, match.capacity - attendees.length);
   const rosterIsLocked = status !== "scheduled";
 
   function handleAttendance(name: string) {
@@ -205,11 +295,16 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           aria-valuemax={match.capacity}
           aria-valuemin={0}
           aria-valuenow={attendees.length}
+          aria-valuetext={`${attendees.length} confirmadas, ${remainingSlots} disponíveis e ${waitlist.length} na lista de espera`}
           className="demo-capacity"
           role="progressbar"
         >
           <strong>{attendees.length} / {match.capacity}</strong>
-          <span>{waitlist.length ? `${waitlist.length} na lista de espera` : "vagas confirmadas"}</span>
+          <span>
+            {isFull
+              ? `Vagas esgotadas · ${waitlist.length ? `${waitlist.length} ${waitlist.length === 1 ? "pessoa" : "pessoas"} na espera` : "fila vazia"}`
+              : `${remainingSlots} ${remainingSlots === 1 ? "vaga disponível" : "vagas disponíveis"}`}
+          </span>
         </div>
       </section>
 
@@ -218,16 +313,26 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           <div className="match-demo-action">
             <div>
               <strong>Rafael Martins</strong>
-              <span>{attendees.includes(demoPlayers[0]) ? "Presença confirmada" : "Organizador do grupo"}</span>
+              <span>
+                {attendees.includes(demoPlayers[0])
+                  ? "Presença confirmada"
+                  : waitlist.includes(demoPlayers[0])
+                    ? `Na lista de espera · posição ${waitlist.indexOf(demoPlayers[0]) + 1}`
+                    : "Organizador do grupo"}
+              </span>
             </div>
             <button
-              aria-pressed={attendees.includes(demoPlayers[0])}
-              className={`button ${attendees.includes(demoPlayers[0]) ? "button-secondary" : "button-primary"}`}
-              disabled={rosterIsLocked || (!attendees.includes(demoPlayers[0]) && isFull)}
+              aria-pressed={attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0])}
+              className={`button ${attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0]) ? "button-secondary" : "button-primary"}`}
+              disabled={rosterIsLocked}
               onClick={() => handleAttendance(demoPlayers[0])}
               type="button"
             >
-              {attendees.includes(demoPlayers[0]) ? "Cancelar presença" : "Confirmar presença"}
+              {attendees.includes(demoPlayers[0])
+                ? "Cancelar presença"
+                : waitlist.includes(demoPlayers[0])
+                  ? "Sair da espera"
+                  : isFull ? "Entrar na espera" : "Confirmar presença"}
             </button>
           </div>
         ) : candidates.length ? candidates.map((player) => {
