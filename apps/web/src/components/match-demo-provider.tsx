@@ -135,6 +135,7 @@ export function MatchDemoProvider({ children }: { children: ReactNode }) {
   }
 
   function removeGoal(id: number) {
+    if (status !== "live") return;
     setGoals((current) => current.filter((goal) => goal.id !== id));
   }
 
