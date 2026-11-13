@@ -25,9 +25,17 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-Repositório em fundação: ainda não há solution, `package.json` nem pipeline.
-**Ao criar cada um, atualize esta seção** com os comandos reais de build, teste, lint e
-ambiente local. Não invente comandos que não existem.
+Repositório em fundação: ainda não há solution .NET nem pipeline. O frontend em
+`apps/web` usa Next.js, React e TypeScript estrito.
+
+- Ambiente local web: `cd apps\web` e `npm run dev`
+- Build web: `npm run build`
+- Lint web: `npm run lint`
+- Type-check web: `npm run typecheck`
+- Testes web: ainda não configurados.
+
+Ao adicionar solution ou pipeline, atualize esta seção com os comandos reais. Não invente
+comandos que não existem.
 
 ## 4. Arquitetura — regras invioláveis
 

@@ -2,7 +2,8 @@
 
 Plataforma de organização de futebol amador e rede social esportiva.
 
-> Estado: estrutura inicial do monorepo. Ainda não há código executável.
+> Estado: o frontend Next.js em `apps/web` cobre as 43 vistas identificadas no sistema
+> anterior. As páginas usam dados demonstrativos e ainda não estão conectadas à API.
 > A arquitetura de referência está em `docs/` (Especificação de Arquitetura v1.0).
 
 ## Estrutura
@@ -49,3 +50,14 @@ docs/             ADRs, contratos de API, threat model, runbooks
 - As regras são verificadas automaticamente em `backend/tests/Architecture`.
 
 Decisões arquiteturais ficam registradas em [`docs/adr`](docs/adr/README.md).
+
+## Executar o frontend web
+
+```powershell
+cd apps\web
+npm install
+npm run dev
+```
+
+O frontend usa Next.js, React e TypeScript estrito. Consulte [`apps/web/README.md`](apps/web/README.md)
+para comandos de build, lint e verificação de tipos.
