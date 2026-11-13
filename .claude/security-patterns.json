@@ -1,0 +1,92 @@
+{
+  "patterns": [
+    {
+      "rule_name": "hardcoded_secret_prefix",
+      "substrings": [
+        "AKIA",
+        "sk_live_",
+        "rk_live_",
+        "whsec_",
+        "PRIVATE KEY-----",
+        "ghp_",
+        "github_pat_"
+      ],
+      "exclude_paths": [
+        "**/.claude/**"
+      ],
+      "reminder": "Possível segredo no código. Use variável de ambiente local (.env ignorado) ou secret manager; nunca versione credenciais."
+    },
+    {
+      "rule_name": "efcore_raw_sql",
+      "regex": "(FromSqlRaw|ExecuteSqlRaw(Async)?|SqlQueryRaw)\\s*(<[^>]*>)?\\s*\\(",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "SQL raw no EF Core. Prefira FromSql/ExecuteSql/SqlQuery com interpolação parametrizada; nunca concatene ou interpole entrada em métodos *Raw."
+    },
+    {
+      "rule_name": "allow_anonymous",
+      "regex": "AllowAnonymous",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "Endpoint anônimo. Confirme que a rota é pública por requisito e tem rate limit; autorização por recurso é a regra padrão do Applada."
+    },
+    {
+      "rule_name": "tls_validation_disabled",
+      "regex": "(?i)(Trust\\s*Server\\s*Certificate\\s*=\\s*true|SSL\\s*Mode\\s*=\\s*Disable|DangerousAcceptAnyServerCertificateValidator|ServerCertificateCustomValidationCallback|(Server|Remote)CertificateValidationCallback\\s*=)",
+      "exclude_paths": [
+        "**/.claude/**"
+      ],
+      "reminder": "Validação TLS desativada ou customizada. Permitido apenas em configuração local explícita, nunca em código de produção."
+    },
+    {
+      "rule_name": "cors_any_origin",
+      "regex": "AllowAnyOrigin|SetIsOriginAllowed\\(\\s*\\(?\\s*\\w*\\s*\\)?\\s*=>\\s*true",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "CORS aberto. Restrinja a origens conhecidas, especialmente com credenciais."
+    },
+    {
+      "rule_name": "binary_formatter",
+      "regex": "BinaryFormatter|TypeNameHandling\\.(All|Auto|Objects)",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "Desserialização insegura. Use System.Text.Json com tipos explícitos."
+    },
+    {
+      "rule_name": "ignore_query_filters",
+      "regex": "IgnoreQueryFilters\\s*\\(",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "IgnoreQueryFilters remove filtros globais (soft delete, visibilidade). Justifique e garanta autorização explícita."
+    },
+    {
+      "rule_name": "web_token_storage",
+      "regex": "(?i)(local|session)Storage\\.setItem\\(\\s*[^,]*(token|jwt|\\bauth\\b|credential)",
+      "paths": [
+        "**/apps/web/**"
+      ],
+      "reminder": "Token em localStorage/sessionStorage é exposto a XSS. Use o padrão BFF com cookie HttpOnly/Secure/SameSite."
+    },
+    {
+      "rule_name": "mobile_token_asyncstorage",
+      "regex": "(?i)AsyncStorage\\.(setItem|multiSet)\\(\\s*[^,]*(token|jwt|\\bauth\\b|credential)",
+      "paths": [
+        "**/apps/mobile/**"
+      ],
+      "reminder": "Token em AsyncStorage não é cifrado. Use expo-secure-store."
+    },
+    {
+      "rule_name": "pii_in_log",
+      "regex": "(?i)\\bLog(ger)?\\.?(Information|Warning|Error|Debug|Trace|Critical|Fatal|Verbose)?\\s*\\([^;]*\\{@?(e-?mail|phone|telefone|cpf|lat(itude)?|lon(gitude)?|lng|token|password|senha|address|endereco)\\}",
+      "paths": [
+        "**/*.cs"
+      ],
+      "reminder": "Possível dado pessoal ou credencial em log. Registre identificadores opacos, nunca PII, tokens ou coordenadas exatas."
+    }
+  ]
+}

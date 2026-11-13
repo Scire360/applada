@@ -58,3 +58,9 @@ Thumbs.db
 # ---- Infra local ----
 infra/compose/data/
 *.log
+
+# ---- Claude Code (overrides pessoais) ----
+.claude/settings.local.json
+.claude/*.local.md
+.claude/*.local.json
+CLAUDE.local.md
