@@ -85,7 +85,19 @@ public sealed class OutboxMessage
         ArgumentNullException.ThrowIfNull(error);
 
         Attempts++;
-        LastError = error.Length <= MaxErrorLength ? error : error[..MaxErrorLength];
+        LastError = Truncate(error);
         NextAttemptAt = nextAttemptAt;
+    }
+
+    /// <summary>Corta em <see cref="MaxErrorLength"/> sem partir um par substituto (UTF-16) ao meio.</summary>
+    private static string Truncate(string error)
+    {
+        if (error.Length <= MaxErrorLength)
+        {
+            return error;
+        }
+
+        var length = char.IsHighSurrogate(error[MaxErrorLength - 1]) ? MaxErrorLength - 1 : MaxErrorLength;
+        return error[..length];
     }
 }

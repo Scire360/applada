@@ -31,6 +31,21 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public async ValueTask InitializeAsync() =>
         await Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
 
+    /// <summary>Faz o broker fechar todas as conexões de clientes (como numa queda ou restart do nó).</summary>
+    public async Task CloseRabbitMqConnectionsAsync()
+    {
+        var result = await _rabbit.ExecAsync(["rabbitmqctl", "close_all_connections", "teste: queda simulada"]);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"rabbitmqctl close_all_connections falhou ({result.ExitCode}): {result.Stderr}");
+        }
+    }
+
+    /// <summary>Congela o broker: as conexões continuam abertas, mas nada responde (rede em buraco negro).</summary>
+    public Task PauseRabbitMqAsync() => _rabbit.PauseAsync();
+
+    public Task UnpauseRabbitMqAsync() => _rabbit.UnpauseAsync();
+
     public HttpClient CreateClientFor(string subject)
     {
         var client = CreateClient();

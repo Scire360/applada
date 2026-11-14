@@ -204,7 +204,7 @@ public class OutboxTests(ApiFactory factory)
     {
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations;
         Assert.Contains(checks, c => c.Name == "postgres" && c.Tags.Contains("ready"));
-        Assert.Contains(checks, c => c.Name == "rabbitmq" && c.Tags.Contains("ready"));
+        Assert.Contains(checks, c => c.Name == "rabbitmq" && c.Tags.Contains("ready") && c.FailureStatus == HealthStatus.Degraded);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health/ready", Ct);
@@ -213,8 +213,9 @@ public class OutboxTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Ready_returns_503_when_rabbitmq_is_down()
+    public async Task Ready_reports_degraded_when_rabbitmq_is_down()
     {
+        // Com o broker fora a API continua aceitando escritas (o outbox segura os eventos): Degraded, não 503.
         // Porta 1 em loopback: conexão recusada na hora, sem depender de timeout.
         await using var brokerDown = factory.WithWebHostBuilder(builder =>
             builder.UseSetting("ConnectionStrings:rabbitmq", "amqp://guest:guest@127.0.0.1:1/"));
@@ -222,7 +223,166 @@ public class OutboxTests(ApiFactory factory)
 
         var response = await client.GetAsync("/health/ready", Ct);
 
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Degraded", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
+    public async Task Ready_returns_503_when_postgres_is_down()
+    {
+        await using var databaseDown = factory.WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:applada", "Host=127.0.0.1;Port=1;Database=applada;Username=x;Password=x;Timeout=3")
+            .UseSetting("Database:ApplyMigrationsOnStartup", "false"));
+        using var client = databaseDown.CreateClient();
+
+        var response = await client.GetAsync("/health/ready", Ct);
+
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("Unhealthy", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
+    public async Task Connection_failure_ends_batch_and_leaves_remaining_messages_untouched()
+    {
+        await DrainAsync();
+        var messages = await InsertOrderedAsync(3);
+        var publisher = new ScriptedPublisher(_ => throw new IOException("conexão com o broker perdida (simulado)"));
+        try
+        {
+            Assert.Equal(0, await CreateProcessor(publisher).ProcessBatchAsync(Ct));
+
+            Assert.Equal([messages[0].Id], publisher.Calls);
+            var rows = await OutboxRowsByIdAsync(messages);
+            Assert.Equal(1, rows[0].Attempts);
+            Assert.Contains("IOException", rows[0].LastError, StringComparison.Ordinal);
+            Assert.All(rows, r => Assert.Null(r.PublishedAt));
+            Assert.All(rows.Skip(1).Zip(messages.Skip(1)), pair =>
+            {
+                Assert.Equal(0, pair.First.Attempts);
+                Assert.Null(pair.First.LastError);
+                Assert.Equal(pair.Second.NextAttemptAt, pair.First.NextAttemptAt, TimeSpan.FromMilliseconds(1));
+            });
+        }
+        finally
+        {
+            await DeleteOutboxAsync([.. messages.Select(m => m.Id)]);
+        }
+    }
+
+    [Fact]
+    public async Task Broker_nack_fails_only_that_message_and_batch_continues()
+    {
+        await DrainAsync();
+        var messages = await InsertOrderedAsync(3);
+        var publisher = new ScriptedPublisher(message =>
+        {
+            if (message.Id == messages[0].Id)
+            {
+                throw new IntegrationEventRejectedException("nack simulado");
+            }
+        });
+        try
+        {
+            Assert.Equal(2, await CreateProcessor(publisher).ProcessBatchAsync(Ct));
+
+            Assert.Equal(messages.Select(m => m.Id), publisher.Calls);
+            var rows = await OutboxRowsByIdAsync(messages);
+            Assert.Equal(1, rows[0].Attempts);
+            Assert.Null(rows[0].PublishedAt);
+            Assert.All(rows.Skip(1), r => Assert.NotNull(r.PublishedAt));
+        }
+        finally
+        {
+            await DeleteOutboxAsync([.. messages.Select(m => m.Id)]);
+        }
+    }
+
+    [Fact]
+    public async Task Publisher_reconnects_after_broker_closes_its_connection()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        await DrainAsync();
+        var before = await InsertOrderedAsync(1);
+        try
+        {
+            Assert.Equal(1, await CreateProcessor(publisher).ProcessBatchAsync(Ct));
+            Assert.True(publisher.HasOpenConnection);
+
+            await factory.CloseRabbitMqConnectionsAsync();
+            // Determinístico: espera o cliente processar o connection.close do broker. Daí em diante o
+            // publicador sabe que a conexão caiu e reconecta antes de publicar, então a primeira tentativa
+            // já entrega. (Se publicasse antes de perceber, a tentativa falharia, seria registrada e o lote
+            // terminaria; o retry entregaria depois — caminho coberto pelo teste do broker congelado.)
+            await WaitUntilAsync(() => !publisher.HasOpenConnection, TimeSpan.FromSeconds(10));
+            await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            var after = await InsertOrderedAsync(1);
+            try
+            {
+                Assert.Equal(1, await CreateProcessor(publisher).ProcessBatchAsync(Ct));
+
+                Assert.True(publisher.HasOpenConnection);
+                await queue.WaitForAsync(m => m.BasicProperties.MessageId == after[0].Id.ToString(), ReceiveTimeout);
+                var row = Assert.Single(await OutboxRowsByIdAsync(after));
+                Assert.NotNull(row.PublishedAt);
+                Assert.Equal(0, row.Attempts);
+            }
+            finally
+            {
+                await DeleteOutboxAsync(after[0].Id);
+            }
+        }
+        finally
+        {
+            await DeleteOutboxAsync(before[0].Id);
+        }
+    }
+
+    [Fact]
+    public async Task Unresponsive_broker_ends_batch_within_bounded_time_and_retries_after_recovery()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        await DrainAsync();
+        Assert.True(await publisher.IsConnectedAsync(Ct));
+        var start = factory.Clock.GetUtcNow();
+        var messages = await InsertOrderedAsync(3);
+        var processor = CreateProcessor(publisher);
+        try
+        {
+            await factory.PauseRabbitMqAsync();
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                Assert.Equal(0, await processor.ProcessBatchAsync(Ct));
+            }
+            finally
+            {
+                elapsed.Stop();
+                await factory.UnpauseRabbitMqAsync();
+            }
+
+            // Medido ~20 s: confirmação (10 s) + descarte da conexão (abort 5 s + canal 0 até 5 s). Antes da
+            // correção, 3 mensagens levavam ~70 s (cada uma repetia a espera); com 100 seriam vários minutos.
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(30), $"Lote levou {elapsed.Elapsed}.");
+            var rows = await OutboxRowsByIdAsync(messages);
+            Assert.Equal(1, rows[0].Attempts);
+            Assert.Contains("TimeoutException", rows[0].LastError, StringComparison.Ordinal);
+            Assert.All(rows.Skip(1), r => Assert.Equal(0, r.Attempts));
+            Assert.All(rows, r => Assert.Null(r.PublishedAt));
+
+            await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            factory.Clock.Advance(TimeSpan.FromSeconds(2));
+            Assert.Equal(3, await processor.ProcessBatchAsync(Ct));
+
+            var ids = messages.Select(m => m.Id.ToString()).ToHashSet();
+            var received = await queue.CollectAsync(m => ids.Contains(m.BasicProperties.MessageId!), expected: 3, ReceiveTimeout);
+            Assert.Equal(ids, received.Select(m => m.BasicProperties.MessageId!).ToHashSet());
+            Assert.All(await OutboxRowsByIdAsync(messages), r => Assert.NotNull(r.PublishedAt));
+        }
+        finally
+        {
+            factory.Clock.SetUtcNow(start);
+            await DeleteOutboxAsync([.. messages.Select(m => m.Id)]);
+        }
     }
 
     private static string NewSubject() => $"sub-{Guid.NewGuid():N}";
@@ -242,6 +402,37 @@ public class OutboxTests(ApiFactory factory)
         var processor = CreateProcessor(factory.Services.GetRequiredService<IIntegrationEventPublisher>());
         while (await processor.ProcessBatchAsync(Ct) > 0)
         {
+        }
+    }
+
+    /// <summary>Insere mensagens pendentes com occurred_at crescente, para a ordem de reserva ser conhecida.</summary>
+    private async Task<List<OutboxMessage>> InsertOrderedAsync(int count)
+    {
+        var now = factory.Clock.GetUtcNow();
+        var messages = Enumerable.Range(0, count)
+            .Select(i => OutboxMessage.From(new UserRegisteredV1(Guid.CreateVersion7()), "test-ordered", now - TimeSpan.FromSeconds(count - i)))
+            .ToList();
+        await InsertOutboxAsync(messages);
+        return messages;
+    }
+
+    /// <summary>Linhas atuais das mensagens, na mesma ordem da lista.</summary>
+    private async Task<List<OutboxMessage>> OutboxRowsByIdAsync(List<OutboxMessage> messages)
+    {
+        var ids = messages.Select(m => m.Id).ToList();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var rows = await db.OutboxMessages.AsNoTracking().Where(m => ids.Contains(m.Id)).ToDictionaryAsync(m => m.Id, Ct);
+        return [.. ids.Select(id => rows[id])];
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (!condition())
+        {
+            Assert.True(DateTimeOffset.UtcNow < deadline, "Condição não atingida no prazo.");
+            await Task.Delay(50, Ct);
         }
     }
 
@@ -306,6 +497,35 @@ public class OutboxTests(ApiFactory factory)
             }
 
             throw new InvalidOperationException(ErrorMessage);
+        }
+    }
+
+    /// <summary>Publisher de teste: registra cada chamada e executa a ação dada (que pode lançar).</summary>
+    private sealed class ScriptedPublisher(Action<OutboxMessage> onPublish) : IIntegrationEventPublisher
+    {
+        private readonly List<Guid> _calls = [];
+        private readonly Lock _gate = new();
+
+        public List<Guid> Calls
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _calls];
+                }
+            }
+        }
+
+        public Task PublishAsync(OutboxMessage message, CancellationToken ct)
+        {
+            lock (_gate)
+            {
+                _calls.Add(message.Id);
+            }
+
+            onPublish(message);
+            return Task.CompletedTask;
         }
     }
 

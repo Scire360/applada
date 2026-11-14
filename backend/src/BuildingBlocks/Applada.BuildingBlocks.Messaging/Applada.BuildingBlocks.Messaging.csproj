@@ -10,6 +10,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Applada.Api.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
     <ProjectReference Include="..\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
   </ItemGroup>

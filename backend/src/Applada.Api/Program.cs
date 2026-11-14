@@ -4,6 +4,7 @@ using Applada.Api.Security;
 using Applada.BuildingBlocks.Messaging;
 using Applada.Modules.Identity;
 using Applada.ServiceDefaults;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +16,8 @@ builder.Services.AddRabbitMqPublisher(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgres", tags: [Extensions.ReadyTag], timeout: TimeSpan.FromSeconds(5))
-    .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: [Extensions.ReadyTag], timeout: TimeSpan.FromSeconds(5));
+    // Broker fora não tira a API do balanceador: escritas seguem e o outbox publica quando ele voltar.
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", failureStatus: HealthStatus.Degraded, tags: [Extensions.ReadyTag], timeout: TimeSpan.FromSeconds(5));
 
 var app = builder.Build();
 

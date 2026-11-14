@@ -11,6 +11,9 @@ namespace Applada.BuildingBlocks.Messaging;
 /// mensagens vencidas com <c>FOR UPDATE SKIP LOCKED</c>, publica cada uma com confirmação do broker e
 /// grava o resultado (publicada ou próxima tentativa) antes do commit. Processadores concorrentes, na
 /// mesma réplica ou em outras, nunca reservam a mesma linha.
+/// Recusa do broker (<see cref="IntegrationEventRejectedException"/>) falha só aquela mensagem e o lote
+/// continua; qualquer outra falha (conexão, canal, timeout) é registrada na mensagem corrente e encerra o
+/// lote, para não manter a transação aberta esperando um broker fora do ar.
 /// </summary>
 /// <remarks>
 /// Entrega at-least-once: se o commit falhar depois da confirmação do broker, a mensagem volta a ser
@@ -66,14 +69,18 @@ public sealed partial class OutboxProcessor<TContext>(
                 // Desligando: esta mensagem fica pendente (pode ter chegado ao broker: at-least-once).
                 break;
             }
+            catch (IntegrationEventRejectedException ex)
+            {
+                // Nack: problema desta mensagem; o broker responde, então as próximas seguem.
+                RecordFailure(message, ex);
+                continue;
+            }
             catch (Exception ex)
             {
-                var nextAttemptAt = timeProvider.GetUtcNow() + Backoff(message.Attempts + 1);
-                // Só tipo e mensagem da exceção, nunca o payload.
-                message.RecordFailure($"{ex.GetType().FullName}: {ex.Message}", nextAttemptAt);
-                metrics.PublishFailed(OutboxName);
-                LogPublishFailed(logger, message.Id, message.EventType, message.Attempts, nextAttemptAt, ex);
-                continue;
+                // Conexão, canal ou timeout: problema do broker. Tentar as demais só repetiria a espera com
+                // a transação e os locks abertos; elas ficam intactas para o próximo ciclo.
+                RecordFailure(message, ex);
+                break;
             }
 
             var publishedAt = timeProvider.GetUtcNow();
@@ -100,6 +107,15 @@ public sealed partial class OutboxProcessor<TContext>(
         {
             LogDeleted(logger, deleted, OutboxName);
         }
+    }
+
+    private void RecordFailure(OutboxMessage message, Exception ex)
+    {
+        var nextAttemptAt = timeProvider.GetUtcNow() + Backoff(message.Attempts + 1);
+        // Só tipo e mensagem da exceção, nunca o payload.
+        message.RecordFailure($"{ex.GetType().FullName}: {ex.Message}", nextAttemptAt);
+        metrics.PublishFailed(OutboxName);
+        LogPublishFailed(logger, message.Id, message.EventType, message.Attempts, nextAttemptAt, ex);
     }
 
     /// <summary><c>min(2^attempts s, MaxBackoff)</c>.</summary>
