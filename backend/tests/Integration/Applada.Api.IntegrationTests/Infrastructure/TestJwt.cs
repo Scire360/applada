@@ -17,15 +17,24 @@ public static class TestJwt
         string? issuer = null,
         string? audience = null,
         DateTimeOffset? expires = null,
-        SecurityKey? key = null)
+        SecurityKey? key = null,
+        DateTimeOffset? now = null)
     {
+        var reference = now ?? DateTimeOffset.UtcNow;
+        var expiry = expires ?? reference.AddHours(1);
+        var notBefore = reference.AddMinutes(-5);
+        if (notBefore >= expiry)
+        {
+            notBefore = expiry.AddMinutes(-5); // token já expirado: nbf precisa ser anterior a exp
+        }
+
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = issuer ?? Issuer,
             Audience = audience ?? Audience,
             Subject = new ClaimsIdentity([new Claim("sub", subject)]),
-            NotBefore = DateTime.UtcNow.AddMinutes(-5),
-            Expires = (expires ?? DateTimeOffset.UtcNow.AddHours(1)).UtcDateTime,
+            NotBefore = notBefore.UtcDateTime,
+            Expires = expiry.UtcDateTime,
             SigningCredentials = new SigningCredentials(key ?? SigningKey, SecurityAlgorithms.RsaSha256),
         };
 

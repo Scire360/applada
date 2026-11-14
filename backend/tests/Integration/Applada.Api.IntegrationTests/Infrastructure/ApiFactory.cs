@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -34,7 +35,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", TestJwt.Issue(subject));
+            new AuthenticationHeaderValue("Bearer", TestJwt.Issue(subject, now: Clock.GetUtcNow()));
         return client;
     }
 
@@ -61,7 +62,15 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 var configuration = new OpenIdConnectConfiguration { Issuer = TestJwt.Issuer };
                 configuration.SigningKeys.Add(TestJwt.SigningKey);
                 options.Configuration = configuration;
+                options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
                 options.TokenValidationParameters.IssuerSigningKey = TestJwt.SigningKey;
+                // O JwtBearer valida lifetime com o relógio do sistema, não com o TimeProvider da DI.
+                options.TokenValidationParameters.LifetimeValidator = (notBefore, expires, _, parameters) =>
+                {
+                    var now = Clock.GetUtcNow().UtcDateTime;
+                    return (notBefore is null || notBefore.Value - parameters.ClockSkew <= now)
+                        && (expires is null || now < expires.Value + parameters.ClockSkew);
+                };
                 options.TokenValidationParameters.ValidIssuer = TestJwt.Issuer;
                 options.TokenValidationParameters.ValidAudience = TestJwt.Audience;
             });
