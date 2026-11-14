@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Contracts/Applada.BuildingBlocks.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Domain/Applada.BuildingBlocks.Domain.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Messaging/Applada.BuildingBlocks.Messaging.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
   </Folder>
@@ -12,10 +13,14 @@
     <Project Path="src/Modules/Identity/Applada.Modules.Identity/Applada.Modules.Identity.csproj" />
     <Project Path="src/Modules/Identity/Applada.Modules.Identity.Contracts/Applada.Modules.Identity.Contracts.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Matches/">
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Domain/Applada.Modules.Matches.Domain.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Architecture/Applada.Architecture.Tests/Applada.Architecture.Tests.csproj" />
     <Project Path="tests/Contract/Applada.Contracts.Tests/Applada.Contracts.Tests.csproj" />
     <Project Path="tests/Unit/Applada.BuildingBlocks.Persistence.Tests/Applada.BuildingBlocks.Persistence.Tests.csproj" />
+    <Project Path="tests/Unit/Applada.Modules.Matches.Domain.Tests/Applada.Modules.Matches.Domain.Tests.csproj" />
     <Project Path="tests/Integration/Applada.Api.IntegrationTests/Applada.Api.IntegrationTests.csproj" />
   </Folder>
 </Solution>
