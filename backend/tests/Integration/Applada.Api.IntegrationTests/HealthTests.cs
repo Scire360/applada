@@ -1,13 +1,14 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Applada.Api.IntegrationTests.Infrastructure;
 
 namespace Applada.Api.IntegrationTests;
 
-public class HealthTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("api")]
+public class HealthTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly ApiFactory _factory;
 
-    public HealthTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public HealthTests(ApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Live_returns_200()
