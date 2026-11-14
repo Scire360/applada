@@ -3,7 +3,11 @@
     <Project Path="src/Applada.Api/Applada.Api.csproj" />
     <Project Path="src/Applada.ServiceDefaults/Applada.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
+  </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Unit/Applada.BuildingBlocks.Persistence.Tests/Applada.BuildingBlocks.Persistence.Tests.csproj" />
     <Project Path="tests/Integration/Applada.Api.IntegrationTests/Applada.Api.IntegrationTests.csproj" />
   </Folder>
 </Solution>
