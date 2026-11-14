@@ -115,15 +115,58 @@ public class DependencyRulesTests
         AssertRule(rule);
     }
 
-    private static ArchUnitNET.Domain.Architecture LoadArchitecture()
+    [Fact]
+    public void Every_src_project_is_covered_by_the_architecture_rules()
     {
-        var assemblies = Directory.EnumerateFiles(AppContext.BaseDirectory, "Applada.*.dll")
+        var srcRoot = Path.Combine(FindBackendRoot(), "src");
+        var expected = Directory.EnumerateFiles(srcRoot, "*.csproj", SearchOption.AllDirectories)
+            .Select(Path.GetFileNameWithoutExtension)
+            .OfType<string>()
+            .Where(name => name != "Applada.AppHost")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.NotEmpty(expected);
+
+        var loaded = LoadedAssemblies.Value.Select(a => a.GetName().Name).ToHashSet(StringComparer.Ordinal);
+
+        // Referência direta, não só transitiva: um projeto que some da lista escaparia sem ninguém notar.
+        var csproj = Path.Combine(FindBackendRoot(), "tests", "Architecture", "Applada.Architecture.Tests", "Applada.Architecture.Tests.csproj");
+        var referenced = System.Xml.Linq.XDocument.Load(csproj).Descendants("ProjectReference")
+            .Select(e => Path.GetFileNameWithoutExtension((string?)e.Attribute("Include") ?? string.Empty))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = expected.Where(name => !loaded.Contains(name) || !referenced.Contains(name)).ToArray();
+
+        Assert.True(
+            missing.Length == 0,
+            "Projetos de src fora das regras de arquitetura (faltou ProjectReference em Applada.Architecture.Tests.csproj): " + string.Join(", ", missing));
+    }
+
+    private static readonly Lazy<System.Reflection.Assembly[]> LoadedAssemblies = new(() =>
+        Directory.EnumerateFiles(AppContext.BaseDirectory, "Applada.*.dll")
             .Where(path => !Path.GetFileNameWithoutExtension(path).EndsWith("Tests", StringComparison.Ordinal))
             .Select(System.Reflection.Assembly.LoadFrom)
-            .ToArray();
+            .ToArray());
+
+    private static string FindBackendRoot()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "Applada.slnx")))
+            {
+                return dir.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("Applada.slnx não encontrado acima de " + AppContext.BaseDirectory);
+    }
+
+    private static ArchUnitNET.Domain.Architecture LoadArchitecture()
+    {
+        var assemblies = LoadedAssemblies.Value;
 
         // Se isto zerar, a regra passaria sobre nada: falha alto.
-        Assert.True(assemblies.Length >= 6, $"Assemblies Applada.* carregados: {assemblies.Length} (esperado >= 6).");
+        Assert.NotEmpty(assemblies);
 
         return new ArchLoader().LoadAssemblies(assemblies).Build();
     }

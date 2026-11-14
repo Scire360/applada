@@ -79,7 +79,7 @@ public sealed partial class RabbitMqEventPublisher : IIntegrationEventPublisher,
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var body = SerializeEnvelope(message);
+        var body = IntegrationEventEnvelopeSerializer.Serialize(message);
         var properties = new BasicProperties
         {
             DeliveryMode = DeliveryModes.Persistent,
@@ -178,20 +178,6 @@ public sealed partial class RabbitMqEventPublisher : IIntegrationEventPublisher,
         {
             _gate.Release();
         }
-    }
-
-    private static ReadOnlyMemory<byte> SerializeEnvelope(OutboxMessage message)
-    {
-        using var payload = JsonDocument.Parse(message.Payload);
-        var envelope = new IntegrationEventEnvelope(
-            message.Id,
-            message.EventType,
-            message.SchemaVersion,
-            message.AggregateId,
-            message.OccurredAt,
-            message.CorrelationId,
-            payload.RootElement);
-        return JsonSerializer.SerializeToUtf8Bytes(envelope, IntegrationEventJson.Options);
     }
 
     // Chamado sempre com _gate adquirido.

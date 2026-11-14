@@ -56,7 +56,8 @@ public sealed class OutboxMessage
 
     public DateTimeOffset NextAttemptAt { get; private set; }
 
-    public static OutboxMessage From(IntegrationEvent evt, string correlationId, DateTimeOffset occurredAt)
+    /// <param name="id">Id do evento; só testes informam (para fixar o <c>eventId</c>). Padrão: UUIDv7 de <paramref name="occurredAt"/>.</param>
+    public static OutboxMessage From(IntegrationEvent evt, string correlationId, DateTimeOffset occurredAt, Guid? id = null)
     {
         ArgumentNullException.ThrowIfNull(evt);
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
@@ -65,7 +66,7 @@ public sealed class OutboxMessage
         var payload = JsonSerializer.Serialize(evt, evt.GetType(), IntegrationEventJson.Options);
 
         return new OutboxMessage(
-            Guid.CreateVersion7(occurredAt),
+            id ?? Guid.CreateVersion7(occurredAt),
             evt.EventType,
             evt.SchemaVersion,
             evt.AggregateId,

@@ -13,7 +13,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <!-- Todo projeto de src, menos o AppHost. Novo projeto de src: referenciar aqui para entrar nas regras. -->
+  <!-- Todo projeto de src, menos o AppHost. Novo projeto de src: referenciar aqui (o teste Every_src_project_is_covered... falha se faltar). -->
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Applada.Api\Applada.Api.csproj" />
     <ProjectReference Include="..\..\..\src\Applada.ServiceDefaults\Applada.ServiceDefaults.csproj" />
