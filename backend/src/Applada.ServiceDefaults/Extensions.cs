@@ -12,7 +12,11 @@ namespace Applada.ServiceDefaults;
 
 public static class Extensions
 {
-    private const string ReadyTag = "ready";
+    /// <summary>Tag dos health checks que compõem /health/ready (dependências de que a API precisa para atender).</summary>
+    public const string ReadyTag = "ready";
+
+    /// <summary>Meter do outbox (Applada.BuildingBlocks.Messaging), registrado por nome para não acoplar os projetos.</summary>
+    private const string OutboxMeterName = "Applada.Outbox";
 
     /// <summary>
     /// Configura OpenTelemetry (traces, métricas e logs) e os health checks padrão.
@@ -55,7 +59,8 @@ public static class Extensions
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddRuntimeInstrumentation())
+                .AddRuntimeInstrumentation()
+                .AddMeter(OutboxMeterName))
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()

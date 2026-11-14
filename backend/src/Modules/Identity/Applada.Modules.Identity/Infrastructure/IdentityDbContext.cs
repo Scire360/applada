@@ -1,15 +1,26 @@
 using Applada.BuildingBlocks.Persistence;
+using Applada.BuildingBlocks.Persistence.Outbox;
 using Applada.Modules.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace Applada.Modules.Identity.Infrastructure;
 
-public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : DbContext(options)
+public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : DbContext(options), IHasOutbox
 {
     public const string Schema = "identity";
 
     public DbSet<User> Users => Set<User>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public FormattableString ClaimBatchSql(DateTimeOffset now, int batchSize) => $"""
+        SELECT * FROM identity.outbox_messages
+        WHERE published_at IS NULL AND next_attempt_at <= {now}
+        ORDER BY occurred_at
+        LIMIT {batchSize}
+        FOR UPDATE SKIP LOCKED
+        """;
 
     /// <summary>
     /// Opções do provedor compartilhadas pela aplicação e pela criação em tempo de design (migrations).
@@ -33,5 +44,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             user.Property(u => u.CreatedAt).HasColumnType("timestamptz").IsRequired();
             user.HasIndex(u => new { u.Issuer, u.Subject }).IsUnique();
         });
+
+        modelBuilder.AddOutboxMessages();
     }
 }

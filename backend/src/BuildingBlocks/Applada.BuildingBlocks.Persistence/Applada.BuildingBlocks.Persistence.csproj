@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Applada.BuildingBlocks.Persistence.Tests" />
   </ItemGroup>
 

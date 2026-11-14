@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

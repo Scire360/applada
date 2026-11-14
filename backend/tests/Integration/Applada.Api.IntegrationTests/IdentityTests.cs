@@ -74,7 +74,7 @@ public class IdentityTests(ApiFactory factory)
         {
             await using var scope = factory.Services.CreateAsyncScope();
             var provisioner = scope.ServiceProvider.GetRequiredService<UserProvisioner>();
-            return await provisioner.EnsureUserAsync(TestJwt.Issuer, subject, TestContext.Current.CancellationToken);
+            return await provisioner.EnsureUserAsync(TestJwt.Issuer, subject, "test-correlation", TestContext.Current.CancellationToken);
         }));
 
         Assert.Single(results.Select(r => r.UserId).Distinct());

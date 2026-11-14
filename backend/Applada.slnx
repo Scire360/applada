@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Contracts/Applada.BuildingBlocks.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Messaging/Applada.BuildingBlocks.Messaging.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Identity/">

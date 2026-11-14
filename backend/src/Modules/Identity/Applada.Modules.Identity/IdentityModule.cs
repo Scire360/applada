@@ -1,4 +1,5 @@
 using Applada.BuildingBlocks.Contracts;
+using Applada.BuildingBlocks.Messaging;
 using Applada.BuildingBlocks.Persistence;
 using Applada.Modules.Identity.Api;
 using Applada.Modules.Identity.Infrastructure;
@@ -25,6 +26,7 @@ public static class IdentityModule
                 ?? throw new InvalidOperationException($"ConnectionStrings:{ConnectionStringName} não configurada."),
             IdentityDbContext.ConfigureNpgsql));
         services.AddMigrationsOnStartup<IdentityDbContext>();
+        services.AddOutboxPublisher<IdentityDbContext>();
 
         services.AddScoped<UserProvisioner>();
         services.AddScoped<HttpCurrentUser>();
