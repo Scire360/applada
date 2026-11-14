@@ -25,9 +25,20 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-Repositório em fundação: ainda não há solution, `package.json` nem pipeline.
+Repositório em fundação: backend com solution e pipeline; ainda não há `package.json`.
 **Ao criar cada um, atualize esta seção** com os comandos reais de build, teste, lint e
 ambiente local. Não invente comandos que não existem.
+
+Backend (.NET 10, SDK fixado em `backend/global.json`). O runner de testes é o
+Microsoft.Testing.Platform (xunit v3), lido do `global.json` mais próximo do diretório
+corrente: rode os testes a partir de `backend/`.
+
+```powershell
+dotnet build backend/Applada.slnx -warnaserror
+dotnet format backend/Applada.slnx --verify-no-changes
+cd backend; dotnet test --solution Applada.slnx                        # todos
+cd backend; dotnet test --solution Applada.slnx --filter-class "*HealthTests"   # filtro por classe
+```
 
 ## 4. Arquitetura — regras invioláveis
 

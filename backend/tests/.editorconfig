@@ -1,0 +1,3 @@
+[*.cs]
+# Nomes de teste usam underscores (Metodo_resultado)
+dotnet_diagnostic.CA1707.severity = none

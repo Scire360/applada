@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Applada.Api/Applada.Api.csproj" />
+    <Project Path="src/Applada.ServiceDefaults/Applada.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Integration/Applada.Api.IntegrationTests/Applada.Api.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
