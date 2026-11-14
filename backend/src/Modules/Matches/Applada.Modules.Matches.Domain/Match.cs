@@ -81,7 +81,8 @@ public sealed class Match
             errors.Add("startsAt", $"O início deve estar no futuro, até {MatchLimits.MaxDaysAhead} dias a partir de agora.");
         }
 
-        if (string.IsNullOrWhiteSpace(data.TimeZone) || !TimeZoneInfo.TryFindSystemTimeZoneById(data.TimeZone, out _))
+        var timeZone = CanonicalIanaTimeZone(data.TimeZone);
+        if (timeZone is null)
         {
             errors.Add("timeZone", "Informe um fuso horário IANA válido (ex.: America/Sao_Paulo).");
         }
@@ -110,7 +111,7 @@ public sealed class Match
             Title = title!,
             LocationText = locationText,
             StartsAt = data.StartsAt.ToUniversalTime(),
-            TimeZone = data.TimeZone,
+            TimeZone = timeZone!,
             DurationMinutes = data.DurationMinutes,
             Capacity = data.Capacity,
             Visibility = MatchVisibility.Public,
@@ -330,6 +331,25 @@ public sealed class Match
         return Result.Success();
     }
 
+    /// <summary>
+    /// Id IANA canônico do fuso, ou <c>null</c> se inválido. Recusa ids do Windows (<see cref="TimeZoneInfo.HasIanaId"/>
+    /// falso) e variações de caixa: no Windows o cache do <see cref="TimeZoneInfo"/> ignora caixa depois da primeira
+    /// busca canônica, então só a comparação exata com <see cref="TimeZoneInfo.Id"/> dá o mesmo resultado em qualquer
+    /// sistema e estado de cache.
+    /// </summary>
+    private static string? CanonicalIanaTimeZone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)
+            || !TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone)
+            || !zone.HasIanaId
+            || !string.Equals(zone.Id, id, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return zone.Id;
+    }
+
     /// <summary>Partida cancelada ou já iniciada não aceita alteração (nessa ordem de checagem).</summary>
     private Error? CheckOpen(DateTimeOffset now)
     {
@@ -384,6 +404,12 @@ public sealed class Match
                 return null;
             }
 
+            if (HasControlChars(trimmed))
+            {
+                Add("title", "O título não pode conter caracteres de controle.");
+                return null;
+            }
+
             return trimmed;
         }
 
@@ -402,8 +428,17 @@ public sealed class Match
                 return null;
             }
 
+            if (HasControlChars(trimmed))
+            {
+                Add("locationText", "O local não pode conter caracteres de controle.");
+                return null;
+            }
+
             return trimmed;
         }
+
+        // O PostgreSQL recusa U+0000 em text (22021) e os demais não têm uso em texto exibido: viram 400, não 500.
+        private static bool HasControlChars(string value) => value.Any(char.IsControl);
 
         public void Capacity(int value)
         {

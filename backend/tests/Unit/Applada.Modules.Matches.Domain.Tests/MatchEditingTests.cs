@@ -87,6 +87,26 @@ public sealed class MatchEditingTests
         Assert.Equal(1, match.Version);
     }
 
+    [Theory]
+    [InlineData("title", "Pelada\u0000")]
+    [InlineData("title", "Pelada \u0007 de quinta")]
+    [InlineData("locationText", "\u0000")]
+    [InlineData("locationText", "Quadra\u0007 do bairro")]
+    public void Edit_rejects_control_characters(string field, string value)
+    {
+        var match = CreateMatch();
+
+        var result = field == "title"
+            ? match.ChangeDetails(OrganizerId, match.Version, value, null, null, NoWaitlist, Now)
+            : match.ChangeDetails(OrganizerId, match.Version, null, value, null, NoWaitlist, Now);
+
+        AssertError(result, "validation", ErrorKind.Validation);
+        Assert.Equal([field], result.Error.Fields!.Keys);
+        Assert.Equal("Pelada de quinta", match.Title);
+        Assert.Equal("Quadra do bairro", match.LocationText);
+        Assert.Equal(1, match.Version);
+    }
+
     [Fact]
     public void Reduce_capacity_below_confirmed_fails()
     {

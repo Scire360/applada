@@ -47,6 +47,11 @@ public sealed class MatchCreationTests
         { "timeZone", ValidNewMatch() with { TimeZone = "Mars/Base" } },
         { "visibility", ValidNewMatch() with { Visibility = "private" } },
         { "locationText", ValidNewMatch() with { LocationText = new string('a', 201) } },
+        { "timeZone", ValidNewMatch() with { TimeZone = "E. South America Standard Time" } },
+        { "title", ValidNewMatch() with { Title = "Pelada\u0000" } },
+        { "title", ValidNewMatch() with { Title = "Pelada \u0007 de quinta" } },
+        { "locationText", ValidNewMatch() with { LocationText = "\u0000" } },
+        { "locationText", ValidNewMatch() with { LocationText = "Quadra\u0007 do bairro" } },
     };
 
     [Theory]
@@ -154,6 +159,30 @@ public sealed class MatchCreationTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(timeZone, result.Value.TimeZone);
+    }
+
+    [Theory]
+    [InlineData("UTC")]
+    [InlineData("Etc/UTC")]
+    public void Accepts_UTC_and_Etc_UTC(string timeZone)
+    {
+        var result = Match.Create(ValidNewMatch() with { TimeZone = timeZone }, OrganizerId, Now);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(timeZone, result.Value.TimeZone);
+    }
+
+    [Fact]
+    public void Time_zone_with_non_canonical_casing_is_rejected()
+    {
+        // No Windows, depois que America/Sao_Paulo entra no cache do TimeZoneInfo, "america/sao_paulo" passa a ser
+        // achado (o cache ignora caixa); antes disso, e no Linux, não. Aquecer o cache aqui reproduz o pior caso;
+        // exigir o id canônico exato deixa o resultado igual em qualquer sistema e estado de cache.
+        _ = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+
+        var result = Match.Create(ValidNewMatch() with { TimeZone = "america/sao_paulo" }, OrganizerId, Now);
+
+        AssertValidation(result, "timeZone");
     }
 
     private static void AssertValidation(Result<Match> result, string field)
