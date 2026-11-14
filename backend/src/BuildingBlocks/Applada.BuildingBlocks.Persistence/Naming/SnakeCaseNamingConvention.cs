@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 namespace Applada.BuildingBlocks.Persistence.Naming;
 
 /// <summary>
-/// Converte para snake_case os nomes de tabela, coluna, chave, FK e índice que o EF Core
-/// gera por convenção. Nomes configurados explicitamente (<c>ToTable</c>, <c>HasColumnName</c>,
-/// <c>HasName</c>, <c>HasConstraintName</c>, <c>HasDatabaseName</c> ou data annotations) são mantidos:
-/// só reescrevemos quando a origem da configuração é nula (nome padrão) ou <see cref="ConfigurationSource.Convention"/>.
+/// Converte para snake_case os nomes de tabela, coluna, chave, FK e Ã­ndice que o EF Core
+/// gera por convenÃ§Ã£o. Nomes configurados explicitamente (<c>ToTable</c>, <c>HasColumnName</c>,
+/// <c>HasName</c>, <c>HasConstraintName</c>, <c>HasDatabaseName</c> ou data annotations) sÃ£o mantidos:
+/// sÃ³ reescrevemos quando a origem da configuraÃ§Ã£o Ã© nula (nome padrÃ£o) ou <see cref="ConfigurationSource.Convention"/>.
 /// </summary>
 internal sealed class SnakeCaseNamingConvention : IModelFinalizingConvention
 {
@@ -20,7 +20,7 @@ internal sealed class SnakeCaseNamingConvention : IModelFinalizingConvention
     {
         var entityTypes = modelBuilder.Metadata.GetEntityTypes().ToList();
 
-        // Tabelas e colunas primeiro: nomes padrão de chave, FK e índice derivam deles.
+        // Tabelas e colunas primeiro: nomes padrÃ£o de chave, FK e Ã­ndice derivam deles.
         foreach (var entityType in entityTypes)
         {
             RenameTable(entityType);
@@ -75,6 +75,13 @@ internal sealed class SnakeCaseNamingConvention : IModelFinalizingConvention
 
     private static void RenameTable(IConventionEntityType entityType)
     {
+        // Tipos derivados (TPH) e owned types em table splitting herdam a tabela do tipo raiz/dono,
+        // que é renomeada (ou preservada, se explícita) na própria vez dele.
+        if (entityType.BaseType is not null || SharesOwnerTable(entityType))
+        {
+            return;
+        }
+
         var tableName = entityType.GetTableName();
         if (tableName is null || !IsOverridable(entityType.GetTableNameConfigurationSource()))
         {
@@ -82,6 +89,12 @@ internal sealed class SnakeCaseNamingConvention : IModelFinalizingConvention
         }
 
         entityType.Builder.ToTable(ToSnakeCase(tableName));
+    }
+
+    private static bool SharesOwnerTable(IConventionEntityType entityType)
+    {
+        var owner = entityType.FindOwnership()?.PrincipalEntityType;
+        return owner is not null && entityType.GetTableName() == owner.GetTableName();
     }
 
     private static void RenameColumns(IConventionEntityType entityType)

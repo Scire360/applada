@@ -64,6 +64,61 @@ public sealed class SnakeCaseNamingTests
         Assert.Equal("other_value", entity.FindProperty(nameof(LegacyEntity.OtherValue))!.GetColumnName(table));
     }
 
+    [Fact]
+    public void Owned_type_shares_conventional_owner_table()
+    {
+        var order = Entity<Order>();
+        var owned = order.FindNavigation(nameof(Order.ShippingAddress))!.TargetEntityType;
+
+        Assert.Equal("orders", order.GetTableName());
+        Assert.Equal("orders", owned.GetTableName());
+    }
+
+    [Fact]
+    public void Owned_type_stays_in_explicit_owner_table()
+    {
+        var owner = Entity<LegacyOwner>();
+        var owned = owner.FindNavigation(nameof(LegacyOwner.Address))!.TargetEntityType;
+        var table = StoreObjectIdentifier.Table("LegacyOwners");
+
+        Assert.Equal("LegacyOwners", owner.GetTableName());
+        Assert.Equal("LegacyOwners", owned.GetTableName());
+        Assert.Equal("address_street_name", owned.FindProperty(nameof(Address.StreetName))!.GetColumnName(table));
+    }
+
+    [Fact]
+    public void Derived_tph_type_stays_in_explicit_root_table()
+    {
+        var root = Entity<Animal>();
+        var derived = Entity<Dog>();
+
+        Assert.Equal("LegacyAnimals", root.GetTableName());
+        Assert.Equal("LegacyAnimals", derived.GetTableName());
+        Assert.Equal("breed", derived.FindProperty(nameof(Dog.Breed))!.GetColumnName(StoreObjectIdentifier.Table("LegacyAnimals")));
+    }
+
+    [Fact]
+    public void Schema_is_left_intact()
+    {
+        using var schemaContext = new SchemaContext();
+        var conventional = schemaContext.Model.FindEntityType(typeof(SampleEntity))!;
+        var explicitSchema = Entity<SchemaEntity>();
+
+        Assert.Equal("matches", conventional.GetSchema());
+        Assert.Equal("sample_entities", conventional.GetTableName());
+        Assert.Equal("identity", explicitSchema.GetSchema());
+        Assert.Equal("SchemaEntities", explicitSchema.GetTableName());
+    }
+
+    [Fact]
+    public void Explicit_key_and_index_names_are_kept()
+    {
+        var entity = Entity<SchemaEntity>();
+
+        Assert.Equal("PK_Custom", entity.FindPrimaryKey()!.GetName());
+        Assert.Equal("IX_Custom", entity.GetIndexes().Single().GetDatabaseName());
+    }
+
     private static IEntityType Entity<T>()
     {
         using var context = new SampleContext();
@@ -76,6 +131,9 @@ public sealed class SnakeCaseNamingTests
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderLine> OrderLines => Set<OrderLine>();
         public DbSet<LegacyEntity> Legacy => Set<LegacyEntity>();
+        public DbSet<LegacyOwner> LegacyOwners => Set<LegacyOwner>();
+        public DbSet<Animal> Animals => Set<Animal>();
+        public DbSet<SchemaEntity> SchemaEntities => Set<SchemaEntity>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
             optionsBuilder.UseNpgsql("Host=localhost;Database=unused");
@@ -86,12 +144,43 @@ public sealed class SnakeCaseNamingTests
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Order>().OwnsOne(o => o.ShippingAddress);
+            modelBuilder.Entity<LegacyOwner>(b =>
+            {
+                b.ToTable("LegacyOwners");
+                b.OwnsOne(o => o.Address);
+            });
+            modelBuilder.Entity<Animal>(b =>
+            {
+                b.ToTable("LegacyAnimals");
+                b.HasDiscriminator<string>("Kind").HasValue<Animal>("animal").HasValue<Dog>("dog");
+            });
+            modelBuilder.Entity<Dog>();
+            modelBuilder.Entity<SchemaEntity>(b =>
+            {
+                b.ToTable("SchemaEntities", "identity");
+                b.HasKey(e => e.Id).HasName("PK_Custom");
+                b.HasIndex(e => e.Code).HasDatabaseName("IX_Custom");
+            });
             modelBuilder.Entity<LegacyEntity>(b =>
             {
                 b.ToTable("LegacyTable");
                 b.Property(e => e.SomeValue).HasColumnName("LegacyCol");
             });
         }
+    }
+
+    private sealed class SchemaContext : DbContext
+    {
+        public DbSet<SampleEntity> SampleEntities => Set<SampleEntity>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+            optionsBuilder.UseNpgsql("Host=localhost;Database=unused");
+
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+            configurationBuilder.UseSnakeCaseNames();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+            modelBuilder.HasDefaultSchema("matches");
     }
 
     private sealed class SampleEntity
@@ -116,6 +205,28 @@ public sealed class SnakeCaseNamingTests
         public Guid Id { get; set; }
         public Guid OrderId { get; set; }
         public Order? Order { get; set; }
+    }
+
+    private sealed class LegacyOwner
+    {
+        public Guid Id { get; set; }
+        public Address Address { get; set; } = new();
+    }
+
+    private class Animal
+    {
+        public Guid Id { get; set; }
+    }
+
+    private sealed class Dog : Animal
+    {
+        public string Breed { get; set; } = "";
+    }
+
+    private sealed class SchemaEntity
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = "";
     }
 
     private sealed class LegacyEntity
