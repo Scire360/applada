@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Applada.ServiceDefaults\Applada.ServiceDefaults.csproj" />
     <ProjectReference Include="..\BuildingBlocks\Applada.BuildingBlocks.Messaging\Applada.BuildingBlocks.Messaging.csproj" />
     <ProjectReference Include="..\Modules\Identity\Applada.Modules.Identity\Applada.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Modules\Matches\Applada.Modules.Matches.Infrastructure\Applada.Modules.Matches.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

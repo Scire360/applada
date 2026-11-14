@@ -14,7 +14,9 @@
     <Project Path="src/Modules/Identity/Applada.Modules.Identity.Contracts/Applada.Modules.Identity.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Matches/">
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Application/Applada.Modules.Matches.Application.csproj" />
     <Project Path="src/Modules/Matches/Applada.Modules.Matches.Domain/Applada.Modules.Matches.Domain.csproj" />
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Infrastructure/Applada.Modules.Matches.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Architecture/Applada.Architecture.Tests/Applada.Architecture.Tests.csproj" />
