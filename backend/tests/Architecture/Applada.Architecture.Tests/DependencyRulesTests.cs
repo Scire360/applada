@@ -132,7 +132,7 @@ public class DependencyRulesTests
         // Referência direta, não só transitiva: um projeto que some da lista escaparia sem ninguém notar.
         var csproj = Path.Combine(FindBackendRoot(), "tests", "Architecture", "Applada.Architecture.Tests", "Applada.Architecture.Tests.csproj");
         var referenced = System.Xml.Linq.XDocument.Load(csproj).Descendants("ProjectReference")
-            .Select(e => Path.GetFileNameWithoutExtension((string?)e.Attribute("Include") ?? string.Empty))
+            .Select(e => ProjectNameFromInclude((string?)e.Attribute("Include") ?? string.Empty))
             .ToHashSet(StringComparer.Ordinal);
 
         var missing = expected.Where(name => !loaded.Contains(name) || !referenced.Contains(name)).ToArray();
@@ -147,6 +147,17 @@ public class DependencyRulesTests
             .Where(path => !Path.GetFileNameWithoutExtension(path).EndsWith("Tests", StringComparison.Ordinal))
             .Select(System.Reflection.Assembly.LoadFrom)
             .ToArray());
+
+    /// <summary>Nome do projeto de um <c>Include</c> do csproj, que usa <c>\</c> mesmo quando o teste roda em Linux.</summary>
+    internal static string ProjectNameFromInclude(string include) =>
+        Path.GetFileNameWithoutExtension(include[(include.LastIndexOfAny(['\\', '/']) + 1)..]);
+
+    [Theory]
+    [InlineData(@"..\..\..\src\Applada.Api\Applada.Api.csproj", "Applada.Api")]
+    [InlineData("../../../src/Applada.Api/Applada.Api.csproj", "Applada.Api")]
+    [InlineData("Applada.Api.csproj", "Applada.Api")]
+    public void ProjectNameFromInclude_handles_both_path_separators(string include, string expected) =>
+        Assert.Equal(expected, ProjectNameFromInclude(include));
 
     private static string FindBackendRoot()
     {
