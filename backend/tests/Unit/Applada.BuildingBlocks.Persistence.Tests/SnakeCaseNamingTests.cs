@@ -98,6 +98,28 @@ public sealed class SnakeCaseNamingTests
     }
 
     [Fact]
+    public void Derived_tpt_type_gets_own_snake_case_table()
+    {
+        var root = Entity<Vehicle>();
+        var derived = Entity<Car>();
+
+        Assert.Equal("vehicles", root.GetTableName());
+        Assert.Equal("car", derived.GetTableName());
+        Assert.Equal("door_count", derived.FindProperty(nameof(Car.DoorCount))!.GetColumnName(StoreObjectIdentifier.Table("car")));
+    }
+
+    [Fact]
+    public void Derived_tpc_type_gets_own_snake_case_table()
+    {
+        var root = Entity<Shape>();
+        var derived = Entity<Circle>();
+
+        Assert.Equal("shapes", root.GetTableName());
+        Assert.Equal("circle", derived.GetTableName());
+        Assert.Equal("radius_length", derived.FindProperty(nameof(Circle.RadiusLength))!.GetColumnName(StoreObjectIdentifier.Table("circle")));
+    }
+
+    [Fact]
     public void Schema_is_left_intact()
     {
         using var schemaContext = new SchemaContext();
@@ -134,6 +156,8 @@ public sealed class SnakeCaseNamingTests
         public DbSet<LegacyOwner> LegacyOwners => Set<LegacyOwner>();
         public DbSet<Animal> Animals => Set<Animal>();
         public DbSet<SchemaEntity> SchemaEntities => Set<SchemaEntity>();
+        public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+        public DbSet<Shape> Shapes => Set<Shape>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
             optionsBuilder.UseNpgsql("Host=localhost;Database=unused");
@@ -155,6 +179,10 @@ public sealed class SnakeCaseNamingTests
                 b.HasDiscriminator<string>("Kind").HasValue<Animal>("animal").HasValue<Dog>("dog");
             });
             modelBuilder.Entity<Dog>();
+            modelBuilder.Entity<Vehicle>().UseTptMappingStrategy();
+            modelBuilder.Entity<Car>();
+            modelBuilder.Entity<Shape>().UseTpcMappingStrategy();
+            modelBuilder.Entity<Circle>();
             modelBuilder.Entity<SchemaEntity>(b =>
             {
                 b.ToTable("SchemaEntities", "identity");
@@ -221,6 +249,26 @@ public sealed class SnakeCaseNamingTests
     private sealed class Dog : Animal
     {
         public string Breed { get; set; } = "";
+    }
+
+    private class Vehicle
+    {
+        public Guid Id { get; set; }
+    }
+
+    private sealed class Car : Vehicle
+    {
+        public int DoorCount { get; set; }
+    }
+
+    private class Shape
+    {
+        public Guid Id { get; set; }
+    }
+
+    private sealed class Circle : Shape
+    {
+        public int RadiusLength { get; set; }
     }
 
     private sealed class SchemaEntity
