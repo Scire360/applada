@@ -2,10 +2,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <!-- Só para o dotnet ef (projeto de startup das migrations); não flui para quem referencia a API. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Applada.ServiceDefaults\Applada.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Modules\Identity\Applada.Modules.Identity\Applada.Modules.Identity.csproj" />
   </ItemGroup>
 
 </Project>

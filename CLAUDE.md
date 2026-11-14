@@ -40,6 +40,19 @@ cd backend; dotnet test --solution Applada.slnx                        # todos
 cd backend; dotnet test --solution Applada.slnx --filter-class "*HealthTests"   # filtro por classe
 ```
 
+Migrations (EF Core): `dotnet-ef` é ferramenta local (`backend/.config/dotnet-tools.json`), então
+rode a partir de `backend/`. O startup é a API; cada `DbContext` tem uma factory de design-time, sem
+banco nem configuração. Pasta `Migrations` é marcada como código gerado (`backend/src/.editorconfig`).
+
+```powershell
+cd backend; dotnet tool restore
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext
+```
+
+Com `Database:ApplyMigrationsOnStartup=true` (dev e testes) cada módulo aplica as próprias migrations
+na subida; em produção a flag fica `false`.
+
 ## 4. Arquitetura — regras invioláveis
 
 Monólito modular orientado a eventos (`backend/src/Modules/*`). Microservices só com métricas.

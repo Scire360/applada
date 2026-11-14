@@ -1,0 +1,4 @@
+# Migrations do EF Core são geradas pelo dotnet ef (pasta Infrastructure/Migrations de cada módulo):
+# analisadores e dotnet format as tratam como código gerado e não exigem estilo nelas.
+[**/Migrations/*.cs]
+generated_code = true

@@ -65,11 +65,17 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
                 options.TokenValidationParameters.IssuerSigningKey = TestJwt.SigningKey;
                 // O JwtBearer valida lifetime com o relógio do sistema, não com o TimeProvider da DI.
+                // Com um LifetimeValidator próprio o IdentityModel não aplica RequireExpirationTime: repetido aqui.
                 options.TokenValidationParameters.LifetimeValidator = (notBefore, expires, _, parameters) =>
                 {
+                    if (expires is null)
+                    {
+                        return !parameters.RequireExpirationTime;
+                    }
+
                     var now = Clock.GetUtcNow().UtcDateTime;
                     return (notBefore is null || notBefore.Value - parameters.ClockSkew <= now)
-                        && (expires is null || now < expires.Value + parameters.ClockSkew);
+                        && now < expires.Value + parameters.ClockSkew;
                 };
                 options.TokenValidationParameters.ValidIssuer = TestJwt.Issuer;
                 options.TokenValidationParameters.ValidAudience = TestJwt.Audience;
