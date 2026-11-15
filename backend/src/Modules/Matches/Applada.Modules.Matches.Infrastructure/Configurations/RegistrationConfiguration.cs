@@ -24,6 +24,9 @@ internal sealed class RegistrationConfiguration : IEntityTypeConfiguration<Regis
         registration.HasOne<Match>().WithMany().HasForeignKey(r => r.MatchId).OnDelete(DeleteBehavior.Restrict);
 
         registration.HasIndex(r => new { r.MatchId, r.UserId }).IsUnique();
+        // Defesa em profundidade: a ordem FIFO e o cursor de participantes contam com queue_seq único na partida
+        // (o domínio já garante via Match.NextQueueSeq; a reinscrição recebe um valor novo).
+        registration.HasIndex(r => new { r.MatchId, r.QueueSeq }).IsUnique();
         // Promoção da espera e listagem de participantes.
         registration.HasIndex(r => new { r.MatchId, r.Status, r.QueueSeq });
         // "Minhas partidas" como participante.

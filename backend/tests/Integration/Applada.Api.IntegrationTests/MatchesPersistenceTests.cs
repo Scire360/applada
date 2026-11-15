@@ -53,6 +53,25 @@ public class MatchesPersistenceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Unique_queue_seq_per_match()
+    {
+        // Defesa em profundidade: a ordem FIFO e o cursor de participantes dependem de queue_seq único na partida.
+        var matchId = await CreateMatchAsync(userIdsToRegister: [Guid.CreateVersion7()]);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        var existingSeq = await db.Registrations.Where(r => r.MatchId == matchId).Select(r => r.QueueSeq).SingleAsync(Ct);
+        var now = factory.Clock.GetUtcNow();
+        var ex = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlAsync($"""
+            INSERT INTO matches.registrations (id, match_id, user_id, status, queue_seq, created_at, updated_at)
+            VALUES ({Guid.CreateVersion7()}, {matchId}, {Guid.CreateVersion7()}, 'waitlisted', {existingSeq}, {now}, {now})
+            """, Ct));
+
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
+        Assert.Equal("ix_registrations_match_id_queue_seq", ex.ConstraintName);
+    }
+
+    [Fact]
     public async Task Lock_timeout_maps_to_lock_timeout_error()
     {
         var matchId = await CreateMatchAsync();

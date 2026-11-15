@@ -261,6 +261,10 @@ namespace Applada.Modules.Matches.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_registrations");
 
+                    b.HasIndex("MatchId", "QueueSeq")
+                        .IsUnique()
+                        .HasDatabaseName("ix_registrations_match_id_queue_seq");
+
                     b.HasIndex("MatchId", "UserId")
                         .IsUnique()
                         .HasDatabaseName("ix_registrations_match_id_user_id");

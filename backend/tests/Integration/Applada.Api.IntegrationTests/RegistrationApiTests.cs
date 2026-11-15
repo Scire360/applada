@@ -85,6 +85,33 @@ public class RegistrationApiTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Reentry_after_withdrawal_reuses_the_row_with_a_new_queue_seq()
+    {
+        using var organizer = await NewUserAsync(factory);
+        using var player = await NewUserAsync(factory);
+        using var other = await NewUserAsync(factory);
+        var matchId = await CreateMatchAsync(organizer.Client, factory.Clock.GetUtcNow().AddDays(2), capacity: 1);
+        await RegisterExpectingAsync(player.Client, matchId, HttpStatusCode.Created);
+        await RegisterExpectingAsync(other.Client, matchId, HttpStatusCode.Created);
+        var before = (await ReadStateAsync(factory.Services, matchId)).Rows.Single(r => r.UserId == player.Id);
+        using (var withdrawn = await WithdrawAsync(player.Client, matchId))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, withdrawn.StatusCode);
+        }
+
+        // Volta para o fim da fila (o outro foi promovido): mesma linha, queue_seq novo, sem bater no UNIQUE(match_id, queue_seq).
+        Assert.Equal(("waitlisted", (int?)1), await RegisterExpectingAsync(player.Client, matchId, HttpStatusCode.Created));
+
+        var state = await ReadStateAsync(factory.Services, matchId);
+        AssertConsistent(state);
+        Assert.Equal(2, state.Rows.Count);
+        var after = state.Rows.Single(r => r.UserId == player.Id);
+        Assert.True(after.QueueSeq > state.Rows.Single(r => r.UserId == other.Id).QueueSeq);
+        Assert.NotEqual(before.QueueSeq, after.QueueSeq);
+        Assert.Equal(state.Rows.Count, state.Rows.Select(r => r.QueueSeq).Distinct().Count());
+    }
+
+    [Fact]
     public async Task Withdraw_waitlisted_leaves_without_promoting()
     {
         using var organizer = await NewUserAsync(factory);
