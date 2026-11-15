@@ -29,7 +29,9 @@ public static class MatchesInfrastructure
 
         services.AddOptions<MatchesPersistenceOptions>()
             .Bind(configuration.GetSection(MatchesPersistenceOptions.SectionName))
-            .Validate(o => o.LockTimeout >= TimeSpan.FromMilliseconds(1), "Matches:LockTimeout deve ser de pelo menos 1 ms.")
+            .Validate(
+                o => o.LockTimeout >= MatchesPersistenceOptions.MinLockTimeout && o.LockTimeout <= MatchesPersistenceOptions.MaxLockTimeout,
+                "Matches:LockTimeout deve ficar entre 1 ms e 1 minuto.")
             .ValidateOnStart();
 
         services.TryAddSingleton(TimeProvider.System);

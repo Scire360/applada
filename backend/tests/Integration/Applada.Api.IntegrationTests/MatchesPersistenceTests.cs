@@ -287,6 +287,80 @@ public class MatchesPersistenceTests(ApiFactory factory)
         Assert.Equal(0, await CountMatchesAsync(duplicateMatchId));
     }
 
+    [Fact]
+    public async Task Execute_reads_the_locked_row_even_when_the_scope_tracked_an_older_copy()
+    {
+        var matchId = await CreateMatchAsync();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        var tracked = await db.Matches.SingleAsync(m => m.Id == matchId, Ct);
+        Assert.Equal("Pelada de teste", tracked.Title);
+
+        // Outra conexão muda a linha depois da leitura rastreada (sem lock) feita neste escopo.
+        await using (var other = new NpgsqlConnection(ConnectionString))
+        {
+            await other.OpenAsync(Ct);
+            await using var update = new NpgsqlCommand("UPDATE matches.matches SET title = $1 WHERE id = $2", other);
+            update.Parameters.Add(new NpgsqlParameter { Value = "Alterado por fora" });
+            update.Parameters.Add(new NpgsqlParameter { Value = matchId });
+            Assert.Equal(1, await update.ExecuteNonQueryAsync(Ct));
+        }
+
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+        var result = await unitOfWork.ExecuteAsync<string>(
+            async (session, ct) => (await session.GetMatchForUpdateAsync(matchId, ct))!.Title,
+            Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Alterado por fora", result.Value);
+    }
+
+    [Fact]
+    public async Task Execute_refuses_pending_changes_made_outside_the_unit_of_work()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        var outside = NewMatch();
+        db.Matches.Add(outside);
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+        var reachedWork = false;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteAsync<bool>(
+            (_, _) =>
+            {
+                reachedWork = true;
+                return Task.FromResult<Result<bool>>(true);
+            },
+            Ct));
+
+        Assert.False(reachedWork);
+        Assert.Equal(0, await CountMatchesAsync(outside.Id));
+    }
+
+    [Fact]
+    public async Task Unique_violation_on_another_constraint_propagates_as_db_update_exception()
+    {
+        var userId = Guid.CreateVersion7();
+        var matchId = await CreateMatchAsync(userIdsToRegister: [userId]);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => unitOfWork.ExecuteAsync<bool>(
+            async (session, ct) =>
+            {
+                var match = await session.GetMatchForUpdateAsync(matchId, ct);
+                // Sem a inscrição existente, o domínio cria outra linha para o mesmo usuário: 23505 no UNIQUE(match_id, user_id).
+                session.AddRegistration(match!.Register(userId, null, factory.Clock.GetUtcNow()).Value.Registration);
+                return true;
+            },
+            Ct));
+
+        var postgres = Assert.IsType<PostgresException>(ex.InnerException);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
+        Assert.Equal("ix_registrations_match_id_user_id", postgres.ConstraintName);
+    }
+
     private string ConnectionString =>
         factory.Services.GetRequiredService<IConfiguration>().GetConnectionString("applada")!;
 
