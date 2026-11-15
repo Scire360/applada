@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
 import { MatchSchedule, type ScheduledMatch } from "@/components/match-demo";
+import campo from "./campo.module.css";
 
 const matches: ScheduledMatch[] = [
   { date: "2026-11-19", title: "Quinta de futebol", time: "19h30 – 21h", place: "Arena Santa Cecília · Campo 2", confirmed: "14 / 18", state: "Inscrições abertas", status: "open" },
@@ -34,7 +35,7 @@ export default function MatchesPage() {
           </div>
         </section>
 
-        <section className="match-hero">
+        <section className={`match-hero ${campo.hero}`}>
           <div className="match-hero-copy">
             <span className="match-status"><span /> INSCRIÇÕES ABERTAS</span>
             <p className="eyebrow">QUINTA-FEIRA, 19 DE NOVEMBRO</p>
@@ -60,10 +61,11 @@ export default function MatchesPage() {
             </div>
             <Link className="button button-light" href="/jogadores">Ver jogadores <Icon name="arrow-right" /></Link>
           </div>
-          <div aria-hidden="true" className="match-hero-art">
-            <span className="hero-art-circle" />
-            <span className="hero-art-ball"><Icon name="football" /></span>
-            <span className="hero-art-caption">JOGAR<br />JUNTO</span>
+          <div aria-hidden="true" className={campo.art}>
+            <div className={campo.stadium}>
+              <span className={campo.pitch}><span className={campo.goal} /><span className={campo.goal} /></span>
+              <span className={campo.lens}><Icon name="football" /></span>
+            </div>
           </div>
         </section>
 

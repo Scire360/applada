@@ -1,0 +1,162 @@
+.hero {
+  view-timeline-name: --match-hero;
+  view-timeline-axis: block;
+}
+
+.art {
+  position: relative;
+  display: grid;
+  flex: 0 0 40%;
+  min-width: 0;
+  place-items: center;
+  overflow: clip;
+  isolation: isolate;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 57% 44%, #52885b 0%, transparent 63%),
+    linear-gradient(90deg, transparent, rgb(12 39 26 / 50%));
+}
+
+.stadium {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  perspective: 700px;
+}
+
+.pitch {
+  position: absolute;
+  bottom: -36%;
+  width: min(77%, 310px);
+  aspect-ratio: 5 / 7;
+  border: 1px solid #d7efb8;
+  border-radius: 8px;
+  background: repeating-linear-gradient(#31583d 0 12.5%, #3b6544 12.5% 25%);
+  box-shadow:
+    0 0 0 12px #1e5538,
+    0 0 0 13px #b3d898,
+    0 0 0 27px #183e31,
+    0 0 48px 17px rgb(15 39 27 / 65%);
+  transform: rotateX(55deg) rotateZ(-19deg) translateY(8%);
+  transform-origin: center 40%;
+}
+
+.pitch::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  border-top: 1px solid #d7efb8;
+  content: "";
+}
+
+.pitch::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 24%;
+  aspect-ratio: 1;
+  border: 1px solid #d7efb8;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  content: "";
+}
+
+.goal {
+  position: absolute;
+  left: 50%;
+  width: 48%;
+  height: 14%;
+  border: 1px solid #d7efb8;
+  transform: translateX(-50%);
+}
+
+.goal:first-child {
+  top: -1px;
+}
+
+.goal:last-child {
+  bottom: -1px;
+}
+
+.lens {
+  position: absolute;
+  top: 8%;
+  display: grid;
+  width: min(55%, 216px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgb(224 255 207 / 79%);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 37% 24%, rgb(235 255 205 / 22%), transparent 49%),
+    radial-gradient(ellipse at 65% 69%, rgb(188 238 147 / 21%), rgb(29 85 57 / 13%) 49%, rgb(191 230 165 / 34%) 72%);
+  box-shadow:
+    inset 0 0 4px 1px #deffc8,
+    inset 0 3px 22px rgb(212 252 173 / 53%),
+    inset 0 -15px 27px rgb(19 62 40 / 56%),
+    0 5px 3px rgb(17 49 37 / 38%),
+    0 20px 70px rgb(10 44 26 / 63%);
+  transform: rotateX(15deg) rotateY(-23deg);
+}
+
+.lens::before {
+  position: absolute;
+  inset: -4%;
+  border: 1px solid rgb(228 255 192 / 27%);
+  border-radius: 50%;
+  content: "";
+}
+
+.lens svg {
+  width: 41%;
+  height: auto;
+  color: #f7ffd9;
+  filter: drop-shadow(0 2px 8px #143d2c);
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .pitch,
+    .lens {
+      animation: 1s linear both;
+      animation-timeline: --match-hero;
+      animation-range: cover 48% cover 92%;
+    }
+
+    .pitch {
+      animation-name: pitch-dive;
+    }
+
+    .lens {
+      animation-name: lens-dive;
+    }
+  }
+}
+
+@keyframes pitch-dive {
+  from { transform: rotateX(55deg) rotateZ(-19deg) translateY(8%); }
+  to { transform: rotateX(28deg) rotateZ(-5deg) translateY(1%) scale(1.45); }
+}
+
+@keyframes lens-dive {
+  from { transform: rotateX(15deg) rotateY(-23deg); }
+  to { transform: rotateX(0) rotateY(0) scale(1.68); opacity: .26; }
+}
+
+@media (max-width: 640px) {
+  .art {
+    flex: auto;
+    min-height: 180px;
+    background: radial-gradient(ellipse at 52% 37%, #4a8153, transparent 68%);
+  }
+
+  .lens {
+    width: min(38%, 112px);
+  }
+
+  .pitch {
+    bottom: -72%;
+    width: min(60%, 162px);
+  }
+}
