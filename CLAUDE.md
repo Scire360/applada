@@ -55,6 +55,17 @@ cd backend; dotnet ef migrations script --idempotent --project src/Modules/Match
 Com `Database:ApplyMigrationsOnStartup=true` (dev e testes) cada módulo aplica as próprias migrations
 na subida; em produção a flag fica `false`.
 
+Ambiente local (Aspire, só dev; exige Docker): PostgreSQL/PostGIS, RabbitMQ (management), Keycloak
+(realm `infra/keycloak/applada-dev-realm.json`) e a API em Development. Dashboard em
+`http://localhost:15180` (o link com token sai no console), API em `http://localhost:5080`, Scalar em
+`http://localhost:5080/scalar/v1`, Keycloak em `http://localhost:8080`. A senha do admin do Keycloak é
+parâmetro secreto do AppHost (detalhes em `infra/keycloak/README.md`).
+
+```powershell
+dotnet user-secrets set "Parameters:keycloak-admin-password" "<senha-local>" --project backend/src/Applada.AppHost   # uma vez
+dotnet run --project backend/src/Applada.AppHost
+```
+
 ## 4. Arquitetura — regras invioláveis
 
 Monólito modular orientado a eventos (`backend/src/Modules/*`). Microservices só com métricas.

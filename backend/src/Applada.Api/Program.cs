@@ -1,5 +1,6 @@
 using Applada.Api.Errors;
 using Applada.Api.Health;
+using Applada.Api.OpenApi;
 using Applada.Api.Security;
 using Applada.BuildingBlocks.Messaging;
 using Applada.Modules.Identity;
@@ -17,6 +18,7 @@ builder.Services.AddApladaRateLimiting(builder.Configuration);
 builder.Services.AddRabbitMqPublisher(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddMatchesModule(builder.Configuration);
+builder.AddApladaDevelopmentOpenApi();
 builder.Services.AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgres", tags: [Extensions.ReadyTag], timeout: TimeSpan.FromSeconds(5))
     // Broker fora não tira a API do balanceador: escritas seguem e o outbox publica quando ele voltar.
@@ -34,6 +36,12 @@ app.UseRateLimiter();
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 app.MapMatchesEndpoints();
+
+// OpenAPI e Scalar só existem em Development; o teste DevelopmentSurfaceTests garante a ausência fora dele.
+if (app.Environment.IsDevelopment())
+{
+    app.MapApladaDevelopmentApiReference();
+}
 
 app.Run();
 

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Applada.Api/Applada.Api.csproj" />
+    <Project Path="src/Applada.AppHost/Applada.AppHost.csproj" />
     <Project Path="src/Applada.ServiceDefaults/Applada.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
