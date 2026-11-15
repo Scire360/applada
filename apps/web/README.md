@@ -33,6 +33,10 @@ O servidor web usa o client `applada-dev-web` com PKCE e mantém a sessão em me
 
 O contrato de Matches oferece partidas que o usuário organiza ou das quais participa. O fluxo usa links para abrir outras partidas por ID. Check-in, placar e votação seguem na demonstração.
 
+Em **Meu perfil**, o jogador salva seu próprio nome de exibição. O nome aparece na lista de participantes.
+A lista continua visível ao organizador e às inscrições ativas. Quem ainda não definiu um nome aparece
+pelo identificador.
+
 ## E2E de partida com uma vaga
 
 Com a API, o Keycloak e a web local ativos, conforme os passos acima, instale o Google Chrome e prepare
@@ -52,10 +56,15 @@ try {
 }
 ```
 
-O Playwright abre três sessões independentes no Chrome. O organizador cria uma partida com uma vaga.
-O teste verifica a confirmação do primeiro jogador, a entrada do segundo na fila e sua promoção após a
-saída do primeiro. A conta que saiu perde a lista na interface e recebe `403 participants-forbidden` pela API
-do frontend. A partida criada pelo teste é cancelada ao final. O registro cancelado fica no banco local.
+O Playwright abre três sessões independentes no Chrome. O segundo jogador salva um nome de exibição
+e o teste confirma que o nome persiste após recarregar a página. O organizador cria uma partida com uma vaga.
+O teste verifica a confirmação do primeiro jogador, o nome do segundo na lista de espera e sua promoção
+após a saída do primeiro. A conta que saiu perde a lista na interface e recebe
+`403 participants-forbidden` pela API do frontend.
+
+Ao final, o teste cancela sua partida e restaura o nome anterior do segundo jogador, se havia um.
+Se o perfil estava vazio, o nome sintético fica na conta de teste. O registro da partida cancelada fica no
+banco local.
 
 ## Verificações
 

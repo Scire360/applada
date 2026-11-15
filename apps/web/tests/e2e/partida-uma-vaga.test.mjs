@@ -60,28 +60,53 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   const browserEnv = { ...process.env };
   delete browserEnv.APPLADA_E2E_TEST_PASSWORD;
   const browser = await chromium.launch({ channel: "chrome", headless: true, env: browserEnv });
-  let organizer;
-  let matchId;
+  const cleanups = [];
 
   t.after(async () => {
     try {
-      if (matchId) {
-        const response = await organizer.page.request.post(`/api/local/matches/${matchId}/cancellation`, {
-          headers: { Origin: webOrigin },
-          timeout: waitTimeout,
-        });
-        assert.equal(response.status(), 200, `Cancelamento da partida de teste ${matchId}`);
-        assert.equal((await response.json()).status, "cancelled");
+      const results = await Promise.allSettled(cleanups.map((cleanup) => cleanup()));
+      const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+      if (failures.length > 0) {
+        throw new AggregateError(failures, "Falha na limpeza dos dados do E2E.");
       }
     } finally {
       await browser.close();
     }
   });
 
-  organizer = await signIn(browser, "jogador3.dev", password);
+  const organizer = await signIn(browser, "jogador3.dev", password);
   const first = await signIn(browser, "jogador1.dev", password);
   const second = await signIn(browser, "jogador2.dev", password);
   assert.equal(new Set([organizer.userId, first.userId, second.userId]).size, 3);
+
+  const profilePath = "/api/local/profile";
+  const profileBefore = await second.page.request.get(profilePath, { timeout: waitTimeout });
+  assert.equal(profileBefore.status(), 200);
+  const { displayName: previousName } = await profileBefore.json();
+  if (previousName !== null) {
+    cleanups.push(async () => {
+      const response = await second.page.request.put(profilePath, {
+        headers: { Origin: webOrigin },
+        data: { displayName: previousName },
+        timeout: waitTimeout,
+      });
+      assert.equal(response.status(), 200, "Restauração do nome de exibição do jogador de teste");
+      assert.equal((await response.json()).displayName, previousName);
+    });
+  }
+
+  const displayName = "Jogador da fila " + randomUUID().slice(0, 8);
+  const profileCard = second.page.getByRole("region", { name: "Meu perfil", exact: true });
+  const nameInput = profileCard.getByRole("textbox", { name: "Nome de exibição", exact: true });
+  await nameInput.fill(displayName);
+  const updatedProfile = await clickAndCheck(
+    second.page, profileCard.getByRole("button", { name: "Salvar nome", exact: true }), "PUT", profilePath, 200,
+  );
+  assert.equal((await updatedProfile.json()).displayName, displayName);
+  await profileCard.getByText("Nome de exibição salvo.", { exact: true }).waitFor({ state: "visible" });
+  await second.page.reload();
+  await nameInput.and(second.page.locator("input:enabled")).waitFor({ state: "visible" });
+  assert.equal(await nameInput.inputValue(), displayName);
 
   const title = `E2E vaga única ${randomUUID()}`;
   t.diagnostic(`Título reservado para o teste ${title}`);
@@ -99,7 +124,15 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   );
   const match = await created.json();
   assert.match(match.id, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i);
-  matchId = match.id;
+  const matchId = match.id;
+  cleanups.push(async () => {
+    const response = await organizer.page.request.post(`/api/local/matches/${matchId}/cancellation`, {
+      headers: { Origin: webOrigin },
+      timeout: waitTimeout,
+    });
+    assert.equal(response.status(), 200, `Cancelamento da partida de teste ${matchId}`);
+    assert.equal((await response.json()).status, "cancelled");
+  });
   assert.equal(match.capacity, 1);
 
   const details = `/api/local/matches/${matchId}`;
@@ -127,11 +160,14 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   const firstListButton = firstCard.getByRole("button", { name: "Ver participantes", exact: true });
   const visibleList = firstCard.getByRole("heading", { name: "Participantes", exact: true });
   const list = await clickAndCheck(first.page, firstListButton, "GET", registrations, 200);
-  assert.deepEqual((await list.json()).items.map(({ userId, status }) => [userId, status]), [
+  const participants = (await list.json()).items;
+  assert.deepEqual(participants.map(({ userId, status }) => [userId, status]), [
     [first.userId, "confirmed"],
     [second.userId, "waitlisted"],
   ]);
+  assert.equal(participants[1].displayName, displayName);
   await visibleList.waitFor({ state: "visible" });
+  await firstCard.getByRole("listitem").filter({ hasText: displayName }).waitFor({ state: "visible" });
 
   await clickAndCheck(
     first.page, firstCard.getByRole("button", { name: "Retirar inscrição", exact: true }), "DELETE", registrations + "/me", 204,
@@ -141,7 +177,9 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
 
   const denied = await first.page.request.get(registrations, { timeout: waitTimeout });
   assert.equal(denied.status(), 403, "O jogador que saiu não pode consultar os participantes");
-  assert.equal((await denied.json()).type, "urn:applada:problem:participants-forbidden");
+  const problem = await denied.json();
+  assert.equal(problem.type, "urn:applada:problem:participants-forbidden");
+  assert.equal(problem.items, undefined);
 
   const refreshed = await clickAndCheck(
     second.page, secondCard.getByRole("button", { name: "Atualizar partida", exact: true }), "GET", details, 200,
@@ -155,7 +193,7 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   const finalList = await clickAndCheck(
     second.page, secondCard.getByRole("button", { name: "Ver participantes", exact: true }), "GET", registrations, 200,
   );
-  assert.deepEqual((await finalList.json()).items.map(({ userId, status }) => [userId, status]), [
-    [second.userId, "confirmed"],
+  assert.deepEqual((await finalList.json()).items.map(({ userId, status, displayName }) => [userId, status, displayName]), [
+    [second.userId, "confirmed", displayName],
   ]);
 });

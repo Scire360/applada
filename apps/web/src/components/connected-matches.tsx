@@ -6,6 +6,7 @@ import {
   type MatchCreation, type MatchDetails, type MatchEdit, type MatchRole, type MatchSummary, type Page, type Participant,
 } from "@/lib/connected-matches";
 import { CreateConnectedMatch, EditConnectedMatch } from "./connected-match-forms";
+import { ConnectedProfile } from "./connected-profile";
 
 type Session = { userId: string };
 type Phase = "checking" | "disabled" | "signed-out" | "error" | "signed-in";
@@ -200,6 +201,13 @@ export function ConnectedMatches() {
     });
   }
 
+  function updateOwnParticipantName(displayName: string) {
+    setParticipants((current) => current && {
+      ...current,
+      items: current.items.map((item) => item.userId === session?.userId ? { ...item, displayName } : item),
+    });
+  }
+
   if (phase !== "signed-in") {
     return (
       <section className="surface-card connected-card" aria-labelledby="conexao">
@@ -235,6 +243,8 @@ export function ConnectedMatches() {
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
       </div>
 
+      <ConnectedProfile onSaved={updateOwnParticipantName} />
+
       {match && (
         <section className="surface-card connected-card" aria-labelledby="partida-selecionada" aria-busy={busy}>
           <div className="section-title-row">
@@ -265,7 +275,9 @@ export function ConnectedMatches() {
             <div className="connected-participants">
               <h3>Participantes</h3>
               {participants.items.length ? <ul>{participants.items.map((item) => (
-                <li key={item.userId}><code>{item.userId}</code> · {registrationLabel(item.status, item.position)}</li>
+                <li key={item.userId}>
+                  {item.displayName ?? <code>{item.userId}</code>} · {registrationLabel(item.status, item.position)}
+                </li>
               ))}</ul> : <p>Nenhuma inscrição ativa.</p>}
               {participants.nextCursor && <button className="button button-secondary" disabled={busy} onClick={() => void listParticipants(match.id, participants.nextCursor ?? undefined)} type="button">Mais participantes</button>}
             </div>

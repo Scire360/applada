@@ -6,6 +6,7 @@ type Context = { params: Promise<{ operation: string[] }> };
 function apiPath(operation: string[], method: string) {
   const [name, id, action, member] = operation;
   if (name === "session" && operation.length === 1 && method === "GET") return "/me";
+  if (name === "profile" && operation.length === 1 && (method === "GET" || method === "PUT")) return "/me/profile";
   if (name === "mine" && operation.length === 1 && method === "GET") return "/me/matches";
   if (name !== "matches") return null;
   if (operation.length === 1 && method === "POST") return "/matches";
@@ -19,7 +20,7 @@ function apiPath(operation: string[], method: string) {
   return null;
 }
 
-async function bodyForMatch(request: NextRequest) {
+async function readBoundedBody(request: NextRequest) {
   const maxBytes = 16 * 1024;
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
@@ -71,16 +72,19 @@ async function handle(request: NextRequest, { params }: Context) {
   const headers = new Headers({ Accept: "application/json, application/problem+json", Authorization: `Bearer ${token}` });
   try {
     let body: Uint8Array<ArrayBuffer> | undefined;
-    if (path === "/matches" || request.method === "PATCH") {
+    if (path === "/matches" || request.method === "PATCH" || request.method === "PUT") {
+      const profile = path === "/me/profile";
       const type = request.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
-      if (type !== "application/json") return localError(415, "Envie os dados da partida em JSON.");
-      const bounded = await bodyForMatch(request);
-      if (!bounded) return localError(413, "Os dados da partida podem ter até 16 KB.");
+      if (type !== "application/json") return localError(415, profile ? "Envie os dados do perfil em JSON." : "Envie os dados da partida em JSON.");
+      const bounded = await readBoundedBody(request);
+      if (!bounded) return localError(413, profile ? "Os dados do perfil podem ter até 16 KB." : "Os dados da partida podem ter até 16 KB.");
       body = bounded;
       headers.set("Content-Type", "application/json");
-      const key = request.method === "PATCH" ? "If-Match" : "Idempotency-Key";
-      const value = request.headers.get(key);
-      if (value) headers.set(key, value);
+      const key = request.method === "PATCH" ? "If-Match" : path === "/matches" ? "Idempotency-Key" : null;
+      if (key) {
+        const value = request.headers.get(key);
+        if (value) headers.set(key, value);
+      }
     }
     const backend = await fetch(upstream, {
       method: request.method,
@@ -106,4 +110,4 @@ async function handle(request: NextRequest, { params }: Context) {
   }
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PATCH, handle as PUT, handle as DELETE };

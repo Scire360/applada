@@ -20,7 +20,7 @@ export type MatchDetails = Omit<MatchSummary, "myStatus"> & {
   myRegistration: { status: RegistrationStatus; position: number | null } | null;
 };
 
-export type Participant = { userId: string; status: RegistrationStatus; position: number | null };
+export type Participant = { userId: string; status: RegistrationStatus; position: number | null; displayName: string | null };
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type MatchRole = "organizer" | "participant";
 export type MatchEdit = { title: string; locationText: string; capacity: number };
