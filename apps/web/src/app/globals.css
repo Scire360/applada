@@ -21,6 +21,7 @@
 html {
   min-width: 320px;
   scroll-behavior: smooth;
+  scroll-padding-block-start: 5rem;
 }
 
 body {
@@ -191,12 +192,6 @@ svg {
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.workspace-chevron {
-  width: 16px;
-  height: 16px;
-  color: #68746b;
 }
 
 .primary-nav {
@@ -1371,6 +1366,11 @@ svg {
   font-size: 11px;
 }
 
+.directory-search:focus-within {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
 .directory-search input::placeholder {
   color: #68746b;
 }
@@ -1607,6 +1607,11 @@ svg {
 .preview-field textarea:focus {
   border-color: #6d9476;
   outline: 3px solid #eaf2e9;
+}
+
+.preview-field :is(input, select, textarea):focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
 }
 
 .preview-form-actions {
@@ -2827,7 +2832,6 @@ svg {
 
   .brand-wordmark,
   .workspace-copy,
-  .workspace-chevron,
   .nav-heading,
   .nav-link > span,
   .sidebar-bottom {
@@ -2895,13 +2899,14 @@ svg {
   html {
     min-width: 0;
     overflow-x: hidden;
+    scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
   }
 
   .sidebar {
     position: fixed;
     inset: auto 0 0;
     width: 100%;
-    height: calc(66px + env(safe-area-inset-bottom));
+    min-height: calc(66px + env(safe-area-inset-bottom));
     flex-direction: row;
     justify-content: center;
     border-top: 1px solid #e7ebe7;
@@ -2928,12 +2933,15 @@ svg {
   }
 
   .nav-link {
-    width: 52px;
-    height: 48px;
+    flex: 1 1 0;
+    width: auto;
+    max-width: 80px;
+    height: auto;
     min-height: 48px;
     flex-direction: column;
     gap: 3px;
     border-radius: 11px;
+    padding: 4px 1px;
   }
 
   .nav-section {
@@ -2942,11 +2950,11 @@ svg {
 
   .nav-link > span {
     display: inline;
-    overflow: hidden;
-    max-width: 54px;
-    font-size: 9px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: .6875rem;
+    line-height: 1.15;
+    text-align: center;
   }
 
   .nav-link svg {
@@ -2960,7 +2968,7 @@ svg {
 
   .main-column {
     margin: 0;
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(max(76px, 4.75rem) + env(safe-area-inset-bottom));
   }
 
   .topbar {
@@ -2979,7 +2987,7 @@ svg {
 
   .preview-status {
     max-width: 127px;
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .avatar-light {
@@ -3009,7 +3017,7 @@ svg {
 
   .page-subtitle {
     max-width: 440px;
-    font-size: 12px;
+    font-size: .875rem;
   }
 
   .page-heading .button {
@@ -3348,6 +3356,16 @@ svg {
     gap: 11px;
   }
 
+  .directory-search input,
+  .preview-field :is(input, select, textarea) {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .game-event-undo {
+    min-height: 44px;
+  }
+
   .preview-field-wide {
     grid-column: auto;
   }
@@ -3361,7 +3379,10 @@ svg {
 @media (max-width: 380px) {
   .preview-status {
     max-width: 105px;
-    font-size: 8px;
+  }
+
+  .topbar .avatar-light {
+    display: none;
   }
 
   .breadcrumbs > span:first-child {
@@ -3388,6 +3409,21 @@ svg {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .topbar,
+  .post-image-mark {
+    backdrop-filter: none;
+  }
+
+  .topbar {
+    background: var(--surface);
+  }
+
+  .post-image-mark {
+    background: var(--green-dark);
   }
 }
 
@@ -3420,15 +3456,33 @@ svg {
   font-size: clamp(1.125rem, 2.5vw, 1.5rem);
 }
 
+.connected-card .section-title-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.connected-card .section-title-row > div {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.connected-card .section-title-row .quiet-label {
+  flex: none;
+}
+
 .connected-card p {
   color: var(--ink-soft);
   line-height: 1.55;
 }
 
 .connected-card form > p,
-.connected-organizer p,
-.connected-hint {
+.connected-organizer p {
   margin-bottom: 12px;
+}
+
+.connected-card .connected-hint {
+  margin: 10px 0 0;
 }
 
 .connected-card .button,
