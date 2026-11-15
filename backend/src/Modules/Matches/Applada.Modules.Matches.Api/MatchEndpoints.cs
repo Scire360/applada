@@ -12,6 +12,7 @@ using Applada.Modules.Matches.Application.UpdateMatch;
 using Applada.Modules.Matches.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,9 @@ internal static partial class MatchEndpoints
 {
     private const string BasePath = "/api/v1/matches";
     private const int IdempotencyKeyMaxLength = 100;
+
+    /// <summary>Limite do corpo das escritas: o maior corpo válido (título e local no limite, todo escapado) fica bem abaixo.</summary>
+    private const int MaxBodyBytes = 16 * 1024;
     private const string LoggerCategory = "Applada.Modules.Matches.Api.MatchEndpoints";
 
     public static IEndpointRouteBuilder MapMatchEndpoints(this IEndpointRouteBuilder endpoints)
@@ -117,9 +121,10 @@ internal static partial class MatchEndpoints
             var changes = body.Value!;
             result = await handler.HandleAsync(id, currentUser.UserId, expectedVersion, changes.Title, changes.LocationText, changes.Capacity, ct);
         }
-        catch (ArgumentException ex)
+        catch (MatchStateDivergenceException ex)
         {
-            // Contadores divergem das linhas de inscrição: integridade primeiro, a transação já foi desfeita e vira 500.
+            // Só a divergência contador × inscrições do domínio: integridade primeiro, a transação já foi desfeita e vira
+            // 500. Qualquer outra exceção sobe intocada (500 comum, logado pelo tratador global).
             LogStateDivergence(loggerFactory.CreateLogger(LoggerCategory), id, ex);
             throw;
         }
@@ -179,6 +184,7 @@ internal static partial class MatchEndpoints
     /// <summary>
     /// Lê o corpo JSON sem deixar erro de formato virar 500: JSON malformado, tipo errado ou texto inválido (como um
     /// surrogate isolado) vira 400 <c>validation</c>, com a chave do campo quando o erro aponta um campo conhecido.
+    /// Corpo acima de <see cref="MaxBodyBytes"/> vira 413, com ou sem <c>Content-Length</c>: nunca se lê além do limite.
     /// </summary>
     private static async Task<JsonBody<T>> ReadJsonAsync<T>(HttpRequest request, JsonSerializerOptions options, CancellationToken ct)
         where T : class
@@ -190,9 +196,33 @@ internal static partial class MatchEndpoints
                 title: "O corpo deve ser application/json."));
         }
 
+        if (request.ContentLength > MaxBodyBytes)
+        {
+            return new JsonBody<T>(null, PayloadTooLarge());
+        }
+
+        // Lê no máximo MaxBodyBytes + 1: o byte a mais só serve para saber que passou do limite.
+        var buffer = new byte[MaxBodyBytes + 1];
+        var length = 0;
+        while (length < buffer.Length)
+        {
+            var read = await request.Body.ReadAsync(buffer.AsMemory(length), ct);
+            if (read == 0)
+            {
+                break;
+            }
+
+            length += read;
+        }
+
+        if (length > MaxBodyBytes)
+        {
+            return new JsonBody<T>(null, PayloadTooLarge());
+        }
+
         try
         {
-            var value = await JsonSerializer.DeserializeAsync<T>(request.Body, options, ct);
+            var value = JsonSerializer.Deserialize<T>(buffer.AsSpan(0, length), options);
             return value is null
                 ? new JsonBody<T>(null, InvalidBody("body"))
                 : new JsonBody<T>(value, null);
@@ -202,6 +232,12 @@ internal static partial class MatchEndpoints
             return new JsonBody<T>(null, InvalidBody(FieldFromPath<T>(ex.Path, options)));
         }
     }
+
+    private static ProblemHttpResult PayloadTooLarge() =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status413PayloadTooLarge,
+            title: $"O corpo pode ter no máximo {MaxBodyBytes / 1024} KB.",
+            type: "urn:applada:problem:payload-too-large");
 
     private static IResult InvalidBody(string field) =>
         ProblemResults.From(MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)

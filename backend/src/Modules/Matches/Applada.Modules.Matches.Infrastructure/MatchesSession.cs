@@ -42,10 +42,24 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
         var record = await db.IdempotencyRecords
             .AsNoTracking()
             .SingleOrDefaultAsync(r => r.UserId == userId && r.Key == key, ct);
+        if (record is null)
+        {
+            return null;
+        }
 
-        return record is null
-            ? null
-            : new IdempotencyEntry(record.UserId, record.Key, record.RequestHash, record.StatusCode, record.ResponseBody);
+        var expiredBefore = timeProvider.GetUtcNow() - IdempotencyRecord.Retention;
+        if (record.CreatedAt >= expiredBefore)
+        {
+            return new IdempotencyEntry(record.UserId, record.Key, record.RequestHash, record.StatusCode, record.ResponseBody);
+        }
+
+        // Vencida: conta como ausente e sai da tabela nesta transação, para a chave poder ser gravada de novo (PK
+        // (user_id, key)). Rollback devolve a linha. Concorrência: quem chegar depois espera este DELETE, não acha a
+        // linha nova (fora do snapshot do comando), e o INSERT dele bate na PK → IdempotencyConflictException → releitura.
+        await db.IdempotencyRecords
+            .Where(r => r.UserId == userId && r.Key == key && r.CreatedAt < expiredBefore)
+            .ExecuteDeleteAsync(ct);
+        return null;
     }
 
     public void AddMatch(Match match)

@@ -20,6 +20,12 @@ public sealed class CancelMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQuer
                     return MatchErrors.MatchNotFound;
                 }
 
+                // Saída antecipada; a regra continua no domínio (Cancel).
+                if (match.OrganizerId != userId)
+                {
+                    return MatchErrors.NotOrganizer;
+                }
+
                 var result = match.Cancel(userId, timeProvider.GetUtcNow());
                 if (!result.IsSuccess)
                 {

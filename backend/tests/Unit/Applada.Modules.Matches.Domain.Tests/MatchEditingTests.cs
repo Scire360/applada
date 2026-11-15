@@ -172,7 +172,7 @@ public sealed class MatchEditingTests
         var waitlisted = Register(match, Guid.NewGuid());
         Register(match, Guid.NewGuid());
 
-        Assert.Throws<ArgumentException>(() => match.ChangeDetails(OrganizerId, match.Version, null, null, 3, [waitlisted], Now));
+        Assert.Throws<MatchStateDivergenceException>(() => match.ChangeDetails(OrganizerId, match.Version, null, null, 3, [waitlisted], Now));
     }
 
     [Fact]

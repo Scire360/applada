@@ -144,7 +144,7 @@ public sealed class WithdrawalTests
         var a = Register(match, Guid.NewGuid());
         Register(match, Guid.NewGuid());
 
-        Assert.Throws<ArgumentException>(() => match.Withdraw(a, null, Now));
+        Assert.Throws<MatchStateDivergenceException>(() => match.Withdraw(a, null, Now));
         Assert.Equal(RegistrationStatus.Confirmed, a.Status);
         Assert.Equal(1, match.ConfirmedCount);
         Assert.Equal(1, match.WaitlistCount);

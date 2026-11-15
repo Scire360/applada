@@ -18,6 +18,10 @@ public interface IMatchesSession
     /// <summary>Até <paramref name="count"/> inscrições em espera, em ordem de fila. <paramref name="count"/> &lt;= 0 devolve vazio.</summary>
     Task<IReadOnlyList<Registration>> GetWaitlistHeadAsync(Guid matchId, int count, CancellationToken ct);
 
+    /// <summary>
+    /// Resposta guardada para a chave do usuário. Entrada com mais de 24 h (pelo <see cref="TimeProvider"/>) conta como
+    /// ausente e é removida nesta transação, para que a chave possa ser gravada de novo com <see cref="AddIdempotency"/>.
+    /// </summary>
     Task<IdempotencyEntry?> FindIdempotencyAsync(Guid userId, string key, CancellationToken ct);
 
     void AddMatch(Match match);

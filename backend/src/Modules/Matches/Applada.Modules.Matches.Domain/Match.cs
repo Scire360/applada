@@ -178,7 +178,8 @@ public sealed class Match
         var toPromote = Math.Min(newCapacity - ConfirmedCount, WaitlistCount);
         if (waitlistHead.Count < toPromote)
         {
-            throw new ArgumentException(
+            // O contador diz que há mais gente em espera do que as linhas carregadas: divergência, não regra.
+            throw new MatchStateDivergenceException(
                 $"A nova capacidade promove {toPromote} inscrição(ões) da espera, mas só {waitlistHead.Count} foram carregadas.",
                 nameof(waitlistHead));
         }
@@ -310,7 +311,8 @@ public sealed class Match
         var wasConfirmed = registration.Status == RegistrationStatus.Confirmed;
         if (wasConfirmed && nextInLine is null && WaitlistCount > 0)
         {
-            throw new ArgumentException("Há gente na lista de espera: informe a próxima da fila para a promoção.", nameof(nextInLine));
+            // O contador diz que há espera, mas o chamador não achou ninguém nela: divergência entre contador e linhas.
+            throw new MatchStateDivergenceException("Há gente na lista de espera: informe a próxima da fila para a promoção.", nameof(nextInLine));
         }
 
         registration.Withdraw(now.ToUniversalTime());

@@ -361,6 +361,113 @@ public class MatchesPersistenceTests(ApiFactory factory)
         Assert.Equal("ix_registrations_match_id_user_id", postgres.ConstraintName);
     }
 
+    [Fact]
+    public async Task Idempotency_entry_older_than_24h_is_absent_and_the_key_can_be_written_again()
+    {
+        var userId = Guid.CreateVersion7();
+        var key = $"key-{Guid.NewGuid():N}";
+        var old = new IdempotencyEntry(userId, key, "hash-velho", 201, """{"id":"velha"}""");
+        await WriteIdempotencyAsync(old);
+
+        // Dentro das 24 h a entrada continua valendo.
+        factory.Clock.Advance(TimeSpan.FromHours(24) - TimeSpan.FromSeconds(1));
+        try
+        {
+            Assert.Equal(old, await ReadIdempotencyAsync(userId, key));
+        }
+        finally
+        {
+            factory.Clock.Advance(-(TimeSpan.FromHours(24) - TimeSpan.FromSeconds(1)));
+        }
+
+        var expiredBy = TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1);
+        factory.Clock.Advance(expiredBy);
+        try
+        {
+            var fresh = old with { RequestHash = "hash-novo", ResponseBody = """{"id":"nova"}""" };
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+                var result = await unitOfWork.ExecuteAsync<bool>(
+                    async (session, ct) =>
+                    {
+                        Assert.Null(await session.FindIdempotencyAsync(userId, key, ct));
+                        session.AddIdempotency(fresh);
+                        return true;
+                    },
+                    Ct);
+                Assert.True(result.IsSuccess);
+            }
+
+            Assert.Equal(fresh, await ReadIdempotencyAsync(userId, key));
+        }
+        finally
+        {
+            factory.Clock.Advance(-expiredBy);
+        }
+    }
+
+    [Fact]
+    public async Task Expired_idempotency_entry_survives_when_the_work_is_rolled_back()
+    {
+        var userId = Guid.CreateVersion7();
+        var key = $"key-{Guid.NewGuid():N}";
+        var old = new IdempotencyEntry(userId, key, "hash-velho", 201, """{"id":"velha"}""");
+        await WriteIdempotencyAsync(old);
+
+        var expiredBy = TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1);
+        factory.Clock.Advance(expiredBy);
+        try
+        {
+            await using (var scope = factory.Services.CreateAsyncScope())
+            {
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+                var result = await unitOfWork.ExecuteAsync<bool>(
+                    async (session, ct) =>
+                    {
+                        Assert.Null(await session.FindIdempotencyAsync(userId, key, ct));
+                        return MatchErrors.Validation(new Dictionary<string, string[]> { ["title"] = ["inválido"] });
+                    },
+                    Ct);
+                Assert.False(result.IsSuccess);
+            }
+        }
+        finally
+        {
+            factory.Clock.Advance(-expiredBy);
+        }
+
+        // A remoção da entrada vencida faz parte da transação: com rollback, a linha continua lá.
+        await using var verify = factory.Services.CreateAsyncScope();
+        var db = verify.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        Assert.Equal(1, await db.IdempotencyRecords.CountAsync(r => r.UserId == userId && r.Key == key, Ct));
+    }
+
+    private async Task WriteIdempotencyAsync(IdempotencyEntry entry)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+        var result = await unitOfWork.ExecuteAsync<bool>(
+            (session, _) =>
+            {
+                session.AddIdempotency(entry);
+                return Task.FromResult<Result<bool>>(true);
+            },
+            Ct);
+        Assert.True(result.IsSuccess);
+    }
+
+    private async Task<IdempotencyEntry?> ReadIdempotencyAsync(Guid userId, string key)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IMatchesUnitOfWork>();
+        var result = await unitOfWork.ExecuteAsync<IdempotencyEntry?>(
+            async (session, ct) => await session.FindIdempotencyAsync(userId, key, ct),
+            Ct);
+        Assert.True(result.IsSuccess);
+        return result.Value;
+    }
+
     private string ConnectionString =>
         factory.Services.GetRequiredService<IConfiguration>().GetConnectionString("applada")!;
 

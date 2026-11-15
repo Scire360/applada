@@ -9,7 +9,7 @@ namespace Applada.Modules.Matches.Application.UpdateMatch;
 /// <summary>Edição do organizador sob o lock da partida. Aumentar a capacidade promove a espera na mesma transação.</summary>
 public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQueries queries, TimeProvider timeProvider)
 {
-    /// <exception cref="ArgumentException">
+    /// <exception cref="MatchStateDivergenceException">
     /// Contadores da partida divergem das linhas de inscrição (bug ou alteração fora da aplicação). Não é mascarado:
     /// a transação é desfeita e o erro sobe.
     /// </exception>
@@ -29,6 +29,12 @@ public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQuer
                 if (match is null)
                 {
                     return MatchErrors.MatchNotFound;
+                }
+
+                // Saída antecipada: quem não organiza não lê inscrições. O domínio continua sendo a regra (ChangeDetails).
+                if (match.OrganizerId != userId)
+                {
+                    return MatchErrors.NotOrganizer;
                 }
 
                 IReadOnlyList<Registration> waitlistHead = [];

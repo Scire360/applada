@@ -235,6 +235,129 @@ public class MatchesLifecycleTests(ApiFactory factory)
         await AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
     }
 
+    [Fact]
+    public async Task Create_replay_within_24h_returns_stored_response()
+    {
+        var subject = NewSubject();
+        using var client = factory.CreateClientFor(subject);
+        var organizerId = await GetUserIdAsync(client);
+        var key = NewKey();
+        var body = ValidBody();
+        using var first = await PostMatchAsync(client, key, body);
+        var firstBody = await first.Content.ReadAsStringAsync(Ct);
+
+        await WithClockAdvancedAsync(TimeSpan.FromHours(24) - TimeSpan.FromSeconds(1), async () =>
+        {
+            using var later = factory.CreateClientFor(subject);
+            using var replay = await PostMatchAsync(later, key, body);
+
+            Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+            Assert.Equal(firstBody, await replay.Content.ReadAsStringAsync(Ct));
+            Assert.Equal(1, await CountMatchesOfAsync(organizerId));
+        });
+    }
+
+    [Fact]
+    public async Task Create_with_key_older_than_24h_creates_new_match()
+    {
+        var subject = NewSubject();
+        using var client = factory.CreateClientFor(subject);
+        var organizerId = await GetUserIdAsync(client);
+        var key = NewKey();
+        var body = ValidBody();
+        using var first = await PostMatchAsync(client, key, body);
+        using var firstJson = await ReadJsonAsync(first);
+        var firstId = firstJson.RootElement.GetProperty("id").GetGuid();
+
+        await WithClockAdvancedAsync(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1), async () =>
+        {
+            using var later = factory.CreateClientFor(subject);
+
+            // Várias ao mesmo tempo com a chave vencida: uma só partida nova, todas com a mesma resposta.
+            var responses = await Task.WhenAll(Enumerable.Range(0, 5).Select(async _ =>
+            {
+                using var response = await PostMatchAsync(later, key, body);
+                return (response.StatusCode, Body: await response.Content.ReadAsStringAsync(Ct));
+            }));
+
+            Assert.All(responses, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
+            Assert.Single(responses.Select(r => r.Body).Distinct());
+            var newId = JsonDocument.Parse(responses[0].Body).RootElement.GetProperty("id").GetGuid();
+            Assert.NotEqual(firstId, newId);
+            Assert.Equal(2, await CountMatchesOfAsync(organizerId));
+
+            // A chave agora guarda a resposta nova.
+            using var replay = await PostMatchAsync(later, key, body);
+            Assert.Equal(responses[0].Body, await replay.Content.ReadAsStringAsync(Ct));
+        });
+    }
+
+    [Fact]
+    public async Task Create_with_key_older_than_24h_and_different_payload_returns_201()
+    {
+        var subject = NewSubject();
+        using var client = factory.CreateClientFor(subject);
+        var organizerId = await GetUserIdAsync(client);
+        var key = NewKey();
+        var startsAt = factory.Clock.GetUtcNow().AddDays(3);
+        using var first = await PostMatchAsync(client, key, ValidBody(startsAt: startsAt, capacity: 10));
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        await WithClockAdvancedAsync(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1), async () =>
+        {
+            using var later = factory.CreateClientFor(subject);
+            using var response = await PostMatchAsync(later, key, ValidBody(startsAt: startsAt, capacity: 11));
+
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            using var json = await ReadJsonAsync(response);
+            Assert.Equal(11, json.RootElement.GetProperty("capacity").GetInt32());
+            Assert.Equal(2, await CountMatchesOfAsync(organizerId));
+        });
+    }
+
+    [Fact]
+    public async Task Create_with_body_over_16kb_returns_413_problem()
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        var organizerId = await GetUserIdAsync(client);
+        var huge = ValidBody().Replace("\"locationText\":\"Quadra 3\"", $"\"locationText\":\"{new string('x', 17 * 1024)}\"", StringComparison.Ordinal);
+
+        using var response = await PostMatchAsync(client, NewKey(), huge);
+
+        await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "payload-too-large");
+        Assert.Equal(0, await CountMatchesOfAsync(organizerId));
+    }
+
+    [Fact]
+    public async Task Create_with_chunked_body_over_16kb_returns_413_problem()
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        var huge = ValidBody().Replace("\"locationText\":\"Quadra 3\"", $"\"locationText\":\"{new string('x', 17 * 1024)}\"", StringComparison.Ordinal);
+        using var request = new HttpRequestMessage(HttpMethod.Post, MatchesPath)
+        {
+            // Sem Content-Length: o limite vale também para corpo em streaming.
+            Content = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(huge))),
+        };
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        request.Headers.TransferEncodingChunked = true;
+        request.Headers.Add("Idempotency-Key", NewKey());
+
+        using var response = await client.SendAsync(request, Ct);
+
+        await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "payload-too-large");
+    }
+
+    [Fact]
+    public async Task Patch_with_body_over_16kb_returns_413_problem()
+    {
+        using var organizer = factory.CreateClientFor(NewSubject());
+        var id = await CreateMatchAsync(organizer);
+
+        using var response = await PatchAsync(organizer, id, "W/\"1\"", $$"""{ "title": "{{new string('t', 17 * 1024)}}" }""");
+
+        await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "payload-too-large");
+    }
+
     // ---------- Consulta ----------
 
     [Fact]
@@ -631,6 +754,20 @@ public class MatchesLifecycleTests(ApiFactory factory)
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
         return await db.OutboxMessages.CountAsync(o => o.AggregateId == aggregateId && o.EventType == eventType, Ct);
+    }
+
+    /// <summary>Avança o relógio da fábrica durante <paramref name="action"/> e sempre o devolve depois.</summary>
+    private async Task WithClockAdvancedAsync(TimeSpan delta, Func<Task> action)
+    {
+        factory.Clock.Advance(delta);
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            factory.Clock.Advance(-delta);
+        }
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response) =>
