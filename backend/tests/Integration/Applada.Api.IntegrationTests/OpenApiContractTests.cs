@@ -51,6 +51,29 @@ public class OpenApiContractTests : IClassFixture<DevelopmentApiFactory>
             + "--filter-class \"*OpenApiContractTests\"), revise o diff e inclua o arquivo no commit.");
     }
 
+    [Fact]
+    public async Task Match_request_schemas_describe_required_properties_and_starts_at()
+    {
+        using var client = _development.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), Ct));
+        var paths = document.RootElement.GetProperty("paths");
+        var create = RequestSchema(paths.GetProperty("/api/v1/matches").GetProperty("post"));
+        var update = RequestSchema(paths.GetProperty("/api/v1/matches/{id}").GetProperty("patch"));
+
+        Assert.Equal(
+            ["capacity", "durationMinutes", "startsAt", "timeZone", "title", "visibility"],
+            create.GetProperty("required").EnumerateArray().Select(name => name.GetString()).Order(StringComparer.Ordinal));
+        Assert.True(!update.TryGetProperty("required", out var required) || required.GetArrayLength() == 0);
+
+        var startsAt = create.GetProperty("properties").GetProperty("startsAt");
+        Assert.Equal("string", startsAt.GetProperty("type").GetString());
+        Assert.Equal("date-time", startsAt.GetProperty("format").GetString());
+        Assert.Contains("offset", startsAt.GetProperty("description").GetString(), StringComparison.Ordinal);
+
+        static JsonElement RequestSchema(JsonElement operation) =>
+            operation.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
+    }
+
     /// <summary>
     /// Reserializa em forma compacta e remove o que depende do ambiente: <c>servers</c> (host e porta do servidor
     /// de teste) e o <c>Authentication:Authority</c> usado nas URLs do OAuth2 (issuer de teste aqui, realm do

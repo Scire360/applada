@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Applada.Modules.Matches.Application.Queries;
 using Applada.Modules.Matches.Domain;
 
@@ -9,14 +10,14 @@ namespace Applada.Modules.Matches.Api;
 /// </summary>
 public sealed record CreateMatchRequest(
     string Title,
-    DateTimeOffset StartsAt,
+    [property: JsonConverter(typeof(ExplicitOffsetDateTimeConverter))] DateTimeOffset StartsAt,
     string TimeZone,
     int DurationMinutes,
     int Capacity,
     string Visibility,
-    string? LocationText,
-    Guid? GroupId,
-    Guid? VenueId)
+    string? LocationText = null,
+    Guid? GroupId = null,
+    Guid? VenueId = null)
 {
     internal NewMatch ToNewMatch() =>
         new(Title, StartsAt, TimeZone, DurationMinutes, Capacity, Visibility, LocationText, GroupId, VenueId);
@@ -25,7 +26,7 @@ public sealed record CreateMatchRequest(
 /// <summary>
 /// Corpo de <c>PATCH /api/v1/matches/{id}</c>. Campo nulo ou ausente não altera; <c>locationText</c> vazio limpa o local.
 /// </summary>
-public sealed record UpdateMatchRequest(string? Title, string? LocationText, int? Capacity);
+public sealed record UpdateMatchRequest(string? Title = null, string? LocationText = null, int? Capacity = null);
 
 public sealed record MatchResponse(
     Guid Id,

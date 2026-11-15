@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
@@ -51,6 +52,36 @@ public class MatchesLifecycleTests(ApiFactory factory)
         Assert.Equal(1, root.GetProperty("version").GetInt32());
         // O organizador não ocupa vaga automaticamente.
         Assert.Equal(JsonValueKind.Null, root.GetProperty("myRegistration").ValueKind);
+    }
+
+    [Theory]
+    [InlineData("", 0, HttpStatusCode.BadRequest)]
+    [InlineData("Z", 0, HttpStatusCode.Created)]
+    [InlineData("-03:00", -180, HttpStatusCode.Created)]
+    [InlineData("+05:30", 330, HttpStatusCode.Created)]
+    public async Task Create_requires_an_explicit_starts_at_offset(string suffix, int offsetMinutes, HttpStatusCode expected)
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        var startsAt = DateTimeOffset.FromUnixTimeSeconds(factory.Clock.GetUtcNow().AddDays(3).ToUnixTimeSeconds());
+        var time = startsAt.ToOffset(TimeSpan.FromMinutes(offsetMinutes)).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var request = JsonNode.Parse(ValidBody())!.AsObject();
+        request["startsAt"] = time + suffix;
+
+        using var response = await PostMatchAsync(client, NewKey(), request.ToJsonString());
+
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.BadRequest)
+        {
+            using var problem = await AssertProblemAsync(response, expected, "validation");
+            Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("startsAt", out _));
+        }
+        else
+        {
+            using var responseBody = await ReadJsonAsync(response);
+            var stored = responseBody.RootElement.GetProperty("startsAt").GetDateTimeOffset();
+            Assert.Equal(startsAt, stored);
+            Assert.Equal(TimeSpan.Zero, stored.Offset);
+        }
     }
 
     [Fact]
