@@ -15,7 +15,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly string _environment;
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgis/postgis:17-3.5").Build();
-    private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder("rabbitmq:4-management").Build();
+    private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder("rabbitmq:4.4.0-management").Build();
 
     public ApiFactory()
         : this("Production")

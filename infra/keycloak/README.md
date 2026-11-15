@@ -23,7 +23,11 @@ dev") fica em `attributes` do realm e do client, não na raiz.
 - Usuários de teste `organizador.dev`, `jogador1.dev`, `jogador2.dev` e `jogador3.dev`, com a senha
   temporária pública `trocar-no-primeiro-login`: o Keycloak exige a troca no primeiro login. No
   import, `temporary: true` sozinho não força a troca; quem força é `requiredActions: ["UPDATE_PASSWORD"]`.
-  E-mails no domínio reservado `.invalid`.
+  E-mails no domínio reservado `.invalid`. Os usuários são **somente de desenvolvimento**: o sufixo `.dev`
+no nome e o domínio `.invalid` no e-mail existem para que nenhum deles seja confundido com conta real nem
+receba e-mail; não os recrie fora do ambiente local.
+- Rede: as portas publicadas (HTTP 8080 e management 9000) escutam apenas em loopback (`127.0.0.1` e
+  `::1`); outra máquina da rede não alcança o Keycloak local.
 
 ## Senha do admin do Keycloak
 
