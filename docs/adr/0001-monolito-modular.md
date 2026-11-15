@@ -1,12 +1,12 @@
 # ADR-0001: Monólito modular orientado a eventos
 
-- **Status:** aceito (2026-11-13)
+- **Status:** aceito (2026-11-13; revisado em 2026-11-15 com a fatia de Matches completa)
 - **Decisores:** responsável técnico do Applada
 
 ## Contexto
 
 O Applada começa com uma equipe pequena e um caso de negócio crítico: confirmar vaga numa pelada sem
-nunca ultrapassar a capacidade (spec da fatia, §1). A arquitetura v1 (`docs/architecture/arquitetura-v1.md`,
+nunca ultrapassar a capacidade. A arquitetura v1 (`docs/architecture/arquitetura-v1.md`,
 seção 1) já escolhe monólito modular com extração incremental de serviços conforme métricas, sem
 microservices por entidade e sem Kubernetes no lançamento.
 
@@ -21,15 +21,26 @@ Um único processo de API (`Applada.Api`, composition root) hospeda os módulos 
   `matches`, cada um com `__ef_migrations_history` (no schema do módulo) e tabela `outbox_messages` próprios.
 - **Integração entre módulos** só por contrato publicado: consulta síncrona via projeto `*.Contracts` ou
   evento de integração versionado via outbox (ADR-0005).
-- **Estrutura de projetos:** Matches é dividido em `Domain`, `Application`, `Infrastructure`, `Api` e
-  `Contracts`. Em 2026-11-14 existem `Domain`, `Application` e `Infrastructure`; `Api` (endpoints) e
-  `Contracts` (eventos publicados) estão planejados (Tarefas 10 a 12), e os endpoints de Matches ainda não
-  existem. Identity é um módulo pequeno: um projeto de implementação (pastas internas por camada) e um
-  `Contracts`.
+- **Estrutura de projetos:** Matches é dividido em cinco projetos, todos existentes:
+  - `Domain` (agregado `Match`, regras e erros);
+  - `Application` (handlers, consultas, portas e métricas);
+  - `Infrastructure` (`MatchesDbContext`, unidade de trabalho, migrations);
+  - `Api` (endpoints Minimal API em `/api/v1/matches` e `/api/v1/me/matches`, registrados por
+    `AddMatchesModule`/`MapMatchesEndpoints`);
+  - `Contracts` (eventos de integração publicados: `MatchCreatedV1`, `MatchCancelledV1`, `SpotConfirmedV1` e
+    `SpotReleasedV1`).
+
+  Identity é um módulo pequeno: um projeto de implementação (pastas internas por camada) e um `Contracts`.
+- **Composition root:** `Applada.Api` compõe os módulos (`Program.cs`) e hospeda o que é transversal:
+  autenticação JWT, `ProblemDetails`, rate limiting das escritas e health checks. Fora do processo da API,
+  `Applada.AppHost` (Aspire) e `Applada.ServiceDefaults` existem só para o ambiente local e para
+  observabilidade (ADR-0007).
 - **Sem mediador.** Endpoints chamam handlers de aplicação injetados (classes simples). Sem
   `GenericRepository<T>`.
-- **DTOs explícitos** na API; entidades de banco e de domínio não aparecem em assinatura pública de endpoint.
-- Módulos e workers previstos na arquitetura v1 que ainda não têm código não são criados vazios.
+- **DTOs explícitos** na API; entidades de banco e de domínio não aparecem em assinatura pública de
+  endpoint.
+- Módulos e workers previstos na arquitetura v1 que ainda não têm código não são criados vazios: em
+  `backend/src/Modules` e `backend/src/Workers` eles são só pastas com `.gitkeep`, fora da solution.
 
 ### Regras de dependência testadas
 
@@ -52,7 +63,7 @@ em Matches os namespaces coincidem com os nomes dos assemblies.
 |---|---|
 | Microservices desde o início | custo operacional, consistência distribuída e observabilidade sem ganho mensurável para a escala atual; a arquitetura v1 só admite extração com métricas |
 | Monólito em camadas, sem módulos | nada impediria acoplamento entre schemas; extração futura seria reescrita |
-| Monólito modular com mediador | MediatR é citado na spec §2 como dependência com licença comercial a evitar; sem ganho mensurável sobre handlers injetados |
+| Monólito modular com mediador | MediatR é proibido na fatia (dependência com licença comercial a evitar); sem ganho mensurável sobre handlers injetados |
 
 ## Consequências
 
@@ -70,11 +81,15 @@ em Matches os namespaces coincidem com os nomes dos assemblies.
 - A regra de Application é só uma lista de proibições: Application ainda pode referenciar EF Core e outras
   bibliotecas.
 - Só existem Identity e Matches; os demais módulos da arquitetura v1 ainda não foram criados.
+- A regra `Every_src_project_is_covered_by_the_architecture_rules` cobre projetos de `src`, mas a
+  descoberta dos assemblies `*.Contracts` nos testes de contrato é por lista fixa: um módulo novo precisa ser
+  incluído lá.
 - Não há teste de carga; o comportamento sob volume real não foi medido.
 
 ## Referências
 
-- Spec: `specs/2026-11-13-backend-fundacao-matches-design.md` §1, §3, §6, §15
-- Arquitetura: `docs/architecture/arquitetura-v1.md` §1
-- Código: `backend/src/Applada.Api/`, `backend/src/Modules/`
+- Arquitetura: `docs/architecture/arquitetura-v1.md` §1 e §2. O desenho detalhado desta fatia vive
+  fora do repositório, de propósito; as decisões que importam estão neste ADR e nos ADR-0002, 0005 e 0007.
+- Contrato HTTP versionado: `docs/api/openapi-v1.json`
+- Código: `backend/src/Applada.Api/Program.cs`, `backend/src/Modules/Matches/`, `backend/src/Modules/Identity/`
 - Testes: `backend/tests/Architecture/Applada.Architecture.Tests/DependencyRulesTests.cs`

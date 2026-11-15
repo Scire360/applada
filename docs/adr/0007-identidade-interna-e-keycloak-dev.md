@@ -1,6 +1,6 @@
 # ADR-0007: Identidade interna desacoplada do provedor + Keycloak só em desenvolvimento
 
-- **Status:** aceito (2026-11-13)
+- **Status:** aceito (2026-11-13; revisado em 2026-11-15 com o ambiente local implementado)
 - **Decisores:** responsável técnico do Applada
 - **Relacionado:** ADR-0004 (autenticação OIDC/OAuth2 com PKCE), que continua **pendente**.
 
@@ -9,7 +9,7 @@
 O provedor de identidade de produção ainda não foi escolhido (ADR-0004 em aberto). A API precisa autenticar
 desde já, e o restante do sistema não pode ficar amarrado a identificadores de um provedor específico, que
 podem mudar se o provedor mudar. A spec também lista como anti-objetivo qualquer caminho de código que
-autentique sem validar token (§2), e a fatia não guarda PII: nenhum nome, e-mail ou telefone.
+autentique sem validar token, e a fatia não guarda PII: nenhum nome, e-mail ou telefone.
 
 ## Decisão
 
@@ -29,16 +29,39 @@ gravado. Quem cria grava `identity.user-registered.v1` no outbox (ADR-0005) na m
 integração, a validação do JwtBearer é reconfigurada com chave de assinatura gerada no próprio teste; o
 código de produção não muda.
 
-**4. Keycloak apenas em desenvolvimento.** O AppHost (Aspire) sobe Keycloak como container com realm
-versionado (`infra/keycloak/applada-dev-realm.json`), client público com PKCE e usuários de teste, marcados
-como de teste. É o mesmo caminho de código de produção (JWT OIDC padrão), sem decidir o provedor de produção.
-Scalar fica mapeado só em Development para teste manual com Authorization Code + PKCE.
+**4. Keycloak apenas em desenvolvimento.** O AppHost (Aspire, `backend/src/Applada.AppHost`) sobe, só para
+uso local e com Docker:
+- PostgreSQL/PostGIS (`postgis/postgis:17-3.5`) e RabbitMQ (`rabbitmq:4.4.0-management`);
+- **Keycloak 26.8.2 como container genérico** (`quay.io/keycloak/keycloak`, `start-dev --import-realm`),
+  porque a integração Aspire para Keycloak só existe em preview. O realm vem de
+  `infra/keycloak/applada-dev-realm.json`, montado somente leitura como `applada-realm.json` (o import exige
+  o nome `<realm>-realm.json`); sem volume, o realm volta ao estado do arquivo a cada subida;
+- a API, em `ASPNETCORE_ENVIRONMENT=Development`, com `Authentication__Authority` apontando para o realm,
+  `Authentication__Audience=applada-api` e `Database__ApplyMigrationsOnStartup=true`.
+
+O client `applada-dev-scalar` é público e só aceita Authorization Code com **PKCE `S256`** (implicit, senha,
+service account e device flow desligados; redirect restrito à origem da API local). Um mapper põe
+`applada-api` em `aud`. Os usuários de teste (`organizador.dev`, `jogador1.dev`, `jogador2.dev` e
+`jogador3.dev`) têm sufixo `.dev`, e-mails em `.invalid`, senha temporária pública e troca obrigatória no
+primeiro login. A senha do admin do Keycloak é parâmetro secreto do AppHost (user-secrets), nunca arquivo
+versionado. É o mesmo caminho de código de produção (JWT OIDC padrão), sem decidir o provedor de produção.
+
+**Portas locais:** API `http://localhost:5080`, Keycloak `http://localhost:8080` (o issuer dos tokens é
+`http://localhost:8080/realms/applada`, por isso a porta é fixa), dashboard do Aspire
+`http://localhost:15180`. Como o redirect do realm exige a origem da API, ela também é fixa.
+
+**Scalar e OpenAPI só em Development.** `/openapi/v1.json` e `/scalar/v1` não são registrados nem mapeados
+fora de Development (lá caem no fallback autenticado: 401 anônimo, 404 autenticado; há teste). Em Development
+são anônimos, porque o Scalar precisa do documento antes do login, e o Scalar já vem com o fluxo OAuth2 do
+client acima. O documento é versionado em `docs/api/openapi-v1.json`.
 
 **5. Sem PII nesta fatia.** Nada além de `issuer`, `subject` e identificadores internos é persistido.
 
-> Estado da implementação em 2026-11-14: itens 1, 2, 3 e 5 estão implementados e testados. O AppHost com
-> Keycloak e o Scalar (item 4) ainda não foram implementados (`backend/src/Applada.AppHost` está vazio); a
-> decisão está registrada aqui e a entrega segue o plano da fatia.
+> Estado da implementação em 2026-11-15: os cinco itens estão implementados. Os itens 1, 2, 3 e 5 têm testes
+> automatizados. No item 4, os testes cobrem a superfície só de Development (`DevelopmentSurfaceTests`); a
+> subida do AppHost, o realm importado e o login pelo Scalar foram verificados manualmente (fluxo Authorization
+> Code + PKCE por HTTP, `GET /me`, criação e inscrição em partida), sem teste automatizado, e a interface do
+> dashboard do Aspire e o clique de login no Scalar não foram exercitados.
 
 ## Alternativas consideradas
 
@@ -67,12 +90,20 @@ Scalar fica mapeado só em Development para teste manual com Authorization Code 
   desenhada; `Single()` na leitura do `id` pode quebrar se houver exclusão futura de linhas.
 - Keycloak em dev é pesado e o realm é mais um artefato a manter; credenciais de teste nunca devem ser
   reaproveitadas fora de dev.
+- O código do Scalar e do OpenAPI está compilado no binário de produção; só não é registrado nem mapeado fora
+  de Development.
+- O AppHost depende de Docker e de uma imagem de Keycloak puxada na hora; sem rede ou Docker, o ambiente
+  local não sobe (os testes de integração também usam Docker, via Testcontainers).
 - A revisão de segurança aprofundada de Identity (`CLAUDE.md` §7) é obrigatória antes de release e ainda
   não foi concluída para esta fatia.
 
 ## Referências
 
-- Spec: `specs/2026-11-13-backend-fundacao-matches-design.md` §2, §4.2, §11
+- Arquitetura: `docs/architecture/arquitetura-v1.md` (módulo Identity e ambiente de desenvolvimento). O
+  desenho detalhado desta fatia vive fora do repositório, de propósito.
+- Ambiente local: `infra/keycloak/README.md`, `backend/src/Applada.AppHost/AppHost.cs`
 - Código: `backend/src/Modules/Identity/Applada.Modules.Identity/Infrastructure/UserProvisioner.cs`,
-  `IdentityDbContext.cs`; `backend/src/Applada.Api/` (autenticação e `ICurrentUser`)
-- Testes: `backend/tests/Integration/Applada.Api.IntegrationTests/IdentityTests.cs`, `AuthenticationTests.cs`
+  `IdentityDbContext.cs`; `backend/src/Applada.Api/` (autenticação, `ICurrentUser` e
+  `OpenApi/DevelopmentApiReference.cs`)
+- Testes (em `backend/tests/Integration/Applada.Api.IntegrationTests/`): `IdentityTests.cs`,
+  `AuthenticationTests.cs`, `DevelopmentSurfaceTests.cs`, `OpenApiContractTests.cs`

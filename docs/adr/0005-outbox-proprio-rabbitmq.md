@@ -1,6 +1,6 @@
 # ADR-0005: Transactional outbox próprio + RabbitMQ
 
-- **Status:** aceito (2026-11-13)
+- **Status:** aceito (2026-11-13; revisado em 2026-11-15 com a fatia de Matches completa)
 - **Decisores:** responsável técnico do Applada
 
 ## Contexto
@@ -10,7 +10,7 @@ transação da mudança de estado que o originou; publicá-lo direto no broker d
 evento, e publicar antes pode anunciar algo que sofreu rollback. A arquitetura v1 prevê transactional outbox
 com RabbitMQ.
 
-A spec exclui dependências com licença comercial ou fim de manutenção (§2). A biblioteca mais usada para
+A fatia exclui dependências com licença comercial ou fim de manutenção. A biblioteca mais usada para
 isso em .NET, MassTransit, tem a v9 comercial e a manutenção oficial da v8 termina após 2026.
 
 ## Decisão
@@ -35,17 +35,22 @@ isso em .NET, MassTransit, tem a v9 comercial e a manutenção oficial da v8 ter
 - Limpeza: mensagens publicadas há mais de 7 dias são apagadas a cada lote.
 - Envelope: `eventId`, `eventType`, `schemaVersion`, `aggregateId`, `occurredAt`, `correlationId`, `payload`;
   snapshot de contrato por evento v1 nos testes.
-- Métricas: `outbox.pending`, `outbox.publish_failures`, `outbox.publish_latency`.
+- **Eventos publicados hoje** (routing key = `eventType`): `identity.user-registered.v1` e, de Matches,
+  `matches.match-created.v1`, `matches.match-cancelled.v1`, `matches.spot-confirmed.v1` e
+  `matches.spot-released.v1`. Cada um é gravado no outbox na mesma transação do comando que o originou (criar,
+  cancelar, inscrever, sair, promover da espera).
+- Métricas do meter `Applada.Outbox`: `outbox.published`, `outbox.pending`, `outbox.publish_failures` e
+  `outbox.publish_latency`. `correlationId` vem do trace da requisição e acompanha o evento.
 
-### Desvio deliberado da spec §13: health check do RabbitMQ
+### Desvio deliberado do desenho da fatia: health check do RabbitMQ
 
-A spec §13 pede health checks de PostgreSQL e RabbitMQ. O check do RabbitMQ está em `/health/ready`, mas
+O desenho da fatia pede health checks de PostgreSQL e RabbitMQ. O check do RabbitMQ está em `/health/ready`, mas
 registrado com `failureStatus: HealthStatus.Degraded`: com o broker fora, `/health/ready` responde **HTTP 200
 com status `Degraded`** no corpo, e não 503.
 
 Motivo: o outbox existe justamente para a API continuar aceitando escritas com o broker indisponível. Se a
 indisponibilidade do RabbitMQ devolvesse 503, o balanceador tiraria todas as réplicas de rotação ao mesmo
-tempo e transformaria uma falha tolerável em indisponibilidade total. A visibilidade que a spec queria
+tempo e transformaria uma falha tolerável em indisponibilidade total. A visibilidade que o desenho queria
 continua, no corpo da resposta e na métrica `outbox.pending`. Reverter é mudar uma linha em
 `backend/src/Applada.Api/Program.cs`. O PostgreSQL continua com status de falha padrão, pois sem ele a API
 não atende.
@@ -68,10 +73,13 @@ não atende.
 
 **Negativas e limites conhecidos**
 - **Sem consumidores, inbox nem DLQ nesta fatia.** Os eventos só são publicados; DLQ e idempotência de
-  consumo entram com o primeiro consumidor real (Notifications). Hoje a publicação pode ocorrer sem fila
-  ligada ao exchange; a mensagem é então descartada pelo broker (`mandatory=false`).
+  consumo entram com o primeiro consumidor real (Notifications). Os projetos de worker em
+  `backend/src/Workers` são só pastas vazias. Hoje a publicação pode ocorrer sem fila ligada ao exchange; a
+  mensagem é então descartada pelo broker (`mandatory=false`) e fica marcada como publicada.
 - **Mensagem envenenada (recusada para sempre) é tentada indefinidamente**, a cada 5 minutos após atingir o
-  teto do backoff, sem estado terminal nem alerta dedicado além da métrica de falhas.
+  teto do backoff, sem estado terminal, sem quarentena e sem alerta dedicado além da métrica de falhas.
+- A limpeza periódica de `matches.idempotency_keys` (ADR-0002) é um job que ainda não existe; quando for
+  criado, deve seguir o mesmo modelo de `BackgroundService` do outbox.
 - Duplicatas são esperadas (at-least-once); a responsabilidade de deduplicar é do consumidor.
 - A transação do lote fica aberta durante a publicação; por isso o lote encerra na primeira falha que não
   seja nack.
@@ -82,9 +90,11 @@ não atende.
 
 ## Referências
 
-- Spec: `specs/2026-11-13-backend-fundacao-matches-design.md` §4.1, §10, §13
+- Arquitetura: `docs/architecture/arquitetura-v1.md` (eventos de integração). O desenho detalhado desta
+  fatia, incluindo a comparação de bibliotecas, vive fora do repositório, de propósito; a tabela acima a resume.
 - Código: `backend/src/BuildingBlocks/Applada.BuildingBlocks.Messaging/` (`OutboxProcessor.cs`,
   `OutboxOptions.cs`, `RabbitMqEventPublisher.cs`, `RabbitMqHealthCheck.cs`),
-  `backend/src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Outbox/`, `backend/src/Applada.Api/Program.cs`
+  `backend/src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Outbox/`, `backend/src/Applada.Api/Program.cs`;
+  contratos em `backend/src/Modules/*/Applada.Modules.*.Contracts/`
 - Testes: `backend/tests/Integration/Applada.Api.IntegrationTests/OutboxTests.cs`,
-  `backend/tests/Contract/Applada.Contracts.Tests/`
+  `backend/tests/Contract/Applada.Contracts.Tests/` (formato dos eventos de Identity e Matches)
