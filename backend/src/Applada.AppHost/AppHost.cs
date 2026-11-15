@@ -29,6 +29,7 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
     .WithEnvironment("KC_HEALTH_ENABLED", "true")
     // O import exige o nome "<realm>-realm.json": o arquivo versionado é montado com esse nome.
     .WithBindMount("../../../infra/keycloak/applada-dev-realm.json", "/opt/keycloak/data/import/applada-realm.json", isReadOnly: true)
+    .WithBindMount("../../../infra/keycloak/themes/applada", "/opt/keycloak/themes/applada", isReadOnly: true)
     .WithHttpEndpoint(port: KeycloakHttpPort, targetPort: 8080, name: "http")
     .WithHttpEndpoint(targetPort: 9000, name: "management")
     .WithHttpHealthCheck("/health/ready", endpointName: "management");

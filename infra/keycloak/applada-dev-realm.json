@@ -1,6 +1,10 @@
 {
   "realm": "applada",
   "displayName": "Applada (dev)",
+  "loginTheme": "applada",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR"],
+  "defaultLocale": "pt-BR",
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,

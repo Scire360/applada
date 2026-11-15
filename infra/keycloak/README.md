@@ -15,6 +15,8 @@ O Keycloak recusa campos desconhecidos no JSON do realm; por isso o aviso `_come
 dev") fica em `attributes` do realm e do client, não na raiz.
 
 - Realm `applada`; issuer `http://localhost:8080/realms/applada`.
+- Tema `themes/applada`, montado somente leitura no AppHost. O tema aplica a identidade visual
+  e o português do Brasil aos formulários nativos de entrada e atualização de senha.
 - Client público `applada-dev-scalar` (Scalar da API local): só Authorization Code com PKCE `S256`;
   implicit, direct access grants (senha), service account e device flow desligados. Redirect e
   web origin restritos a `http://localhost:5080` (`/scalar` e `/scalar/*`).
@@ -44,6 +46,25 @@ dotnet user-secrets set "Parameters:keycloak-admin-password" "<senha-local>" --p
 
 Sem ela, o dashboard do Aspire pede o valor ao subir. Console de administração:
 `http://localhost:8080/admin/` (realm `master`).
+
+## Validar o tema no Brave
+
+O teste precisa de um realm recém-importado para abrir a troca de senha no primeiro acesso.
+Da raiz do repositório, suba um container isolado em `localhost:18080` com Docker.
+
+```powershell
+$realmFile = (Resolve-Path infra/keycloak/applada-dev-realm.json).Path
+$themeDir = (Resolve-Path infra/keycloak/themes/applada).Path
+docker run --detach --rm --name applada-keycloak-tema-qa --publish 127.0.0.1:18080:8080 `
+  --mount "type=bind,source=$realmFile,target=/opt/keycloak/data/import/applada-realm.json,readonly" `
+  --mount "type=bind,source=$themeDir,target=/opt/keycloak/themes/applada,readonly" `
+  quay.io/keycloak/keycloak:26.8.2 start-dev --import-realm
+```
+
+Assim que o Keycloak responder em `http://localhost:18080/realms/applada/.well-known/openid-configuration`,
+execute `npm run test:auth-theme` em `apps/web`. A suíte usa o Brave instalado no caminho padrão
+do Windows. Use `APPLADA_TEST_BRAVE_PATH` para outro caminho do Brave ou `APPLADA_AUTH_TEST_PORT`
+para outra porta local. Ao terminar, rode `docker stop applada-keycloak-tema-qa`.
 
 ## Uso
 
