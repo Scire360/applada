@@ -35,8 +35,8 @@ justifica PostGIS desde já.
   `capacity` entre 1 e 200, `duration_minutes` entre 15 e 600, `confirmed_count` entre 0 e `capacity`,
   `waitlist_count` entre 0 e 50, `status` e `visibility` em conjuntos fechados, e `ck_registrations_status`.
   Um bug de aplicação que tentasse lotar a partida aborta a transação em vez de gravar estado inválido.
-  `UNIQUE(match_id, user_id)` em `registrations` e `PRIMARY KEY(user_id, key)` em `idempotency_keys`
-  completam as garantias.
+  `UNIQUE(match_id, user_id)` e `UNIQUE(match_id, queue_seq)` em `registrations`, junto com
+  `PRIMARY KEY(user_id, key)` em `idempotency_keys`, completam as garantias.
 - **Ordem FIFO da fila** vem de `queue_seq`, incrementado a partir de `matches.next_queue_seq` sob o lock;
   não de `now()`, que é o início da transação e poderia inverter a ordem.
 - **Concorrência otimista (`version`)** só para edições do organizador (`PATCH`, cancelamento). `xmin` não
@@ -52,7 +52,9 @@ justifica PostGIS desde já.
   `idempotency-key-reused`. A **retenção é de 24 h**: chave mais antiga conta como ausente e é apagada, na
   mesma transação, antes de ser gravada de novo. Duas requisições simultâneas com a mesma chave criam uma
   partida só: a perdedora viola a PK (`IdempotencyConflictException`), refaz a leitura e devolve a mesma
-  resposta.
+  resposta. O serviço `IdempotencyCleanupService` remove as chaves vencidas na subida e depois a cada
+  hora, em lotes de mil pelo índice de `created_at`. A limpeza vem habilitada por padrão e pode ser
+  desativada com `Matches:IdempotencyCleanupEnabled=false`.
 - **Limites de entrada e abuso.** Escritas (`POST /matches`, `PATCH /matches/{id}`, cancelamento, inscrição e
   saída) passam pela política de rate limiting `writes`: janela fixa de 1 min por usuário interno, 30
   requisições por padrão (`Matches:WriteRateLimitPerMinute`), 429 `rate-limited` com `Retry-After`. Corpo de
@@ -84,9 +86,8 @@ justifica PostGIS desde já.
 - Numa corrida com a mesma `Idempotency-Key`, o segundo INSERT na PK de `idempotency_keys` espera, limitado
   pelo `lock_timeout` (padrão 5 s, `MatchesPersistenceOptions`); se estourar, vira 503 com `Retry-After`, e a
   repetição pelo cliente recebe a resposta gravada.
-- **Limpeza periódica de `idempotency_keys` pendente.** A retenção de 24 h só vale na leitura: a linha
-  vencida some quando a mesma chave é usada de novo. Chaves nunca reutilizadas ficam na tabela, que cresce
-  sem limite até existir um job de limpeza (sem dono ainda).
+- O vencimento das chaves é aplicado na leitura. A remoção física por limpeza é assíncrona e pode
+  ficar para uma execução posterior se o banco estiver indisponível.
 - O rate limiting cobre só as escritas (janela fixa por usuário, em memória do processo: com várias réplicas
   o limite efetivo multiplica). Leituras não têm limite.
 - Os `CHECK` duplicam regras do domínio; mudar um limite exige migration e mudança de domínio (ampliar `visibility`, por
