@@ -33,6 +33,30 @@ O servidor web usa o client `applada-dev-web` com PKCE e mantém a sessão em me
 
 O contrato de Matches oferece partidas que o usuário organiza ou das quais participa. O fluxo usa links para abrir outras partidas por ID. Check-in, placar e votação seguem na demonstração.
 
+## E2E de partida com uma vaga
+
+Com a API, o Keycloak e a web local ativos, conforme os passos acima, instale o Google Chrome e prepare
+as contas de teste `jogador1.dev`, `jogador2.dev` e `jogador3.dev` no Keycloak. Em um realm recém-importado,
+conclua o primeiro login de cada conta e defina a mesma senha de teste nas três. O teste usa essa senha
+apenas no processo local e espera que as contas já tenham concluído a troca obrigatória.
+
+Em outro terminal PowerShell 7.2 ou superior, a partir de `apps/web`:
+
+```powershell
+npm ci
+$env:APPLADA_E2E_TEST_PASSWORD = Read-Host 'Senha local das três contas de teste' -MaskInput
+try {
+  npm run test:e2e
+} finally {
+  Remove-Item Env:APPLADA_E2E_TEST_PASSWORD
+}
+```
+
+O Playwright abre três sessões independentes no Chrome. O organizador cria uma partida com uma vaga.
+O teste verifica a confirmação do primeiro jogador, a entrada do segundo na fila e sua promoção após a
+saída do primeiro. A conta que saiu perde a lista na interface e recebe `403 participants-forbidden` pela API
+do frontend. A partida criada pelo teste é cancelada ao final. O registro cancelado fica no banco local.
+
 ## Verificações
 
 ```powershell
