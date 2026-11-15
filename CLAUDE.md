@@ -25,19 +25,35 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-Repositório em fundação: backend com solution e pipeline; ainda não há `package.json`.
+Repositório em fundação: o backend tem solution, módulos Identity e Matches, testes e pipeline
+(`.github/workflows/backend.yml`); ainda não há `package.json`.
 **Ao criar cada um, atualize esta seção** com os comandos reais de build, teste, lint e
 ambiente local. Não invente comandos que não existem.
 
 Backend (.NET 10, SDK fixado em `backend/global.json`). O runner de testes é o
 Microsoft.Testing.Platform (xunit v3), lido do `global.json` mais próximo do diretório
-corrente: rode os testes a partir de `backend/`.
+corrente: rode os testes a partir de `backend/`. Os testes de integração usam Testcontainers
+(PostgreSQL/PostGIS e RabbitMQ), então exigem Docker em execução.
 
 ```powershell
 dotnet build backend/Applada.slnx -warnaserror
 dotnet format backend/Applada.slnx --verify-no-changes
-cd backend; dotnet test --solution Applada.slnx                        # todos
-cd backend; dotnet test --solution Applada.slnx --filter-class "*HealthTests"   # filtro por classe
+cd backend; dotnet test --solution Applada.slnx                                  # todos
+cd backend; dotnet test --solution Applada.slnx --filter-class "*HealthTests"    # por classe
+cd backend; dotnet test --solution Applada.slnx --filter-method "*Development_serves_openapi_document"   # por método
+cd backend; dotnet test --solution Applada.slnx --filter-namespace "Applada.Modules.Matches.Domain.Tests" # por namespace
+```
+
+Com filtro, o projeto de teste que não casa nenhum teste termina com "Zero testes executados" e o
+comando sai com **código 8** mesmo com tudo verde (Microsoft.Testing.Platform). Isso é esperado em
+execução filtrada; só o resumo (`falhou: 0`) importa. Sem filtro o código de saída é 0.
+
+Contrato HTTP: o documento OpenAPI gerado em Development é versionado em `docs/api/openapi-v1.json` e
+comparado por `OpenApiContractTests`. Mudou rota, schema ou resposta: o teste falha; regrave o arquivo,
+revise o diff e inclua no commit. Servidores e a URL do provedor OIDC são normalizados (`{authority}`).
+
+```powershell
+cd backend; $env:UPDATE_OPENAPI='1'; dotnet test --solution Applada.slnx --filter-class "*OpenApiContractTests"; Remove-Item Env:UPDATE_OPENAPI
 ```
 
 Migrations (EF Core): `dotnet-ef` é ferramenta local (`backend/.config/dotnet-tools.json`), então
@@ -52,19 +68,29 @@ cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applad
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
 ```
 
+`dotnet ef migrations remove` precisa de conexão com o banco; sem ele, apague os dois arquivos da migration
+(`<timestamp>_<Nome>.cs` e `.Designer.cs`) e confira que o `*ModelSnapshot.cs` voltou ao estado anterior.
+
 Com `Database:ApplyMigrationsOnStartup=true` (dev e testes) cada módulo aplica as próprias migrations
 na subida; em produção a flag fica `false`.
 
-Ambiente local (Aspire, só dev; exige Docker): PostgreSQL/PostGIS, RabbitMQ (management), Keycloak
-(realm `infra/keycloak/applada-dev-realm.json`) e a API em Development. Dashboard em
-`http://localhost:15180` (o link com token sai no console), API em `http://localhost:5080`, Scalar em
-`http://localhost:5080/scalar/v1`, Keycloak em `http://localhost:8080`. A senha do admin do Keycloak é
-parâmetro secreto do AppHost (detalhes em `infra/keycloak/README.md`).
+Ambiente local (Aspire, só dev; exige Docker): PostgreSQL/PostGIS (`17-3.5`), RabbitMQ
+(`4.4.0-management`), Keycloak genérico `26.8.2` (realm `infra/keycloak/applada-dev-realm.json`) e a API em
+Development, com migrations aplicadas na subida. Dashboard em `http://localhost:15180` (o link com token
+sai no console), API em `http://localhost:5080`, Scalar em `http://localhost:5080/scalar/v1`, OpenAPI em
+`http://localhost:5080/openapi/v1.json`, Keycloak em `http://localhost:8080`; todas escutam só em loopback.
+A senha do admin do Keycloak é parâmetro secreto do AppHost: sem ela o dashboard pede o valor ao subir
+(detalhes em `infra/keycloak/README.md`).
 
 ```powershell
 dotnet user-secrets set "Parameters:keycloak-admin-password" "<senha-local>" --project backend/src/Applada.AppHost   # uma vez
 dotnet run --project backend/src/Applada.AppHost
+curl.exe http://localhost:5080/health/live    # API no ar (200 Healthy); /health/ready também confere banco e broker
 ```
+
+Ao encerrar o AppHost (Ctrl+C no terminal dele) o Aspire remove os containers. O volume de dados do PostgreSQL
+persiste entre subidas; para recomeçar do zero, apague o volume `applada.apphost-*-postgres-data`
+(`docker volume ls`, `docker volume rm`).
 
 ## 4. Arquitetura — regras invioláveis
 
