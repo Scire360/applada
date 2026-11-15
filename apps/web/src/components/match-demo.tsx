@@ -43,16 +43,32 @@ function formatLocalDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function MatchDemoMetrics({ mode }: { mode: "attendance" | "game" }) {
+export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "game" }) {
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
   const score = `${goals.filter((goal) => goal.side === "green").length} × ${goals.filter((goal) => goal.side === "blue").length}`;
+  const pendingCheckIns = Math.max(0, attendees.length - checkedIn.length);
 
   const metrics = mode === "game"
     ? [
       [match ? score : "—", "placar da prévia", "Central da partida"],
       [status === "live" ? "Ao vivo" : status === "completed" ? "Encerrada" : String(checkedIn.length), status === "scheduled" ? "com check-in" : "estado da partida", "Elenco desta sessão"],
     ]
-    : [
+    : mode === "checkin"
+      ? [
+        [
+          attendees.length ? `${checkedIn.length} / ${attendees.length}` : "—",
+          "check-ins feitos",
+          "Progresso da chegada",
+        ],
+        [
+          attendees.length ? String(pendingCheckIns) : "—",
+          attendees.length
+            ? pendingCheckIns === 1 ? "check-in pendente" : "check-ins pendentes"
+            : "jogadores confirmados",
+          attendees.length ? "Pessoas confirmadas" : "Aguardando confirmações",
+        ],
+      ]
+      : [
       [`${attendees.length} / ${match?.capacity ?? "—"}`, "vagas confirmadas", "Pelada desta sessão"],
       [String(waitlist.length), "na lista de espera", "Promoção demonstrativa"],
     ];
@@ -70,8 +86,14 @@ export function MatchDemoMetrics({ mode }: { mode: "attendance" | "game" }) {
         <strong>{metrics[1][1]}</strong>
       </article>
       <article className="screen-metric-card screen-metric-note">
-        <span className="eyebrow">DESTAQUE</span>
-        <strong>{playerOfTheMatch ?? (match ? metrics[1][2] : "Crie uma pelada para começar.")}</strong>
+        <span className="eyebrow">{mode === "checkin" ? "ETAPA" : "DESTAQUE"}</span>
+        <strong>{mode === "checkin"
+          ? !match
+            ? "Crie uma pelada para começar."
+            : attendees.length
+              ? pendingCheckIns ? "Check-in em andamento" : "Todos chegaram"
+              : "Aguardando confirmações"
+          : playerOfTheMatch ?? (match ? metrics[1][2] : "Crie uma pelada para começar.")}</strong>
         <span>Prévia local; nada é salvo nem enviado.</span>
       </article>
     </section>
@@ -251,6 +273,16 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
     : mode === "open" ? [demoPlayers[0]] : demoPlayers;
   const isFull = attendees.length >= match.capacity;
   const remainingSlots = Math.max(0, match.capacity - attendees.length);
+  const progressValue = isCheckIn ? checkedIn.length : attendees.length;
+  const progressMax = isCheckIn ? attendees.length : match.capacity;
+  const progressPercent = progressMax
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0;
+  const progressDescription = isCheckIn
+    ? attendees.length
+      ? `${checkedIn.length} de ${attendees.length} jogadores confirmados fizeram check-in`
+      : "Nenhum jogador confirmou presença ainda"
+    : `${attendees.length} confirmadas, ${remainingSlots} disponíveis e ${waitlist.length} na lista de espera`;
   const rosterIsLocked = status !== "scheduled";
 
   function handleAttendance(name: string) {
@@ -259,7 +291,7 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
     const messages = {
       confirmed: `${name} confirmado nesta prévia.`,
       cancelled: `${name} removido da lista de presença desta prévia.`,
-      promoted: `${name} saiu da lista e ${nextInLine} assumiu a vaga.`,
+      promoted: `${name} cancelou a presença e ${nextInLine} assumiu a vaga.`,
       waitlisted: `${name} entrou na lista de espera, na posição ${waitlist.length + 1}.`,
       "left-waitlist": `${name} saiu da lista de espera.`,
       "match-started": "As confirmações estão bloqueadas porque a partida já começou.",
@@ -291,17 +323,27 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           <p>{match.location}</p>
           {match.notes ? <p>{match.notes}</p> : null}
         </div>
-        <div aria-label={`${attendees.length} de ${match.capacity} vagas confirmadas`}
-          aria-valuemax={match.capacity}
+        <div
+          aria-label={isCheckIn ? "Progresso dos check-ins" : `${attendees.length} de ${match.capacity} vagas confirmadas`}
+          aria-valuemax={progressMax || undefined}
           aria-valuemin={0}
-          aria-valuenow={attendees.length}
-          aria-valuetext={`${attendees.length} confirmadas, ${remainingSlots} disponíveis e ${waitlist.length} na lista de espera`}
+          aria-valuenow={progressMax ? progressValue : undefined}
+          aria-valuetext={progressDescription}
           className="demo-capacity"
-          role="progressbar"
+          role={progressMax ? "progressbar" : "status"}
         >
-          <strong>{attendees.length} / {match.capacity}</strong>
+          <strong>{isCheckIn ? `${checkedIn.length} / ${attendees.length}` : `${attendees.length} / ${match.capacity}`}</strong>
+          {progressMax ? (
+            <div aria-hidden="true" className="demo-capacity-track">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+          ) : null}
           <span>
-            {isFull
+            {isCheckIn
+              ? attendees.length
+                ? `${attendees.length - checkedIn.length} ${attendees.length - checkedIn.length === 1 ? "check-in pendente" : "check-ins pendentes"}`
+                : "Aguardando confirmações"
+              : isFull
               ? `Vagas esgotadas · ${waitlist.length ? `${waitlist.length} ${waitlist.length === 1 ? "pessoa" : "pessoas"} na espera` : "fila vazia"}`
               : `${remainingSlots} ${remainingSlots === 1 ? "vaga disponível" : "vagas disponíveis"}`}
           </span>
@@ -318,10 +360,17 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
                   ? "Presença confirmada"
                   : waitlist.includes(demoPlayers[0])
                     ? `Na lista de espera · posição ${waitlist.indexOf(demoPlayers[0]) + 1}`
+                    : isFull
+                      ? "Vagas esgotadas · entre na lista de espera"
                     : "Organizador do grupo"}
               </span>
             </div>
             <button
+              aria-label={`${attendees.includes(demoPlayers[0])
+                ? "Cancelar presença"
+                : waitlist.includes(demoPlayers[0])
+                  ? "Sair da espera"
+                  : isFull ? "Entrar na espera" : "Confirmar presença"} para ${demoPlayers[0]}`}
               aria-pressed={attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0])}
               className={`button ${attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0]) ? "button-secondary" : "button-primary"}`}
               disabled={rosterIsLocked}
@@ -339,6 +388,9 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           const confirmed = attendees.includes(player);
           const waiting = waitlist.includes(player);
           const arrived = checkedIn.includes(player);
+          const actionLabel = isCheckIn
+            ? arrived ? "Desfazer check-in" : "Registrar check-in"
+            : confirmed ? "Remover presença" : waiting ? "Sair da espera" : isFull ? "Entrar na espera" : "Confirmar presença";
 
           return (
             <div className="match-demo-action" key={player}>
@@ -353,35 +405,42 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
               </div>
               {isCheckIn ? (
                 <button
+                  aria-label={`${actionLabel} para ${player}`}
                   aria-pressed={arrived}
                   className={`button ${arrived ? "button-secondary" : "button-primary"}`}
                   disabled={rosterIsLocked}
                   onClick={() => handleCheckIn(player)}
                   type="button"
                 >
-                  {arrived ? "Desfazer check-in" : "Registrar check-in"}
+                  {actionLabel}
                 </button>
               ) : (
                 <button
+                  aria-label={`${actionLabel} para ${player}`}
                   aria-pressed={confirmed || waiting}
                   className={`button ${confirmed || waiting ? "button-secondary" : "button-primary"}`}
                   disabled={rosterIsLocked}
                   onClick={() => handleAttendance(player)}
                   type="button"
                 >
-                  {confirmed ? "Remover presença" : waiting ? "Sair da espera" : isFull ? "Entrar na espera" : "Confirmar presença"}
+                  {actionLabel}
                 </button>
               )}
             </div>
           );
         }) : (
-          <p className="directory-empty">Confirme a presença de jogadores antes de fazer o check-in.</p>
+          <div className="match-demo-empty">
+            <p>Confirme a presença de jogadores antes de fazer o check-in.</p>
+            <Link className="button button-secondary" href="/presenca">Gerenciar confirmações</Link>
+          </div>
         )}
       </div>
 
       {notice ? <p aria-live="polite" className="form-feedback" role="status">{notice}</p> : null}
       <div className="match-demo-links">
-        {mode !== "presence" ? <Link href="/presenca">Gerenciar confirmações</Link> : null}
+        {mode !== "presence" && !(isCheckIn && candidates.length === 0)
+          ? <Link href="/presenca">Gerenciar confirmações</Link>
+          : null}
         {mode !== "checkin" ? <Link href="/presenca/check-in">Ir para check-in</Link> : null}
         <span>Estado somente nesta sessão; recarregar a página reinicia a prévia.</span>
       </div>

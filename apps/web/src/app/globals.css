@@ -1664,6 +1664,22 @@ svg {
   font-size: 14px;
 }
 
+.demo-capacity-track {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #e4ebe4;
+}
+
+.demo-capacity-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #578160;
+  transition: width 180ms ease;
+}
+
 .demo-capacity span {
   color: #606c63;
   font-size: 9px;

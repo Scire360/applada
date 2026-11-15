@@ -218,6 +218,9 @@ async function LegacyScreenContent({
   const isGameDemo = screen.legacyView === "match-center" || screen.legacyView === "highlight-vote";
   const gameDemoMode = screen.legacyView === "highlight-vote" ? "highlights" : "live";
   const isMatchFlow = isMatchCreation || hasMatchDemo || isGameDemo;
+  const matchMetricsMode = isGameDemo
+    ? "game"
+    : screen.legacyView === "checkin-center" ? "checkin" : "attendance";
   const primaryTitle = isMatchCreation
     ? "Detalhes da pelada"
     : hasMatchDemo
@@ -248,7 +251,7 @@ async function LegacyScreenContent({
         </section>
 
         {isMatchFlow ? (
-          <MatchDemoMetrics mode={isGameDemo ? "game" : "attendance"} />
+          <MatchDemoMetrics mode={matchMetricsMode} />
         ) : (
           <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
             <article className="screen-metric-card">
