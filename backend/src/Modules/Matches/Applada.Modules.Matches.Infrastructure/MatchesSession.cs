@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Applada.BuildingBlocks.Contracts;
 using Applada.BuildingBlocks.Persistence.Idempotency;
 using Applada.BuildingBlocks.Persistence.Outbox;
@@ -102,12 +101,7 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
     public void Publish(IntegrationEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
-        db.OutboxMessages.Add(OutboxMessage.From(evt, CorrelationId(), timeProvider.GetUtcNow()));
+        // Trace da requisição corrente (sem depender de HTTP); fora de um trace, um id novo.
+        db.OutboxMessages.Add(OutboxMessage.From(evt, CorrelationId.Current(), timeProvider.GetUtcNow()));
     }
-
-    /// <summary>Trace da requisição corrente (sem depender de HTTP); fora de um trace, um id novo.</summary>
-    private static string CorrelationId() =>
-        Activity.Current is { } activity && activity.TraceId != default
-            ? activity.TraceId.ToString()
-            : Guid.NewGuid().ToString("N");
 }

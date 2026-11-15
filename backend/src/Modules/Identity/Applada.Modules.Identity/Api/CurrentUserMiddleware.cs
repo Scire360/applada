@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Applada.BuildingBlocks.Contracts;
 using Applada.Modules.Identity.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +31,7 @@ internal sealed partial class CurrentUserMiddleware(RequestDelegate next, ILogge
         }
 
         // Correlação propagada para os eventos: o trace da requisição ou, sem trace, o id da requisição.
-        var correlationId = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        var correlationId = CorrelationId.Current(fallback: context.TraceIdentifier);
         var (userId, created) = await provisioner.EnsureUserAsync(issuer, subject, correlationId, context.RequestAborted);
         if (created)
         {
