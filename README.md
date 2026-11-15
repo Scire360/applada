@@ -6,7 +6,7 @@ Plataforma de organização de futebol amador e rede social esportiva.
 > Identity (usuário interno por `(issuer, subject)`) e Matches (criar partida, inscrição, lista de espera
 > com promoção automática e as 9 rotas de `/api/v1` descritas em [`docs/api/openapi-v1.json`](docs/api/openapi-v1.json)),
 > outbox transacional com RabbitMQ e o ambiente local com Aspire e Keycloak. A web reúne as telas
-> de demonstração do produto. Os demais módulos, os consumidores de eventos e `apps/mobile`
+> de demonstração e o fluxo local de Partidas conectadas. Os demais módulos, os consumidores de eventos e `apps/mobile`
 > ainda não têm código.
 > A arquitetura de referência está em `docs/` (Especificação de Arquitetura v1.0) e as decisões em
 > [`docs/adr`](docs/adr/README.md).
@@ -41,7 +41,7 @@ npm ci
 npm run dev
 ```
 
-Consulte [apps/web/README.md](apps/web/README.md) para os fluxos disponíveis e as verificações.
+Consulte [apps/web/README.md](apps/web/README.md) para habilitar o login de teste e conectar a agenda ao backend local.
 
 ## Estrutura
 

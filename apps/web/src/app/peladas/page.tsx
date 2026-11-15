@@ -21,9 +21,12 @@ export default function MatchesPage() {
           </div>
           <div className="page-heading-actions">
             <a className="button button-secondary" href="#agenda">
-              <Icon name="calendar" />
               Ver agenda
             </a>
+            <Link className="button button-secondary" href="/peladas/conectadas">
+              <Icon name="calendar" />
+              Partidas conectadas
+            </Link>
             <Link className="button button-primary" href="/eventos/novo">
               <Icon name="plus" />
               Organizar pelada

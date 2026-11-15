@@ -67,10 +67,11 @@ type AppShellProps = {
   active: "overview" | ScreenGroup;
   activePath?: string;
   title?: string;
+  variant?: "local";
   children: ReactNode;
 };
 
-export function AppShell({ active, activePath, title, children }: AppShellProps) {
+export function AppShell({ active, activePath, title, variant, children }: AppShellProps) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
@@ -83,12 +84,11 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
         </Link>
 
         <div className="workspace-switcher">
-          <span className="workspace-avatar">SC</span>
+          <span aria-hidden="true" className="workspace-avatar">{variant === "local" ? "AP" : "SC"}</span>
           <span className="workspace-copy">
             <span className="eyebrow">SEU ESPAÇO</span>
-            <span className="workspace-name">Santa Cecília FC</span>
+            <span className="workspace-name">{variant === "local" ? "Testes do Applada" : "Santa Cecília FC"}</span>
           </span>
-          <Icon className="workspace-chevron" name="chevron-down" />
         </div>
 
         <nav aria-label="Navegação principal" className="primary-nav">
@@ -141,7 +141,7 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
           </div>
         </nav>
 
-        <div className="sidebar-bottom">
+        {!variant && <div className="sidebar-bottom">
           <div className="sidebar-season">
             <span className="season-icon">
               <Icon name="sparkles" />
@@ -161,13 +161,13 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               <Icon className="profile-chevron" name="chevron-down" />
             </Link>
           </div>
-        </div>
+        </div>}
       </aside>
 
       <div className="main-column">
         <header className="topbar">
           <div aria-label={`Você está em ${title ?? (active === "overview" ? "Visão geral" : "seu espaço")}`} className="breadcrumbs">
-            <span>Santa Cecília FC</span>
+            <span>{variant === "local" ? "Applada" : "Santa Cecília FC"}</span>
             <span className="breadcrumb-divider">/</span>
             <strong>{title ?? (active === "overview" ? "Visão geral" : "Seu espaço")}</strong>
           </div>
@@ -177,11 +177,11 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             </Link>
             <span className="preview-status">
               <span className="status-dot" />
-              Prévia · dados ilustrativos
+              {variant === "local" ? "Ambiente local" : "Prévia · dados ilustrativos"}
             </span>
-            <span aria-label="Usuário Rafael Martins" className="avatar avatar-light">
+            {!variant && <span aria-label="Usuário Rafael Martins" className="avatar avatar-light">
               RM
-            </span>
+            </span>}
           </div>
         </header>
         <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>
