@@ -48,6 +48,19 @@ public class AuthenticationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Production_401_does_not_reveal_why_the_token_was_rejected()
+    {
+        // IncludeErrorDetails só em Development: fora dele o WWW-Authenticate não diz "audience inválida", "expirado"...
+        var response = await GetMeWith(TestJwt.Issue("auth-details", audience: "outra-api", now: factory.Clock.GetUtcNow()));
+
+        AssertUnauthorizedProblem(response);
+        var challenge = Assert.Single(response.Headers.WwwAuthenticate);
+        Assert.Equal("Bearer", challenge.Scheme);
+        Assert.DoesNotContain("error_description", challenge.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("audience", challenge.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Wrong_issuer_returns_401()
     {
         var response = await GetMeWith(TestJwt.Issue("auth-issuer", issuer: "https://outro-issuer.example", now: factory.Clock.GetUtcNow()));

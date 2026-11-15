@@ -28,6 +28,19 @@ public class DevelopmentSurfaceTests : IClassFixture<DevelopmentApiFactory>
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Development_401_keeps_jwt_error_details_for_debugging()
+    {
+        using var client = _development.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+            "Bearer", TestJwt.Issue("dev-details", audience: "outra-api", now: _development.Clock.GetUtcNow()));
+
+        using var response = await client.GetAsync(new Uri("/api/v1/me", UriKind.Relative), Ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("error_description", Assert.Single(response.Headers.WwwAuthenticate).ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Production_has_no_openapi_or_scalar()
     {
         using var anonymous = _production.CreateClient();

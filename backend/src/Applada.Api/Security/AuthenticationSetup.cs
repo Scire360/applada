@@ -44,6 +44,9 @@ public static class AuthenticationSetup
                 options.Audience = settings.Value.Audience;
                 options.MapInboundClaims = false;
                 options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+                // Fora de Development o 401 não diz por que o token foi recusado (audience, expiração, assinatura...):
+                // o motivo ajuda quem testa tokens forjados. O log do servidor continua registrando a falha.
+                options.IncludeErrorDetails = builder.Environment.IsDevelopment();
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
