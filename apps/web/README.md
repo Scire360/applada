@@ -22,10 +22,11 @@ O servidor local fica disponível em `http://localhost:3000`.
    cd apps\web
    npm ci
    $env:APPLADA_LOCAL_INTEGRATION = '1'
-   npm run dev -- --webpack --hostname localhost --port 3000
+   npm run dev -- --hostname localhost --port 3000
    ```
 
-   O Webpack evita recargas repetidas do HMR observadas com Turbopack neste checkout no Windows.
+   Se a prévia no Brave recarregar repetidamente com o erro `Element type is invalid`
+   e o painel indicar Webpack, reinicie o frontend com o comando acima para usar Turbopack.
 3. Abra [Partidas conectadas](http://localhost:3000/peladas/conectadas). Entre como `organizador.dev` com a senha temporária `trocar-no-primeiro-login`. O Keycloak pede uma nova senha no primeiro acesso. Para simular a fila, crie uma partida futura com uma vaga e compartilhe seu link em dois perfis ou janelas isoladas, com contas diferentes como `jogador1.dev` e `jogador2.dev`.
 4. Confirme a primeira conta, inscreva a segunda na espera, retire a primeira e use **Atualizar partida** na segunda. Os dados vêm do PostgreSQL. O organizador pode editar, cancelar e ver os participantes. A API aplica as restrições de cada papel.
 

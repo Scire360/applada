@@ -25,11 +25,13 @@ async function appRoutes() {
 
 async function measureLayout() {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const main = document.querySelector(".main-column");
-  const content = document.querySelector(".page-content");
-  const breadcrumbs = document.querySelector(".breadcrumbs");
-  const account = document.querySelector(".topbar .account-trigger");
-  const community = document.querySelector('.compact-primary-nav a[aria-label="Comunidade"]');
+  const shell = Array.from(document.querySelectorAll(".app-shell"))
+    .find((element) => element.getClientRects().length > 0);
+  const main = shell.querySelector(".main-column");
+  const content = shell.querySelector(".page-content");
+  const breadcrumbs = shell.querySelector(".breadcrumbs");
+  const account = shell.querySelector(".topbar .account-trigger");
+  const community = shell.querySelector('.compact-primary-nav a[aria-label="Comunidade"]');
   const range = document.createRange();
   range.selectNodeContents(community.querySelector("span"));
 
@@ -41,8 +43,8 @@ async function measureLayout() {
   const layoutRect = content.firstElementChild.getBoundingClientRect();
   const communityRect = community.getBoundingClientRect();
   const communityText = Array.from(range.getClientRects());
-  const hero = document.querySelector(".match-hero")?.getBoundingClientRect();
-  const agenda = document.querySelector("#agenda")?.getBoundingClientRect();
+  const hero = content.querySelector(".match-hero")?.getBoundingClientRect();
+  const agenda = content.querySelector("#agenda")?.getBoundingClientRect();
   const viewportWidth = document.documentElement.clientWidth;
   return {
     overflow: Math.max(document.documentElement.scrollWidth, main.scrollWidth + main.offsetLeft) - viewportWidth,
@@ -69,9 +71,19 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
   try {
     await Promise.all(Array.from({ length: 3 }, async (_, worker) => {
       const page = await browser.newPage({ viewport: viewports[0], reducedMotion: "reduce" });
+      page.on("pageerror", (error) => {
+        const { width, height } = page.viewportSize();
+        failures.push(new URL(page.url()).pathname + " em " + width + "×" + height
+          + " tem erro de execução: " + error.message);
+      });
       try {
         for (const route of routes.filter((_, index) => index % 3 === worker)) {
-          const response = await page.goto(base + route, { waitUntil: "load" });
+          await page.setViewportSize(viewports[0]);
+          const [, response] = await Promise.all([
+            page.waitForResponse((response) => response.url() === base + "/api/local/session"),
+            page.goto(base + route, { waitUntil: "load" }),
+          ]);
+          await page.getByRole("main").waitFor({ state: "visible" });
           assert.equal(response?.status(), 200, route);
           for (const viewport of viewports) {
             await page.setViewportSize(viewport);
