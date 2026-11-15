@@ -39,10 +39,41 @@ internal static partial class MatchEndpoints
     {
         var group = endpoints.MapGroup(BasePath).WithTags("Matches");
 
-        group.MapPost(string.Empty, CreateAsync).WithName("CreateMatch").RequireRateLimiting(RateLimitPolicies.Writes);
-        group.MapGet("/{id:guid}", GetAsync).WithName("GetMatch");
-        group.MapPatch("/{id:guid}", UpdateAsync).WithName("UpdateMatch").RequireRateLimiting(RateLimitPolicies.Writes);
-        group.MapPost("/{id:guid}/cancellation", CancelAsync).WithName("CancelMatch").RequireRateLimiting(RateLimitPolicies.Writes);
+        group.MapPost(string.Empty, CreateAsync).WithName("CreateMatch").RequireRateLimiting(RateLimitPolicies.Writes)
+            // Metadados só para o documento OpenAPI: não alteram o comportamento da rota.
+            .Produces<MatchResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/{id:guid}", GetAsync).WithName("GetMatch")
+            .Produces<MatchResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPatch("/{id:guid}", UpdateAsync).WithName("UpdateMatch").RequireRateLimiting(RateLimitPolicies.Writes)
+            .Produces<MatchResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/{id:guid}/cancellation", CancelAsync).WithName("CancelMatch").RequireRateLimiting(RateLimitPolicies.Writes)
+            .Produces<MatchResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         return endpoints;
     }

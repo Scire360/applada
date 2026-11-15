@@ -26,45 +26,50 @@ public static class DevelopmentApiReference
             return builder;
         }
 
-        builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, context, _) =>
+        builder.Services.AddOpenApi(options =>
         {
-            var authority = context.ApplicationServices
-                .GetRequiredService<IOptions<AuthenticationSettings>>().Value.Authority.TrimEnd('/');
+            options.AddOperationTransformer(DevelopmentContractTransformers.TransformOperationAsync);
+            options.AddDocumentTransformer(DevelopmentContractTransformers.TransformDocumentAsync);
+            options.AddDocumentTransformer((document, context, _) =>
+            {
+                var authority = context.ApplicationServices
+                    .GetRequiredService<IOptions<AuthenticationSettings>>().Value.Authority.TrimEnd('/');
 
-            document.Components ??= new OpenApiComponents();
-            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-            document.Components.SecuritySchemes[BearerScheme] = new OpenApiSecurityScheme
-            {
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                BearerFormat = "JWT",
-                Description = "Access token JWT emitido pelo provedor OIDC (Authentication:Authority).",
-            };
-            // Endpoints no formato do Keycloak: o provedor de dev é o realm do AppHost.
-            document.Components.SecuritySchemes[OAuth2Scheme] = new OpenApiSecurityScheme
-            {
-                Type = SecuritySchemeType.OAuth2,
-                Description = "Authorization Code + PKCE (S256) no realm de desenvolvimento.",
-                Flows = new OpenApiOAuthFlows
+                document.Components ??= new OpenApiComponents();
+                document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+                document.Components.SecuritySchemes[BearerScheme] = new OpenApiSecurityScheme
                 {
-                    AuthorizationCode = new OpenApiOAuthFlow
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    Description = "Access token JWT emitido pelo provedor OIDC (Authentication:Authority).",
+                };
+                // Endpoints no formato do Keycloak: o provedor de dev é o realm do AppHost.
+                document.Components.SecuritySchemes[OAuth2Scheme] = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.OAuth2,
+                    Description = "Authorization Code + PKCE (S256) no realm de desenvolvimento.",
+                    Flows = new OpenApiOAuthFlows
                     {
-                        AuthorizationUrl = new Uri(authority + "/protocol/openid-connect/auth"),
-                        TokenUrl = new Uri(authority + "/protocol/openid-connect/token"),
-                        Scopes = new Dictionary<string, string> { ["openid"] = "OpenID Connect" },
+                        AuthorizationCode = new OpenApiOAuthFlow
+                        {
+                            AuthorizationUrl = new Uri(authority + "/protocol/openid-connect/auth"),
+                            TokenUrl = new Uri(authority + "/protocol/openid-connect/token"),
+                            Scopes = new Dictionary<string, string> { ["openid"] = "OpenID Connect" },
+                        },
                     },
-                },
-            };
+                };
 
-            // Qualquer um dos dois esquemas autentica (fallback da API exige usuário autenticado).
-            document.Security =
-            [
-                new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(BearerScheme, document)] = [] },
+                // Qualquer um dos dois esquemas autentica (fallback da API exige usuário autenticado).
+                document.Security =
+                [
+                    new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(BearerScheme, document)] = [] },
                 new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(OAuth2Scheme, document)] = ["openid"] },
             ];
 
-            return Task.CompletedTask;
-        }));
+                return Task.CompletedTask;
+            });
+        });
 
         return builder;
     }

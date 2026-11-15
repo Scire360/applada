@@ -88,7 +88,7 @@ dotnet run --project backend/src/Applada.AppHost
 curl.exe http://localhost:5080/health/live    # API no ar (200 Healthy); /health/ready também confere banco e broker
 ```
 
-Ao encerrar o AppHost (Ctrl+C no terminal dele) o Aspire remove os containers. O volume de dados do PostgreSQL
+Ao encerrar o processo do AppHost, os containers de PostgreSQL, RabbitMQ e Keycloak somem e as portas são liberadas (verificado). O volume de dados do PostgreSQL
 persiste entre subidas; para recomeçar do zero, apague o volume `applada.apphost-*-postgres-data`
 (`docker volume ls`, `docker volume rm`).
 

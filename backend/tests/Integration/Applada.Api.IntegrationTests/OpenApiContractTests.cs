@@ -16,7 +16,6 @@ public class OpenApiContractTests : IClassFixture<DevelopmentApiFactory>
     private const string UpdateVariable = "UPDATE_OPENAPI";
     private const string AuthorityPlaceholder = "{authority}";
 
-
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
     private readonly DevelopmentApiFactory _development;

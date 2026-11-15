@@ -24,9 +24,28 @@ internal static partial class RegistrationEndpoints
     {
         var group = endpoints.MapGroup("/api/v1/matches/{id:guid}/registrations").WithTags("Matches");
 
-        group.MapPost(string.Empty, RegisterAsync).WithName("Register").RequireRateLimiting(RateLimitPolicies.Writes);
-        group.MapDelete("/me", WithdrawAsync).WithName("Withdraw").RequireRateLimiting(RateLimitPolicies.Writes);
-        group.MapGet(string.Empty, ListAsync).WithName("ListParticipants");
+        group.MapPost(string.Empty, RegisterAsync).WithName("Register").RequireRateLimiting(RateLimitPolicies.Writes)
+            // Metadados só para o documento OpenAPI: não alteram o comportamento da rota.
+            .Produces<RegistrationResponse>(StatusCodes.Status201Created)
+            .Produces<RegistrationResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        group.MapDelete("/me", WithdrawAsync).WithName("Withdraw").RequireRateLimiting(RateLimitPolicies.Writes)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet(string.Empty, ListAsync).WithName("ListParticipants")
+            .Produces<Page<ParticipantResponse>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
     }
