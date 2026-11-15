@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
 
@@ -38,6 +39,27 @@ public class DevelopmentSurfaceTests : IClassFixture<DevelopmentApiFactory>
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Contains("error_description", Assert.Single(response.Headers.WwwAuthenticate).ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Development_profile_rejects_invalid_json_and_media_type_with_client_errors()
+    {
+        using var client = _development.CreateClientFor(MatchesApi.NewSubject("dev-profile"));
+        var route = new Uri("/api/v1/me/profile", UriKind.Relative);
+
+        using var invalidJson = new StringContent("{\"displayName\":", Encoding.UTF8, "application/json");
+        using var invalid = await client.PutAsync(route, invalidJson, Ct);
+        using var problem = await MatchesApi.AssertProblemAsync(invalid, HttpStatusCode.BadRequest, "validation");
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("displayName", out _));
+
+        using var plainText = new StringContent("João", Encoding.UTF8, "text/plain");
+        using var unsupported = await client.PutAsync(route, plainText, Ct);
+        using var mediaProblem = await MatchesApi.AssertProblemAsync(unsupported, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
+
+        using var unknownCharset = new StringContent("{\"displayName\":\"João\"}", Encoding.UTF8, "application/json");
+        unknownCharset.Headers.ContentType!.CharSet = "x-applada-unsupported";
+        using var charsetResponse = await client.PutAsync(route, unknownCharset, Ct);
+        using var charsetProblem = await MatchesApi.AssertProblemAsync(charsetResponse, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Applada.BuildingBlocks.Domain;
 using Applada.Modules.Matches.Domain;
+using Applada.Modules.Profiles.Contracts;
 
 namespace Applada.Modules.Matches.Application.Queries;
 
@@ -15,7 +16,7 @@ namespace Applada.Modules.Matches.Application.Queries;
 /// autenticado que ela existe. A autorização e a página usam o mesmo snapshot do banco.
 /// O cursor só posiciona a leitura (rank e <c>queue_seq</c>) entre as inscrições da partida da rota.
 /// </remarks>
-public sealed class ParticipantsQuery(IMatchQueries queries)
+public sealed class ParticipantsQuery(IMatchQueries queries, IProfileNames profiles)
 {
     public async Task<Result<Page<Participant>>> HandleAsync(Guid matchId, Guid viewerId, string? cursor, int limit, CancellationToken ct)
     {
@@ -43,7 +44,15 @@ public sealed class ParticipantsQuery(IMatchQueries queries)
         }
 
         var rows = result.Value;
-        var items = rows.Take(limit).Select(r => new Participant(r.UserId, r.Status, r.Position)).ToArray();
+        var page = rows.Take(limit).ToArray();
+        if (page.Length == 0)
+        {
+            return new Page<Participant>([], null);
+        }
+
+        // Buscar nomes apenas depois da autorização e somente para os usuários desta página.
+        var names = await profiles.ListAsync(page.Select(p => p.UserId).ToArray(), ct);
+        var items = page.Select(p => new Participant(p.UserId, p.Status, p.Position, names.GetValueOrDefault(p.UserId))).ToArray();
         string? next = null;
         if (rows.Count > limit)
         {

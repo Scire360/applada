@@ -45,7 +45,7 @@ public class ParticipantsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Active_participant_authorization_and_page_use_one_database_statement()
+    public async Task Active_participant_authorization_and_page_use_one_matches_statement()
     {
         var (organizer, players, matchId) = await MatchWithThreePlayersAsync();
         try
@@ -335,7 +335,8 @@ public class ParticipantsTests(ApiFactory factory)
         var items = body.RootElement.GetProperty("items").EnumerateArray()
             .Select(i =>
             {
-                Assert.Equal(3, i.EnumerateObject().Count()); // userId, status, position: nada além
+                Assert.Equal(4, i.EnumerateObject().Count()); // userId, status, position e displayName
+                Assert.True(i.GetProperty("displayName").ValueKind is JsonValueKind.Null or JsonValueKind.String);
                 var position = i.GetProperty("position");
                 return (i.GetProperty("userId").GetGuid(), i.GetProperty("status").GetString()!, position.ValueKind == JsonValueKind.Null ? (int?)null : position.GetInt32());
             })

@@ -6,7 +6,7 @@ namespace Applada.Modules.Matches.Application.Queries;
 /// Participante exibido na lista. <see cref="Position"/> só em espera: quantos <c>waitlisted</c> têm <c>queue_seq</c>
 /// menor ou igual (1 = próximo a ser promovido).
 /// </summary>
-public sealed record Participant(Guid UserId, RegistrationStatus Status, int? Position);
+public sealed record Participant(Guid UserId, RegistrationStatus Status, int? Position, string? DisplayName);
 
 /// <summary>Linha da listagem de participantes, com a posição de fila que vira cursor.</summary>
 public sealed record ParticipantRow(Guid UserId, RegistrationStatus Status, long QueueSeq, int? Position);

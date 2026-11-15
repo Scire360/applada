@@ -28,6 +28,8 @@
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Contracts\Applada.Modules.Matches.Contracts.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Domain\Applada.Modules.Matches.Domain.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Infrastructure\Applada.Modules.Matches.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Profiles\Applada.Modules.Profiles\Applada.Modules.Profiles.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Profiles\Applada.Modules.Profiles.Contracts\Applada.Modules.Profiles.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

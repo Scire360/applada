@@ -25,7 +25,7 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-O backend tem solution, módulos Identity e Matches, testes e pipeline
+O backend tem solution, módulos Identity, Profiles e Matches, testes e pipeline
 (`.github/workflows/backend.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
 - Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
@@ -69,6 +69,8 @@ banco nem configuração. Pasta `Migrations` é marcada como código gerado (`ba
 cd backend; dotnet tool restore
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext --output-dir Infrastructure/Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext --output-dir Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
 ```

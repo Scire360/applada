@@ -3,9 +3,10 @@
 Plataforma de organização de futebol amador e rede social esportiva.
 
 > Estado: o backend (.NET 10) tem a fundação e a primeira fatia de negócio. Existem os módulos
-> Identity (usuário interno por `(issuer, subject)`) e Matches (criar partida, inscrição, lista de espera
-> com promoção automática e as 9 rotas de `/api/v1` descritas em [`docs/api/openapi-v1.json`](docs/api/openapi-v1.json)),
-> outbox transacional com RabbitMQ e o ambiente local com Aspire e Keycloak. A web reúne as telas
+> Identity (usuário interno por `(issuer, subject)`), Profiles (nome de exibição) e Matches (criar partida,
+> inscrição e lista de espera com promoção automática). As rotas de `/api/v1` estão no
+> [contrato OpenAPI](docs/api/openapi-v1.json). A publicação usa outbox transacional com RabbitMQ,
+> e o ambiente local usa Aspire com Keycloak. A web reúne as telas
 > de demonstração e o fluxo local de Partidas conectadas. Os demais módulos, os consumidores de eventos e `apps/mobile`
 > ainda não têm código.
 > A arquitetura de referência está em `docs/` (Especificação de Arquitetura v1.0) e as decisões em

@@ -114,6 +114,122 @@
         }
       }
     },
+    "/api/v1/me/profile": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "L\u00EA o nome de exibi\u00E7\u00E3o do usu\u00E1rio autenticado, que pode estar vazio.",
+        "operationId": "GetMyProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Salva o nome de exibi\u00E7\u00E3o do usu\u00E1rio autenticado, de 1 a 80 caracteres ap\u00F3s remover espa\u00E7os nas pontas.",
+        "operationId": "SetMyDisplayName",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisplayNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/matches": {
       "post": {
         "tags": [
@@ -968,6 +1084,17 @@
   },
   "components": {
     "schemas": {
+      "DisplayNameRequest": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -1261,7 +1388,8 @@
         "required": [
           "userId",
           "status",
-          "position"
+          "position",
+          "displayName"
         ],
         "type": "object",
         "properties": {
@@ -1280,6 +1408,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1314,6 +1448,20 @@
             ]
           },
           "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ProfileResponse": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
             "type": [
               "null",
               "string"
@@ -1381,6 +1529,9 @@
     },
     {
       "name": "Matches"
+    },
+    {
+      "name": "Profiles"
     }
   ]
 }

@@ -21,6 +21,10 @@
     <Project Path="src/Modules/Matches/Applada.Modules.Matches.Domain/Applada.Modules.Matches.Domain.csproj" />
     <Project Path="src/Modules/Matches/Applada.Modules.Matches.Infrastructure/Applada.Modules.Matches.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Profiles/">
+    <Project Path="src/Modules/Profiles/Applada.Modules.Profiles/Applada.Modules.Profiles.csproj" />
+    <Project Path="src/Modules/Profiles/Applada.Modules.Profiles.Contracts/Applada.Modules.Profiles.Contracts.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Architecture/Applada.Architecture.Tests/Applada.Architecture.Tests.csproj" />
     <Project Path="tests/Contract/Applada.Contracts.Tests/Applada.Contracts.Tests.csproj" />
