@@ -12,6 +12,7 @@ namespace Applada.Api.OpenApi;
 internal static class DevelopmentContractTransformers
 {
     private const string JsonMedia = "application/json";
+    private const string PrivateNoStore = "private, no-store: a resposta depende de quem pergunta.";
     private const string ETagDescription = "ETag fraco W/\"<version>\" da versão dos dados editáveis (não do corpo); use em If-Match.";
 
     public static async Task TransformOperationAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
@@ -23,23 +24,32 @@ internal static class DevelopmentContractTransformers
                     "Chave de idempotência (1 a 100 caracteres ASCII imprimíveis), por usuário, retida por 24 h. Mesma chave com o mesmo corpo devolve a resposta gravada; com corpo diferente, 422.");
                 await AddJsonBodyAsync<CreateMatchRequest>(operation, context, ct);
                 AddResponseHeader(operation, "201", "Location", "URL da partida criada (/api/v1/matches/{id}).");
+                AddResponseHeader(operation, "201", "Cache-Control", "no-store");
                 break;
             case "UpdateMatch":
                 AddHeader(operation, "If-Match", required: true,
                     "ETag fraco da partida (W/\"<version>\") lido no GET; ausente é 428, divergente é 412.");
                 await AddJsonBodyAsync<UpdateMatchRequest>(operation, context, ct);
                 AddResponseHeader(operation, "200", "ETag", ETagDescription);
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 break;
             case "GetMatch":
             case "CancelMatch":
                 AddResponseHeader(operation, "200", "ETag", ETagDescription);
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
+                break;
+            case "Register":
+                AddResponseHeader(operation, "201", "Cache-Control", PrivateNoStore);
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 break;
             case "ListMyMatches":
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 Describe(operation, "role", "Obrigatório: organizer (partidas que organizo) ou participant (inscrição ativa).", required: true, ["organizer", "participant"]);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
                 Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
                 break;
             case "ListParticipants":
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
                 Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
                 break;

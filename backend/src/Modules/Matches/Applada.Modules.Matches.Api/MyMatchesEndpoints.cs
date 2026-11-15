@@ -17,7 +17,7 @@ internal static class MyMatchesEndpoints
         endpoints.MapGet("/api/v1/me/matches", ListAsync).WithTags("Matches").WithName("ListMyMatches")
             // Metadados só para o documento OpenAPI: não alteram o comportamento da rota.
             .Produces<Page<MyMatchSummary>>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         return endpoints;
     }

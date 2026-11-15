@@ -42,7 +42,7 @@ internal static partial class RegistrationEndpoints
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         group.MapGet(string.Empty, ListAsync).WithName("ListParticipants")
             .Produces<Page<ParticipantResponse>>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);

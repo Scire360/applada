@@ -42,7 +42,7 @@ internal static partial class MatchEndpoints
         group.MapPost(string.Empty, CreateAsync).WithName("CreateMatch").RequireRateLimiting(RateLimitPolicies.Writes)
             // Metadados só para o documento OpenAPI: não alteram o comportamento da rota.
             .Produces<MatchResponse>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
@@ -55,7 +55,7 @@ internal static partial class MatchEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPatch("/{id:guid}", UpdateAsync).WithName("UpdateMatch").RequireRateLimiting(RateLimitPolicies.Writes)
             .Produces<MatchResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)

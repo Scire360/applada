@@ -64,8 +64,8 @@ public static class DevelopmentApiReference
                 document.Security =
                 [
                     new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(BearerScheme, document)] = [] },
-                new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(OAuth2Scheme, document)] = ["openid"] },
-            ];
+                    new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(OAuth2Scheme, document)] = ["openid"] },
+                ];
 
                 return Task.CompletedTask;
             });

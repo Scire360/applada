@@ -75,6 +75,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -88,7 +96,7 @@
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -204,6 +212,12 @@
                 "schema": {
                   "type": "string"
                 }
+              },
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
@@ -219,7 +233,7 @@
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -310,6 +324,12 @@
             "headers": {
               "ETag": {
                 "description": "ETag fraco W/\u0022\u003Cversion\u003E\u0022 da vers\u00E3o dos dados edit\u00E1veis (n\u00E3o do corpo); use em If-Match.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
                 "schema": {
                   "type": "string"
                 }
@@ -417,6 +437,12 @@
                 "schema": {
                   "type": "string"
                 }
+              },
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
@@ -432,7 +458,7 @@
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -566,6 +592,12 @@
                 "schema": {
                   "type": "string"
                 }
+              },
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
@@ -659,6 +691,14 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -669,6 +709,14 @@
           },
           "200": {
             "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -764,6 +812,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -777,7 +833,7 @@
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -919,6 +975,53 @@
   },
   "components": {
     "schemas": {
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "MatchResponse": {
         "required": [
           "id",
