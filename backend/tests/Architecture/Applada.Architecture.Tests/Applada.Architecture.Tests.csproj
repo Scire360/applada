@@ -23,7 +23,9 @@
     <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity\Applada.Modules.Identity.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity.Contracts\Applada.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Api\Applada.Modules.Matches.Api.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Application\Applada.Modules.Matches.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Contracts\Applada.Modules.Matches.Contracts.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Domain\Applada.Modules.Matches.Domain.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Infrastructure\Applada.Modules.Matches.Infrastructure.csproj" />
   </ItemGroup>

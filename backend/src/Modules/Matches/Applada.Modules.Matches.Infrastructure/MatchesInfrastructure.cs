@@ -1,6 +1,7 @@
 using Applada.BuildingBlocks.Messaging;
 using Applada.BuildingBlocks.Persistence;
 using Applada.Modules.Matches.Application.Ports;
+using Applada.Modules.Matches.Application.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,7 @@ public static class MatchesInfrastructure
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IMatchesUnitOfWork, MatchesUnitOfWork>();
+        services.AddScoped<IMatchQueries, MatchQueries>();
         services.AddMigrationsOnStartup<MatchesDbContext>();
         services.AddOutboxPublisher<MatchesDbContext>();
 
