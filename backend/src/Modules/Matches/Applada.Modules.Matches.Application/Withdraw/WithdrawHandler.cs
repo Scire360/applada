@@ -26,17 +26,13 @@ public sealed class WithdrawHandler(IMatchesUnitOfWork unitOfWork, MatchesMetric
                     return MatchErrors.MatchNotFound;
                 }
 
-                // Sem linha nenhuma nesta partida é 404 mesmo se ela estiver fechada ou cancelada; com linha (ativa ou
-                // não), a ordem das regras é a do domínio (fechamento antes de "sem inscrição ativa").
+                // Sem linha nenhuma, o domínio decide do mesmo jeito (cancelada → fechada → registration-not-found):
+                // a ordem das regras fica num lugar só.
                 var registration = await session.FindRegistrationAsync(matchId, userId, token);
-                if (registration is null)
-                {
-                    return MatchErrors.RegistrationNotFound;
-                }
 
                 // Só uma saída de confirmado promove: só então a cabeça da fila é lida.
                 Registration? nextInLine = null;
-                if (registration.Status == RegistrationStatus.Confirmed)
+                if (registration?.Status == RegistrationStatus.Confirmed)
                 {
                     var head = await session.GetWaitlistHeadAsync(matchId, 1, token);
                     nextInLine = head.Count > 0 ? head[0] : null;

@@ -140,6 +140,58 @@ public class RegistrationApiTests(ApiFactory factory)
         Assert.Equal((0, 0), (state.ConfirmedCount, state.WaitlistCount));
     }
 
+    /// <summary>
+    /// A ordem das regras da saída é a do domínio também sem linha nenhuma: cancelada (409) → fechada (409) → sem
+    /// inscrição (404). Quem nunca se inscreveu recebe o mesmo que quem já saiu.
+    /// </summary>
+    [Fact]
+    public async Task Withdraw_without_registration_follows_domain_order()
+    {
+        using var organizer = await NewUserAsync(factory);
+        using var withdrawnBefore = await NewUserAsync(factory);
+        var neverSubject = NewSubject("reg");
+        var now = factory.Clock.GetUtcNow();
+        var open = await CreateMatchAsync(organizer.Client, now.AddDays(2), capacity: 3);
+        var cancelled = await CreateMatchAsync(organizer.Client, now.AddDays(2), capacity: 3);
+        var closing = await CreateMatchAsync(organizer.Client, now.AddMinutes(10), capacity: 3);
+        await RegisterExpectingAsync(withdrawnBefore.Client, cancelled, HttpStatusCode.Created);
+        using (var left = await WithdrawAsync(withdrawnBefore.Client, cancelled))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, left.StatusCode);
+        }
+
+        using (var cancel = await organizer.Client.PostAsync(new Uri($"{MatchesPath}/{cancelled}/cancellation", UriKind.Relative), null, Ct))
+        {
+            Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+        }
+
+        using (var never = factory.CreateClientFor(neverSubject))
+        {
+            using var onOpen = await WithdrawAsync(never, open);
+            await AssertProblemAsync(onOpen, HttpStatusCode.NotFound, "registration-not-found");
+            using var onCancelled = await WithdrawAsync(never, cancelled);
+            await AssertProblemAsync(onCancelled, HttpStatusCode.Conflict, "match-cancelled");
+        }
+
+        using (var again = await WithdrawAsync(withdrawnBefore.Client, cancelled))
+        {
+            await AssertProblemAsync(again, HttpStatusCode.Conflict, "match-cancelled");
+        }
+
+        var delta = TimeSpan.FromMinutes(10);
+        factory.Clock.Advance(delta);
+        try
+        {
+            using var never = factory.CreateClientFor(neverSubject);
+            using var onClosed = await WithdrawAsync(never, closing);
+            await AssertProblemAsync(onClosed, HttpStatusCode.Conflict, "registration-closed");
+        }
+        finally
+        {
+            factory.Clock.Advance(-delta);
+        }
+    }
+
     [Fact]
     public async Task Register_after_starts_at_returns_409()
     {

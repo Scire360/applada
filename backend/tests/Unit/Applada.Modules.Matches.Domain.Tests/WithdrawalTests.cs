@@ -100,6 +100,40 @@ public sealed class WithdrawalTests
     }
 
     [Fact]
+    public void Withdraw_without_registration_on_open_match_fails_with_registration_not_found()
+    {
+        var match = CreateMatch();
+
+        var result = match.Withdraw(null, null, Now);
+
+        AssertError(result, "registration-not-found", ErrorKind.NotFound);
+        Assert.Empty(match.DomainEvents);
+    }
+
+    [Fact]
+    public void Withdraw_without_registration_after_start_fails_with_registration_closed()
+    {
+        var match = CreateMatch();
+
+        var result = match.Withdraw(null, null, match.StartsAt);
+
+        AssertError(result, "registration-closed", ErrorKind.Conflict);
+    }
+
+    [Fact]
+    public void Withdraw_without_registration_on_cancelled_match_fails_with_match_cancelled()
+    {
+        var match = CreateMatch();
+        Assert.True(match.Cancel(OrganizerId, Now).IsSuccess);
+        match.ClearDomainEvents();
+
+        var result = match.Withdraw(null, null, Now);
+
+        AssertError(result, "match-cancelled", ErrorKind.Conflict);
+        Assert.Empty(match.DomainEvents);
+    }
+
+    [Fact]
     public void Withdraw_after_start_fails()
     {
         var match = CreateMatch();

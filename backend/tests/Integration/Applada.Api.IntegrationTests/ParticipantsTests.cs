@@ -132,6 +132,47 @@ public class ParticipantsTests(ApiFactory factory)
         }
     }
 
+    /// <summary>
+    /// Capacidade 5 e 25 inscritos, limit 10: a primeira página termina dentro da espera, então a segunda e a terceira
+    /// partem de um cursor de espera (rank 1). Sem buraco, sem repetição, na ordem e com posições contínuas.
+    /// </summary>
+    [Fact]
+    public async Task Pagination_with_page_ending_inside_waitlist_walks_all_pages_in_order()
+    {
+        using var organizer = await NewUserAsync(factory, "part");
+        var players = new List<TestUser>();
+        try
+        {
+            var matchId = await CreateMatchAsync(organizer.Client, factory.Clock.GetUtcNow().AddDays(2), capacity: 5);
+            foreach (var player in await NewUsersAsync(factory, 25, "part"))
+            {
+                players.Add(player);
+                await RegisterExpectingAsync(player.Client, matchId, HttpStatusCode.Created);
+            }
+
+            var pages = new List<Page>();
+            string? cursor = null;
+            do
+            {
+                var page = await GetPageAsync(organizer.Client, matchId, $"limit=10{(cursor is null ? string.Empty : $"&cursor={cursor}")}");
+                pages.Add(page);
+                cursor = page.NextCursor;
+            }
+            while (cursor is not null && pages.Count < 10);
+
+            Assert.Equal([10, 10, 5], pages.Select(p => p.Items.Count));
+            Assert.Equal(["confirmed", "waitlisted"], pages[0].Items.Select(i => i.Status).Distinct());
+            Assert.All(pages.Skip(1).SelectMany(p => p.Items), i => Assert.Equal("waitlisted", i.Status));
+            var expected = players.Take(5).Select(p => (p.Id, "confirmed", (int?)null))
+                .Concat(players.Skip(5).Select((p, i) => (p.Id, "waitlisted", (int?)(i + 1))));
+            Assert.Equal(expected, pages.SelectMany(p => p.Items));
+        }
+        finally
+        {
+            DisposeAll(players);
+        }
+    }
+
     [Fact]
     public async Task Limit_above_50_returns_400()
     {

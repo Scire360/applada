@@ -13,6 +13,9 @@ namespace Applada.Modules.Matches.Application.Queries;
 /// Ordem das checagens: entrada (limite e cursor) → existência (<c>match-not-found</c>) → autorização. Responder 404
 /// antes de 403 não vaza nada: nesta fatia toda partida é pública e <c>GET /matches/{id}</c> já mostra a qualquer
 /// autenticado que ela existe. Autorização e listagem são duas leituras: quem sai entre elas ainda recebe esta página.
+/// O cursor não carrega o id da partida, e isso é inofensivo: ele só posiciona a leitura (rank e <c>queue_seq</c>), e a
+/// listagem é sempre filtrada pela partida da rota depois da autorização. Um cursor de outra partida no máximo pula ou
+/// repete posições de uma lista que quem consulta já pode ver inteira; não dá acesso a nada além dela.
 /// </remarks>
 public sealed class ParticipantsQuery(IMatchQueries queries)
 {

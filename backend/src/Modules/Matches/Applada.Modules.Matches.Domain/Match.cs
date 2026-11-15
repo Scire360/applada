@@ -288,11 +288,11 @@ public sealed class Match
     /// <summary>
     /// Cancela a inscrição. Se ela estava confirmada, a vaga vai para <paramref name="nextInLine"/>, que deve ser a
     /// inscrição em espera com menor <see cref="Registration.QueueSeq"/> (nula só se a espera estiver vazia).
+    /// <paramref name="registration"/> nula (o usuário nunca se inscreveu) segue a mesma ordem de regras de uma inscrição
+    /// inativa: partida cancelada → fechada → <c>registration-not-found</c>.
     /// </summary>
-    public Result Withdraw(Registration registration, Registration? nextInLine, DateTimeOffset now)
+    public Result Withdraw(Registration? registration, Registration? nextInLine, DateTimeOffset now)
     {
-        ArgumentNullException.ThrowIfNull(registration);
-
         if (nextInLine is not null)
         {
             EnsurePromotable(nextInLine, nameof(nextInLine));
@@ -303,7 +303,7 @@ public sealed class Match
             return closed;
         }
 
-        if (registration.MatchId != Id || !registration.IsActive)
+        if (registration is null || registration.MatchId != Id || !registration.IsActive)
         {
             return MatchErrors.RegistrationNotFound;
         }
