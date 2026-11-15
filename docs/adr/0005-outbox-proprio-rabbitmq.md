@@ -32,7 +32,8 @@ isso em .NET, MassTransit, tem a v9 comercial e a manutenção oficial da v8 ter
 - **Garantia: at-least-once.** Se o commit falhar depois da confirmação do broker, a mensagem é publicada
   de novo. Não há garantia de ordem entre eventos. Consumidores devem deduplicar por `eventId` e tolerar
   reordenação.
-- Limpeza: mensagens publicadas há mais de 7 dias são apagadas a cada lote.
+- Limpeza: o processador apaga mensagens publicadas há mais de 7 dias na primeira passagem
+  e depois, por padrão, no máximo uma vez por hora por processador.
 - Envelope: `eventId`, `eventType`, `schemaVersion`, `aggregateId`, `occurredAt`, `correlationId`, `payload`;
   snapshot de contrato por evento v1 nos testes.
 - **Eventos publicados hoje** (routing key = `eventType`): `identity.user-registered.v1` e, de Matches,
@@ -78,12 +79,11 @@ não atende.
   mensagem é então descartada pelo broker (`mandatory=false`) e fica marcada como publicada.
 - **Mensagem envenenada (recusada para sempre) é tentada indefinidamente**, a cada 5 minutos após atingir o
   teto do backoff, sem estado terminal, sem quarentena e sem alerta dedicado além da métrica de falhas.
-- A limpeza periódica de `matches.idempotency_keys` (ADR-0002) é um job que ainda não existe; quando for
-  criado, deve seguir o mesmo modelo de `BackgroundService` do outbox.
 - Duplicatas são esperadas (at-least-once); a responsabilidade de deduplicar é do consumidor.
 - A transação do lote fica aberta durante a publicação; por isso o lote encerra na primeira falha que não
   seja nack.
-- Retenção a cada lote sem índice em `published_at` (a reavaliar com volume).
+- A limpeza periódica ainda varre a tabela por `published_at`, que não tem índice. O custo deve ser
+  reavaliado conforme o volume de mensagens crescer.
 - Sem teste de carga: vazão do publicador e latência sob volume não foram medidas.
 - O PostgreSQL é ponto único de falha também para a publicação (o outbox vive nele).
 - Retry, reconexão e topologia são código nosso; bugs nesses pontos são nossos para corrigir.

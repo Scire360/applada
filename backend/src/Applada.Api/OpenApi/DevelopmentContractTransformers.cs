@@ -22,7 +22,14 @@ internal static class DevelopmentContractTransformers
             case "CreateMatch":
                 AddHeader(operation, "Idempotency-Key", required: true,
                     "Chave de idempotência (1 a 100 caracteres ASCII imprimíveis), por usuário, retida por 24 h. Mesma chave com o mesmo corpo devolve a resposta gravada; com corpo diferente, 422.");
-                await AddJsonBodyAsync<CreateMatchRequest>(operation, context, ct);
+                var createSchema = await AddJsonBodyAsync<CreateMatchRequest>(operation, context, ct);
+                if (createSchema.Properties?.TryGetValue("startsAt", out var property) == true && property is OpenApiSchema startsAt)
+                {
+                    startsAt.Type = JsonSchemaType.String;
+                    startsAt.Format = "date-time";
+                    startsAt.Description = "Data e hora ISO 8601 com Z ou offset explícito.";
+                }
+
                 AddResponseHeader(operation, "201", "Location", "URL da partida criada (/api/v1/matches/{id}).");
                 AddResponseHeader(operation, "201", "Cache-Control", "no-store");
                 break;
@@ -119,7 +126,7 @@ internal static class DevelopmentContractTransformers
         });
     }
 
-    private static async Task AddJsonBodyAsync<T>(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
+    private static async Task<IOpenApiSchema> AddJsonBodyAsync<T>(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
     {
         var schema = await context.GetOrCreateSchemaAsync(typeof(T), parameterDescription: null, ct);
         operation.RequestBody = new OpenApiRequestBody
@@ -127,6 +134,7 @@ internal static class DevelopmentContractTransformers
             Required = true,
             Content = new Dictionary<string, OpenApiMediaType> { [JsonMedia] = new OpenApiMediaType { Schema = schema } },
         };
+        return schema;
     }
 
     private static void Describe(OpenApiOperation operation, string name, string description, bool required = false, string[]? allowed = null)

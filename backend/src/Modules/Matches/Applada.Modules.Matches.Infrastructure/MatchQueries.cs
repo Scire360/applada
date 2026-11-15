@@ -1,3 +1,4 @@
+using Applada.BuildingBlocks.Domain;
 using Applada.Modules.Matches.Application.Queries;
 using Applada.Modules.Matches.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,7 @@ namespace Applada.Modules.Matches.Infrastructure;
 
 /// <summary>
 /// Leituras sem lock e <c>AsNoTracking</c>: não interferem na identity map de uma unidade de trabalho no mesmo escopo.
-/// As consultas não estão numa transação; uma escrita entre elas pode deixar a posição desatualizada por um instante.
+/// O detalhe da partida usa leituras separadas e pode refletir uma mudança de posição entre elas.
 /// As listagens são uma instrução SQL cada (sem N+1), parametrizadas pelo LINQ e paginadas por chave (sem OFFSET):
 /// <list type="bullet">
 /// <item>participantes: índice <c>(match_id, status, queue_seq)</c>; a posição na espera é uma subconsulta no mesmo
@@ -49,47 +50,58 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
         return MatchDetails.From(match, mine);
     }
 
-    public Task<MatchViewer?> GetViewerAsync(Guid matchId, Guid viewerId, CancellationToken ct) =>
-        db.Matches.AsNoTracking()
-            .Where(m => m.Id == matchId)
-            .Select(m => new MatchViewer(
-                m.OrganizerId,
-                db.Registrations
-                    .Where(r => r.MatchId == m.Id
-                        && r.UserId == viewerId
-                        && (r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.Waitlisted))
-                    .Select(r => (RegistrationStatus?)r.Status)
-                    .FirstOrDefault()))
-            .SingleOrDefaultAsync(ct);
-
-    public async Task<IReadOnlyList<ParticipantRow>> ListParticipantsAsync(Guid matchId, ParticipantsKey? after, int take, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<ParticipantRow>>> ListParticipantsAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct)
     {
         var active = db.Registrations.AsNoTracking()
-            .Where(r => r.MatchId == matchId
-                && (r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.Waitlisted));
+            .Where(r => r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.Waitlisted);
+        var page = active;
 
         // (rank, queue_seq) > (after.rank, after.queue_seq), com rank 0 = confirmado e 1 = espera.
         if (after is { StatusRank: ParticipantsKey.ConfirmedRank } confirmedKey)
         {
-            active = active.Where(r => r.Status == RegistrationStatus.Waitlisted || r.QueueSeq > confirmedKey.QueueSeq);
+            page = page.Where(r => r.Status == RegistrationStatus.Waitlisted || r.QueueSeq > confirmedKey.QueueSeq);
         }
         else if (after is { } waitlistedKey)
         {
-            active = active.Where(r => r.Status == RegistrationStatus.Waitlisted && r.QueueSeq > waitlistedKey.QueueSeq);
+            page = page.Where(r => r.Status == RegistrationStatus.Waitlisted && r.QueueSeq > waitlistedKey.QueueSeq);
         }
 
-        return await active
-            .OrderBy(r => r.Status == RegistrationStatus.Confirmed ? ParticipantsKey.ConfirmedRank : ParticipantsKey.WaitlistedRank)
-            .ThenBy(r => r.QueueSeq)
-            .Take(take)
-            .Select(r => new ParticipantRow(
-                r.UserId,
-                r.Status,
-                r.QueueSeq,
-                r.Status == RegistrationStatus.Waitlisted
-                    ? db.Registrations.Count(w => w.MatchId == matchId && w.Status == RegistrationStatus.Waitlisted && w.QueueSeq <= r.QueueSeq)
-                    : null))
-            .ToListAsync(ct);
+        var listing = await db.Matches.AsNoTracking().AsSingleQuery()
+            .Where(m => m.Id == matchId)
+            .Select(m => new
+            {
+                m.Id,
+                CanRead = m.OrganizerId == viewerId || active.Any(r => r.MatchId == m.Id && r.UserId == viewerId),
+            })
+            .Select(m => new
+            {
+                m.CanRead,
+                Rows = page.Where(r => r.MatchId == m.Id && m.CanRead)
+                    .OrderBy(r => r.Status == RegistrationStatus.Confirmed ? ParticipantsKey.ConfirmedRank : ParticipantsKey.WaitlistedRank)
+                    .ThenBy(r => r.QueueSeq)
+                    .Take(take)
+                    .Select(r => new ParticipantRow(
+                        r.UserId,
+                        r.Status,
+                        r.QueueSeq,
+                        r.Status == RegistrationStatus.Waitlisted
+                            ? active.Count(w => w.MatchId == r.MatchId && w.Status == RegistrationStatus.Waitlisted && w.QueueSeq <= r.QueueSeq)
+                            : null))
+                    .ToList(),
+            })
+            .SingleOrDefaultAsync(ct);
+
+        if (listing is null)
+        {
+            return MatchErrors.MatchNotFound;
+        }
+
+        if (!listing.CanRead)
+        {
+            return MatchErrors.ParticipantsForbidden;
+        }
+
+        return listing.Rows;
     }
 
     public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
