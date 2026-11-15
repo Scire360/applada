@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\Applada.Modules.Matches.Contracts\Applada.Modules.Matches.Contracts.csproj" />
+    <ProjectReference Include="..\Applada.Modules.Matches.Domain\Applada.Modules.Matches.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

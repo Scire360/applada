@@ -1,0 +1,134 @@
+{
+  "realm": "applada",
+  "displayName": "Applada (dev)",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "attributes": {
+    "_comentario": "SOMENTE DESENVOLVIMENTO LOCAL (AppHost Aspire). Usuários e senhas deste arquivo são de teste, públicos e temporários (troca obrigatória no primeiro login). Nunca importar este realm em ambiente compartilhado ou de produção."
+  },
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "applada-dev-scalar",
+      "name": "Scalar (dev)",
+      "description": "Client público do Scalar da API local. Somente desenvolvimento.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "consentRequired": false,
+      "fullScopeAllowed": false,
+      "frontchannelLogout": true,
+      "rootUrl": "http://localhost:5080",
+      "baseUrl": "/scalar/v1",
+      "redirectUris": [
+        "http://localhost:5080/scalar",
+        "http://localhost:5080/scalar/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5080"
+      ],
+      "attributes": {
+        "_comentario": "Somente desenvolvimento: client público do Scalar local.",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5080/scalar/*",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "use.refresh.tokens": "true"
+      },
+      "defaultClientScopes": [
+        "basic",
+        "web-origins",
+        "acr"
+      ],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "audience-applada-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "applada-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "organizador.dev",
+      "enabled": true,
+      "email": "organizador.dev@applada.invalid",
+      "emailVerified": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "firstName": "Organizador",
+      "lastName": "Dev",
+      "credentials": [
+        { "type": "password", "value": "trocar-no-primeiro-login", "temporary": true }
+      ]
+    },
+    {
+      "username": "jogador1.dev",
+      "enabled": true,
+      "email": "jogador1.dev@applada.invalid",
+      "emailVerified": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "firstName": "Jogador1",
+      "lastName": "Dev",
+      "credentials": [
+        { "type": "password", "value": "trocar-no-primeiro-login", "temporary": true }
+      ]
+    },
+    {
+      "username": "jogador2.dev",
+      "enabled": true,
+      "email": "jogador2.dev@applada.invalid",
+      "emailVerified": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "firstName": "Jogador2",
+      "lastName": "Dev",
+      "credentials": [
+        { "type": "password", "value": "trocar-no-primeiro-login", "temporary": true }
+      ]
+    },
+    {
+      "username": "jogador3.dev",
+      "enabled": true,
+      "email": "jogador3.dev@applada.invalid",
+      "emailVerified": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "firstName": "Jogador3",
+      "lastName": "Dev",
+      "credentials": [
+        { "type": "password", "value": "trocar-no-primeiro-login", "temporary": true }
+      ]
+    }
+  ]
+}
