@@ -88,6 +88,10 @@ banco local.
 
 ## Verificações
 
+Com o app rodando em `http://localhost:3000` e o Chrome instalado, execute
+`npm run test:layout` para verificar as páginas estáticas e as rotas do
+catálogo em tamanhos de tela entre 320 px e 4K. O teste usa a prévia sem login.
+
 ```powershell
 npm run lint
 npm run typecheck

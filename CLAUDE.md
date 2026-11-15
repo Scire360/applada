@@ -30,6 +30,7 @@ O backend tem solution, módulos Identity, Profiles e Matches, testes e pipeline
 
 - Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
 - Verificações web: `npm run lint`, `npm run typecheck` e `npm run build`.
+- Responsividade web: `npm run test:layout` em `apps/web`, com Chrome e a prévia em `http://localhost:3000`.
 - E2E da partida de uma vaga: `npm run test:e2e` em `apps/web`, com Chrome e a integração local ativa.
   A preparação das três contas de teste está em [`apps/web/README.md`](apps/web/README.md#e2e-de-partida-com-uma-vaga).
 

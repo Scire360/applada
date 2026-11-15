@@ -144,6 +144,26 @@
   to { transform: rotateX(0) rotateY(0) scale(1.68); opacity: .26; }
 }
 
+@media (min-width: 1920px) {
+  .page:global(.module-page) {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .page > :global(.page-heading),
+  .page > :global(.demo-note) {
+    grid-column: 1 / -1;
+  }
+
+  .pitch {
+    width: min(77%, clamp(310px, 13vw, 440px));
+  }
+
+  .lens {
+    width: min(55%, clamp(216px, 9vw, 285px));
+  }
+}
+
 @media (max-width: 640px) {
   .art {
     flex: auto;

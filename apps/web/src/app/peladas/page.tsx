@@ -13,7 +13,7 @@ const matches: ScheduledMatch[] = [
 export default function MatchesPage() {
   return (
     <AppShell active="matches">
-      <div className="module-page">
+      <div className={`module-page ${campo.page}`}>
         <section className="page-heading">
           <div>
             <p className="eyebrow page-eyebrow">SANTA CECÍLIA FC · TEMPORADA 2026</p>

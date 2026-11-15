@@ -65,6 +65,9 @@ svg {
 }
 
 .app-shell {
+  --sidebar-width: 252px;
+  --page-gutter: clamp(46px, 2.5vw, 80px);
+  --page-max-width: 3200px;
   min-height: 100vh;
 }
 
@@ -87,7 +90,7 @@ svg {
   z-index: 5;
   inset: 0 auto 0 0;
   display: flex;
-  width: 252px;
+  width: var(--sidebar-width);
   flex-direction: column;
   border-right: 1px solid #e7ebe7;
   background: #fff;
@@ -654,7 +657,7 @@ svg {
 
 .main-column {
   min-height: 100vh;
-  margin-left: 252px;
+  margin-inline-start: var(--sidebar-width);
 }
 
 .topbar {
@@ -667,7 +670,8 @@ svg {
   justify-content: space-between;
   border-bottom: 1px solid #e9ede9;
   background: rgb(255 255 255 / 92%);
-  padding: 0 46px;
+  gap: 12px;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-max-width)) / 2 + var(--page-gutter)));
   backdrop-filter: blur(16px);
 }
 
@@ -678,6 +682,7 @@ svg {
 }
 
 .breadcrumbs {
+  min-inline-size: 0;
   gap: 10px;
   color: #606c63;
   font-size: 12px;
@@ -688,11 +693,21 @@ svg {
   font-weight: 600;
 }
 
+.breadcrumbs > span:first-child,
+.breadcrumbs strong {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .breadcrumb-divider {
+  flex: none;
   color: #c1c8c2;
 }
 
 .topbar-meta {
+  flex: none;
   gap: 18px;
 }
 
@@ -719,23 +734,30 @@ svg {
 }
 
 .page-content {
-  width: min(100%, 1440px);
-  margin: 0 auto;
-  padding: 43px 46px 32px;
+  inline-size: min(100%, var(--page-max-width));
+  margin-inline: auto;
+  padding-block: 43px 32px;
+  padding-inline: var(--page-gutter);
 }
 
 .dashboard-page,
 .module-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
 .page-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 22px;
   margin-bottom: 2px;
+}
+
+.page-heading > :first-child {
+  min-inline-size: 0;
 }
 
 .page-eyebrow {
@@ -823,7 +845,8 @@ svg {
 
 .page-heading-actions {
   display: flex;
-  flex: 0 0 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -2516,6 +2539,10 @@ svg {
   margin-top: 15px;
 }
 
+.roster-card {
+  container-type: inline-size;
+}
+
 .roster-header,
 .roster-row {
   display: grid;
@@ -2583,6 +2610,44 @@ svg {
 .roster-status .status-dot {
   width: 6px;
   height: 6px;
+}
+
+@container (max-width: 580px) {
+  .roster-header {
+    display: none;
+  }
+
+  .roster-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 65px;
+    gap: 5px 10px;
+    padding: 8px 0;
+  }
+
+  .roster-position {
+    grid-column: 1;
+    grid-row: 2;
+    margin-left: 43px;
+    font-size: 9px;
+  }
+
+  .roster-attendance {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .roster-status {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    font-size: 8px;
+  }
+
+  .roster-person {
+    grid-column: 1;
+    grid-row: 1;
+  }
 }
 
 .status-dot-muted {
@@ -3044,23 +3109,91 @@ svg {
   background: #578160;
 }
 
-@media (max-width: 1120px) {
-  .sidebar {
-    width: 220px;
-  }
-
-  .main-column {
-    margin-left: 220px;
+@media (min-width: 1680px) {
+  .app-shell {
+    --wide-card-padding: clamp(22px, 1.2vw, 36px);
   }
 
   .page-content {
-    padding-right: 30px;
-    padding-left: 30px;
+    padding-block-start: clamp(43px, 2.7vw, 72px);
   }
 
-  .topbar {
-    padding-right: 30px;
-    padding-left: 30px;
+  .dashboard-page,
+  .module-page {
+    gap: clamp(22px, 1.25vw, 40px);
+  }
+
+  .page-heading h1 {
+    font-size: clamp(37px, 2.15vw, 54px);
+  }
+
+  .page-subtitle {
+    max-inline-size: 65ch;
+    font-size: clamp(14px, 0.7vw, 17px);
+  }
+
+  .stat-card,
+  .dashboard-page .surface-card,
+  .schedule-card,
+  .transactions-card,
+  .cashflow-card {
+    padding: var(--wide-card-padding);
+  }
+
+  .stat-value {
+    font-size: clamp(24px, 1.25vw, 34px);
+  }
+
+  .stat-caption,
+  .week-game > strong,
+  .activity-copy,
+  .schedule-info > strong,
+  .match-details > span,
+  .match-hero-copy > p:not(.eyebrow) {
+    font-size: clamp(12px, 0.58vw, 15px);
+  }
+
+  .activity-time,
+  .week-game > span,
+  .schedule-info > span,
+  .schedule-attendance {
+    font-size: 12px;
+  }
+
+  .section-title-row h2 {
+    font-size: clamp(17px, 0.8vw, 21px);
+  }
+
+  .match-hero {
+    min-height: clamp(350px, 16vw, 440px);
+  }
+
+  .match-hero-copy {
+    padding: clamp(30px, 2.1vw, 58px);
+  }
+
+  .match-hero-copy h2 {
+    font-size: clamp(40px, 2vw, 56px);
+  }
+
+  .next-match-card,
+  .match-card-content {
+    min-height: clamp(348px, 16vw, 440px);
+  }
+
+  .match-card-content {
+    padding: var(--wide-card-padding);
+  }
+
+  .match-card-title h2 {
+    font-size: clamp(27px, 1.4vw, 38px);
+  }
+}
+
+@media (max-width: 1120px) {
+  .app-shell {
+    --sidebar-width: 220px;
+    --page-gutter: 30px;
   }
 
   .dashboard-grid,
@@ -3078,6 +3211,10 @@ svg {
 }
 
 @media (max-width: 900px) {
+  .app-shell {
+    --sidebar-width: 72px;
+  }
+
   .compact-catalog-link {
     display: grid;
     flex: none;
@@ -3094,7 +3231,6 @@ svg {
   }
 
   .sidebar {
-    width: 72px;
     align-items: center;
     padding-right: 10px;
     padding-left: 10px;
@@ -3146,10 +3282,6 @@ svg {
     height: 20px;
   }
 
-  .main-column {
-    margin-left: 72px;
-  }
-
   .dashboard-grid,
   .bottom-grid,
   .finance-content-grid {
@@ -3170,6 +3302,11 @@ svg {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    --sidebar-width: 0px;
+    --page-gutter: 17px;
+  }
+
   html {
     min-width: 0;
     overflow-x: hidden;
@@ -3207,7 +3344,8 @@ svg {
   }
 
   .nav-link {
-    flex: 1 1 0;
+    flex: 1 1 auto;
+    min-width: 0;
     width: auto;
     max-width: 80px;
     height: auto;
@@ -3225,7 +3363,6 @@ svg {
   .nav-link > span {
     display: inline;
     max-width: 100%;
-    overflow-wrap: anywhere;
     font-size: .6875rem;
     line-height: 1.15;
     text-align: center;
@@ -3241,13 +3378,11 @@ svg {
   }
 
   .main-column {
-    margin: 0;
     padding-bottom: calc(max(76px, 4.75rem) + env(safe-area-inset-bottom));
   }
 
   .topbar {
     height: 57px;
-    padding: 0 18px;
   }
 
   .breadcrumbs {
@@ -3270,7 +3405,7 @@ svg {
   }
 
   .page-content {
-    padding: 29px 17px 24px;
+    padding-block: 29px 24px;
   }
 
   .dashboard-page,
@@ -3431,42 +3566,6 @@ svg {
 
   .schedule-row .mini-pill {
     display: none;
-  }
-
-  .roster-header {
-    display: none;
-  }
-
-  .roster-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 65px;
-    gap: 5px 10px;
-    padding: 8px 0;
-  }
-
-  .roster-position {
-    grid-column: 1;
-    grid-row: 2;
-    margin-left: 43px;
-    font-size: 9px;
-  }
-
-  .roster-attendance {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
-
-  .roster-status {
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: end;
-    font-size: 8px;
-  }
-
-  .roster-person {
-    grid-column: 1;
-    grid-row: 1;
   }
 
   .community-aside {
