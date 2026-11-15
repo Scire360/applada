@@ -49,7 +49,10 @@ button {
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 3px solid #477a58;
   outline-offset: 3px;
 }
@@ -62,6 +65,20 @@ svg {
 
 .app-shell {
   min-height: 100vh;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  inset: 12px auto auto 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  transform: translateY(calc(-100% - 24px));
+}
+
+.skip-link:focus {
+  transform: none;
 }
 
 .sidebar {
@@ -408,6 +425,10 @@ svg {
 
 .topbar-meta {
   gap: 18px;
+}
+
+.compact-catalog-link {
+  display: none;
 }
 
 .preview-status {
@@ -904,6 +925,14 @@ svg {
   color: #234e34;
 }
 
+.match-card-footer .text-link {
+  color: #f2f8eb;
+}
+
+.match-card-footer .text-link:hover {
+  text-decoration: underline;
+}
+
 .surface-card {
   padding: 19px;
 }
@@ -978,17 +1007,17 @@ svg {
 
 .avatar-peach {
   background: #f5e8e0;
-  color: #916347;
+  color: #805338;
 }
 
 .avatar-blue {
   background: #e6edf5;
-  color: #56708e;
+  color: #46627f;
 }
 
 .avatar-yellow {
   background: #f3efdc;
-  color: #85733e;
+  color: #6d5d30;
 }
 
 .activity-copy {
@@ -1275,7 +1304,7 @@ svg {
 }
 
 .step-number {
-  color: #829083;
+  color: var(--muted);
   font-size: 9px;
   font-weight: 650;
   letter-spacing: 0.5px;
@@ -1505,7 +1534,7 @@ svg {
 
 .screen-catalog-link small {
   overflow: hidden;
-  color: #738076;
+  color: var(--muted);
   font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1980,7 +2009,7 @@ svg {
 }
 
 .game-event-row > span:nth-child(2) small {
-  color: #738076;
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -2033,7 +2062,7 @@ svg {
 }
 
 .player-vote-card > div > span {
-  color: #738076;
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -2821,6 +2850,21 @@ svg {
 }
 
 @media (max-width: 900px) {
+  .compact-catalog-link {
+    display: grid;
+    flex: none;
+    width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border-radius: 10px;
+    color: var(--green-dark);
+  }
+
+  .compact-catalog-link:hover,
+  .compact-catalog-link[aria-current="page"] {
+    background: var(--green-light);
+  }
+
   .sidebar {
     width: 72px;
     align-items: center;
@@ -2908,7 +2952,7 @@ svg {
     position: fixed;
     inset: auto 0 0;
     width: 100%;
-    height: 66px;
+    height: calc(66px + env(safe-area-inset-bottom));
     flex-direction: row;
     justify-content: center;
     border-top: 1px solid #e7ebe7;
@@ -2967,7 +3011,7 @@ svg {
 
   .main-column {
     margin: 0;
-    padding-bottom: 76px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 
   .topbar {
@@ -3020,7 +3064,7 @@ svg {
   }
 
   .page-heading .button {
-    min-height: 39px;
+    min-height: 44px;
   }
 
   .page-heading-actions {
@@ -3318,7 +3362,7 @@ svg {
 
   .match-demo-action .button {
     max-width: 145px;
-    min-height: 36px;
+    min-height: 44px;
     white-space: normal;
   }
 
@@ -3341,7 +3385,7 @@ svg {
   }
 
   .game-goal-form .button {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .player-vote-card {
@@ -3350,7 +3394,7 @@ svg {
 
   .player-vote-card .button {
     max-width: 145px;
-    min-height: 36px;
+    min-height: 44px;
     white-space: normal;
   }
 

@@ -73,6 +73,7 @@ type AppShellProps = {
 export function AppShell({ active, activePath, title, children }: AppShellProps) {
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
       <aside className="sidebar">
         <Link aria-label="Applada — início" className="brand" href="/">
           <span className="brand-mark">
@@ -98,14 +99,16 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               : item.key === active || activePath === item.href;
             return (
               <Link
-                aria-current={isActive ? "page" : undefined}
+                aria-current={(activePath ? activePath === item.href : isActive) ? "page" : undefined}
+                aria-label={item.label}
                 className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
                 href={item.href}
                 key={item.key}
+                title={item.label}
               >
                 <Icon name={item.icon} />
                 <span>{item.label}</span>
-                {item.count ? <span className="nav-count">{item.count}</span> : null}
+                {item.count ? <span aria-hidden="true" className="nav-count">{item.count}</span> : null}
               </Link>
             );
           })}
@@ -169,6 +172,9 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             <strong>{title ?? (active === "overview" ? "Visão geral" : "Seu espaço")}</strong>
           </div>
           <div className="topbar-meta">
+            <Link aria-current={activePath === "/modulos" ? "page" : undefined} aria-label="Mapa de funcionalidades" className="compact-catalog-link" href="/modulos" title="Mapa de funcionalidades">
+              <Icon name="file" />
+            </Link>
             <span className="preview-status">
               <span className="status-dot" />
               Prévia · dados ilustrativos
@@ -178,7 +184,7 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             </span>
           </div>
         </header>
-        <main className="page-content">{children}</main>
+        <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>
       </div>
     </div>
   );
