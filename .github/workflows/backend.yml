@@ -47,6 +47,9 @@ jobs:
         run: dotnet test --solution Applada.slnx -c Release --no-build
 
       - name: Pacotes vulneráveis
+        # shell: bash explícito roda com -eo pipefail: sem ele, uma falha do dotnet list
+        # seria mascarada pelo tee e o passo passaria em silêncio.
+        shell: bash
         run: |
           dotnet list Applada.slnx package --vulnerable --include-transitive 2>&1 | tee vulnerable.log
           if grep -q "has the following vulnerable packages" vulnerable.log; then
