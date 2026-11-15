@@ -9,8 +9,10 @@ namespace Applada.BuildingBlocks.Messaging;
 
 /// <summary>
 /// Chama <see cref="OutboxProcessor{TContext}.ProcessBatchAsync"/> em laço e espera
-/// <see cref="OutboxOptions.PollInterval"/> quando o lote não publica nada. Desligado com
-/// <c>Messaging:PublisherEnabled=false</c> (padrão: ligado).
+/// <see cref="OutboxOptions.PollInterval"/> quando o lote não publica nada. Lote que falha (banco fora, por
+/// exemplo) dobra a espera a cada falha seguida, até <see cref="OutboxOptions.MaxLoopBackoff"/>; a primeira falha
+/// loga Error, as seguintes Warning, e o primeiro lote bem-sucedido loga a recuperação e zera o backoff.
+/// Desligado com <c>Messaging:PublisherEnabled=false</c> (padrão: ligado).
 /// </summary>
 public sealed partial class OutboxPublisherService<TContext>(
     OutboxProcessor<TContext> processor,
@@ -30,14 +32,25 @@ public sealed partial class OutboxPublisherService<TContext>(
             return;
         }
 
+        var consecutiveFailures = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
+            TimeSpan delay;
             try
             {
-                if (await processor.ProcessBatchAsync(stoppingToken) > 0)
+                var published = await processor.ProcessBatchAsync(stoppingToken);
+                if (consecutiveFailures > 0)
+                {
+                    LogRecovered(logger, typeof(TContext).Name, consecutiveFailures);
+                    consecutiveFailures = 0;
+                }
+
+                if (published > 0)
                 {
                     continue;
                 }
+
+                delay = options.Value.PollInterval;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -45,13 +58,22 @@ public sealed partial class OutboxPublisherService<TContext>(
             }
             catch (Exception ex)
             {
-                // Banco indisponível, por exemplo: tenta de novo no próximo ciclo.
-                LogBatchFailed(logger, typeof(TContext).Name, ex);
+                // Banco indisponível, por exemplo: tenta de novo depois do backoff.
+                consecutiveFailures++;
+                delay = FailureDelay(options.Value, consecutiveFailures);
+                if (consecutiveFailures == 1)
+                {
+                    LogBatchFailed(logger, typeof(TContext).Name, delay, ex);
+                }
+                else
+                {
+                    LogBatchStillFailing(logger, typeof(TContext).Name, consecutiveFailures, delay, ex);
+                }
             }
 
             try
             {
-                await Task.Delay(options.Value.PollInterval, timeProvider, stoppingToken);
+                await Task.Delay(delay, timeProvider, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -60,9 +82,23 @@ public sealed partial class OutboxPublisherService<TContext>(
         }
     }
 
+    /// <summary><c>min(PollInterval × 2^failures, MaxLoopBackoff)</c>.</summary>
+    private static TimeSpan FailureDelay(OutboxOptions options, int consecutiveFailures)
+    {
+        // Expoente limitado: além disso o resultado já passou de qualquer teto razoável (e não estoura o double).
+        var delayTicks = options.PollInterval.Ticks * Math.Pow(2, Math.Min(consecutiveFailures, 30));
+        return delayTicks >= options.MaxLoopBackoff.Ticks ? options.MaxLoopBackoff : TimeSpan.FromTicks((long)delayTicks);
+    }
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Publicador do outbox {Outbox} desligado por configuração.")]
     private static partial void LogDisabled(ILogger logger, string outbox);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Falha ao processar lote do outbox {Outbox}.")]
-    private static partial void LogBatchFailed(ILogger logger, string outbox, Exception exception);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Falha ao processar lote do outbox {Outbox}; nova tentativa em {Delay}.")]
+    private static partial void LogBatchFailed(ILogger logger, string outbox, TimeSpan delay, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Lote do outbox {Outbox} continua falhando ({Failures} falhas seguidas); nova tentativa em {Delay}.")]
+    private static partial void LogBatchStillFailing(ILogger logger, string outbox, int failures, TimeSpan delay, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Outbox {Outbox} recuperado após {Failures} falhas seguidas.")]
+    private static partial void LogRecovered(ILogger logger, string outbox, int failures);
 }
