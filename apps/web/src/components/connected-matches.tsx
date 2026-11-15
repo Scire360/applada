@@ -33,6 +33,7 @@ export function ConnectedMatches() {
   const [match, setMatch] = useState<MatchDetails>();
   const [requestedId, setRequestedId] = useState("");
   const [participants, setParticipants] = useState<Page<Participant>>();
+  const [completedCreations, setCompletedCreations] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -91,6 +92,10 @@ export function ConnectedMatches() {
     return () => window.clearInterval(timer);
   }, [match]);
 
+  useEffect(() => {
+    if (completedCreations) document.getElementById("partida-selecionada")?.focus();
+  }, [completedCreations]);
+
   async function run(action: () => Promise<void>) {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -116,6 +121,15 @@ export function ConnectedMatches() {
     window.history.replaceState(null, "", `${connectedPath}?partida=${next.id}`);
   }
 
+  async function reloadAfterWrite(reload: () => Promise<void>) {
+    try {
+      await reload();
+    } catch (failure) {
+      if (failure instanceof LocalApiError && failure.status === 401) throw failure;
+      setError("A alteração foi salva. Atualize a página para carregar os dados mais recentes.");
+    }
+  }
+
   function create(fields: MatchCreation) {
     void run(async () => {
       const body = JSON.stringify({ ...fields, locationText: fields.locationText || null });
@@ -127,9 +141,12 @@ export function ConnectedMatches() {
       });
       creationKey.current = null;
       select(next);
+      setCompletedCreations((count) => count + 1);
       setNotice("Partida criada.");
-      setPage(await mine("organizer"));
-      setRole("organizer");
+      await reloadAfterWrite(async () => {
+        setPage(await mine("organizer"));
+        setRole("organizer");
+      });
     });
   }
 
@@ -146,8 +163,10 @@ export function ConnectedMatches() {
       const path = detailPath(id) + "/registrations";
       const outcome = await localApi<MatchDetails["myRegistration"]>(withdraw ? path + "/me" : path, { method: withdraw ? "DELETE" : "POST" });
       setNotice(withdraw ? "Inscrição retirada." : outcome?.status === "waitlisted" ? "Você entrou na lista de espera." : "Sua vaga está confirmada.");
-      select(await localApi<MatchDetails>(detailPath(id)));
-      setPage(await mine(role));
+      await reloadAfterWrite(async () => {
+        select(await localApi<MatchDetails>(detailPath(id)));
+        setPage(await mine(role));
+      });
     });
   }
 
@@ -160,7 +179,7 @@ export function ConnectedMatches() {
       });
       select(next);
       setNotice("Alterações salvas.");
-      setPage(await mine(role));
+      await reloadAfterWrite(async () => setPage(await mine(role)));
     });
   }
 
@@ -168,7 +187,7 @@ export function ConnectedMatches() {
     void run(async () => {
       select(await localApi<MatchDetails>(detailPath(id) + "/cancellation", { method: "POST" }));
       setNotice("Partida cancelada.");
-      setPage(await mine(role));
+      await reloadAfterWrite(async () => setPage(await mine(role)));
     });
   }
 
@@ -201,7 +220,7 @@ export function ConnectedMatches() {
 
   const organizer = match?.organizerId === session?.userId;
   const activeRegistration = match?.myRegistration?.status === "confirmed" || match?.myRegistration?.status === "waitlisted";
-  const canRegister = match?.status === "scheduled" && new Date(match.startsAt).getTime() > now;
+  const isOpen = match?.status === "scheduled" && new Date(match.startsAt).getTime() > now;
 
   return (
     <>
@@ -220,15 +239,15 @@ export function ConnectedMatches() {
         <section className="surface-card connected-card" aria-labelledby="partida-selecionada" aria-busy={busy}>
           <div className="section-title-row">
             <div>
-              <h2 id="partida-selecionada">{match.title}</h2>
+              <h2 id="partida-selecionada" tabIndex={-1}>{match.title}</h2>
               <p>{matchDate(match.startsAt, match.timeZone)} · {match.durationMinutes} min{match.locationText ? ` · ${match.locationText}` : ""}</p>
             </div>
-            <span className="quiet-label">{match.status === "cancelled" ? "Cancelada" : "Agendada"}</span>
+            <span className="quiet-label">{match.status === "cancelled" ? "Cancelada" : isOpen ? "Agendada" : "Inscrições encerradas"}</span>
           </div>
           <p>{match.confirmedCount} de {match.capacity} vagas ocupadas · {match.waitlistCount} na lista de espera</p>
           {match.myRegistration && <p><strong>{registrationLabel(match.myRegistration.status, match.myRegistration.position)}</strong></p>}
           <div className="connected-actions">
-            {canRegister && (
+            {isOpen && (
               <button className={`button button-${activeRegistration ? "secondary" : "primary"}`} disabled={busy} onClick={() => changeRegistration(match.id, activeRegistration)} type="button">
                 {activeRegistration ? "Retirar inscrição" : match.confirmedCount >= match.capacity ? "Entrar na lista de espera" : "Confirmar presença"}
               </button>
@@ -251,7 +270,7 @@ export function ConnectedMatches() {
               {participants.nextCursor && <button className="button button-secondary" disabled={busy} onClick={() => void listParticipants(match.id, participants.nextCursor ?? undefined)} type="button">Mais participantes</button>}
             </div>
           )}
-          {organizer && match.status === "scheduled" && (
+          {organizer && isOpen && (
             <div className="connected-organizer">
               <details>
                 <summary>Editar partida</summary>
@@ -295,7 +314,7 @@ export function ConnectedMatches() {
         </section>
         <section className="surface-card connected-card" aria-labelledby="criar-partida">
           <h2 id="criar-partida">Organizar partida</h2>
-          <CreateConnectedMatch busy={busy} create={create} />
+          <CreateConnectedMatch busy={busy} create={create} key={completedCreations} />
         </section>
       </div>
     </>
