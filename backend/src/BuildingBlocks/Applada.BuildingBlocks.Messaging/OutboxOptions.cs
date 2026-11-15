@@ -13,4 +13,9 @@ public sealed class OutboxOptions
 
     /// <summary>Por quanto tempo mensagens já publicadas ficam na tabela antes da limpeza.</summary>
     public TimeSpan Retention { get; set; } = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// Intervalo mínimo entre duas limpezas de retenção do mesmo processador (a primeira roda no primeiro lote).
+    /// </summary>
+    public TimeSpan RetentionCleanupInterval { get; set; } = TimeSpan.FromHours(1);
 }

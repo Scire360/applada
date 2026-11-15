@@ -233,6 +233,36 @@ public class OutboxTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Retention_cleanup_runs_at_most_once_per_interval_per_processor()
+    {
+        // A limpeza varre a tabela (published_at sem índice): roda na primeira chamada e depois no máximo uma vez
+        // por RetentionCleanupInterval, não a cada lote.
+        var start = factory.Clock.GetUtcNow();
+        var options = new OutboxOptions();
+        var processor = CreateProcessor(factory.Services.GetRequiredService<IIntegrationEventPublisher>(), options);
+        var expired = OutboxMessage.From(new UserRegisteredV1(Guid.CreateVersion7()), "test-retention-throttle", start - options.Retention - TimeSpan.FromDays(1));
+        expired.MarkPublished(start - options.Retention - TimeSpan.FromSeconds(1));
+        try
+        {
+            await processor.ProcessBatchAsync(Ct);
+            await InsertOutboxAsync([expired]);
+
+            factory.Clock.Advance(options.RetentionCleanupInterval - TimeSpan.FromSeconds(1));
+            await processor.ProcessBatchAsync(Ct);
+            Assert.Contains(expired.Id, await OutboxIdsAsync([expired.Id]));
+
+            factory.Clock.Advance(TimeSpan.FromSeconds(1));
+            await processor.ProcessBatchAsync(Ct);
+            Assert.DoesNotContain(expired.Id, await OutboxIdsAsync([expired.Id]));
+        }
+        finally
+        {
+            factory.Clock.SetUtcNow(start);
+            await DeleteOutboxAsync(expired.Id);
+        }
+    }
+
+    [Fact]
     public async Task Ready_returns_200_when_postgres_and_rabbitmq_are_up()
     {
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations;

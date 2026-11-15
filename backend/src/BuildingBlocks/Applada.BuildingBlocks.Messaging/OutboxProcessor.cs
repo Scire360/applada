@@ -18,6 +18,10 @@ namespace Applada.BuildingBlocks.Messaging;
 /// <remarks>
 /// Entrega at-least-once: se o commit falhar depois da confirmação do broker, a mensagem volta a ser
 /// publicada num próximo lote. Consumidores deduplicam por <c>eventId</c>.
+/// A limpeza de retenção varre a tabela (não há índice em <c>published_at</c>), então roda no primeiro lote e
+/// depois no máximo uma vez por <see cref="OutboxOptions.RetentionCleanupInterval"/> em cada processador. A
+/// contagem de pendentes roda a cada lote: casa com o índice parcial <c>WHERE published_at IS NULL</c>, então
+/// custa proporcional às pendentes, não ao histórico publicado.
 /// </remarks>
 public sealed partial class OutboxProcessor<TContext>(
     IServiceScopeFactory scopeFactory,
@@ -31,6 +35,8 @@ public sealed partial class OutboxProcessor<TContext>(
     private static readonly string OutboxName = typeof(TContext).Name;
 
     private readonly OutboxOptions _options = options.Value;
+    private readonly Lock _retentionGate = new();
+    private DateTimeOffset? _nextRetentionCleanupAt;
 
     /// <summary>Processa um lote e devolve quantas mensagens foram publicadas.</summary>
     public async Task<int> ProcessBatchAsync(CancellationToken ct)
@@ -98,7 +104,13 @@ public sealed partial class OutboxProcessor<TContext>(
 
     private async Task DeleteExpiredAsync(TContext db, CancellationToken ct)
     {
-        var cutoff = timeProvider.GetUtcNow() - _options.Retention;
+        var now = timeProvider.GetUtcNow();
+        if (!TryReserveRetentionCleanup(now))
+        {
+            return;
+        }
+
+        var cutoff = now - _options.Retention;
         var deleted = await db.OutboxMessages
             .Where(m => m.PublishedAt != null && m.PublishedAt < cutoff)
             .ExecuteDeleteAsync(ct);
@@ -106,6 +118,24 @@ public sealed partial class OutboxProcessor<TContext>(
         if (deleted > 0)
         {
             LogDeleted(logger, deleted, OutboxName);
+        }
+    }
+
+    /// <summary>
+    /// Reserva a limpeza deste ciclo se o intervalo venceu. Reserva antes de executar: com o banco fora a limpeza
+    /// falha e só volta a ser tentada no próximo intervalo (a retenção é folgada, atrasar uma hora não importa).
+    /// </summary>
+    private bool TryReserveRetentionCleanup(DateTimeOffset now)
+    {
+        lock (_retentionGate)
+        {
+            if (_nextRetentionCleanupAt is { } next && now < next)
+            {
+                return false;
+            }
+
+            _nextRetentionCleanupAt = now + _options.RetentionCleanupInterval;
+            return true;
         }
     }
 
