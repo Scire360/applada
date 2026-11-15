@@ -12,10 +12,8 @@ namespace Applada.Modules.Matches.Application.Queries;
 /// <remarks>
 /// Ordem das checagens: entrada (limite e cursor) → existência (<c>match-not-found</c>) → autorização. Responder 404
 /// antes de 403 não vaza nada: nesta fatia toda partida é pública e <c>GET /matches/{id}</c> já mostra a qualquer
-/// autenticado que ela existe. Autorização e listagem são duas leituras: quem sai entre elas ainda recebe esta página.
-/// O cursor não carrega o id da partida, e isso é inofensivo: ele só posiciona a leitura (rank e <c>queue_seq</c>), e a
-/// listagem é sempre filtrada pela partida da rota depois da autorização. Um cursor de outra partida no máximo pula ou
-/// repete posições de uma lista que quem consulta já pode ver inteira; não dá acesso a nada além dela.
+/// autenticado que ela existe. A autorização e a página usam o mesmo snapshot do banco.
+/// O cursor só posiciona a leitura (rank e <c>queue_seq</c>) entre as inscrições da partida da rota.
 /// </remarks>
 public sealed class ParticipantsQuery(IMatchQueries queries)
 {
@@ -37,19 +35,14 @@ public sealed class ParticipantsQuery(IMatchQueries queries)
             after = key;
         }
 
-        var viewer = await queries.GetViewerAsync(matchId, viewerId, ct);
-        if (viewer is null)
-        {
-            return MatchErrors.MatchNotFound;
-        }
-
-        if (viewer.OrganizerId != viewerId && viewer.ActiveRegistration is null)
-        {
-            return MatchErrors.ParticipantsForbidden;
-        }
-
         // Uma linha a mais só para saber se há próxima página.
-        var rows = await queries.ListParticipantsAsync(matchId, after, limit + 1, ct);
+        var result = await queries.ListParticipantsAsync(matchId, viewerId, after, limit + 1, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error;
+        }
+
+        var rows = result.Value;
         var items = rows.Take(limit).Select(r => new Participant(r.UserId, r.Status, r.Position)).ToArray();
         string? next = null;
         if (rows.Count > limit)

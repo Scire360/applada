@@ -1,3 +1,5 @@
+using Applada.BuildingBlocks.Domain;
+
 namespace Applada.Modules.Matches.Application.Queries;
 
 /// <summary>
@@ -9,11 +11,11 @@ public interface IMatchQueries
     /// <summary>A partida vista por <paramref name="viewerId"/>, ou <c>null</c> se não existir.</summary>
     Task<MatchDetails?> GetAsync(Guid matchId, Guid viewerId, CancellationToken ct);
 
-    /// <summary>Organizador e inscrição ativa de <paramref name="viewerId"/> numa leitura só; <c>null</c> se a partida não existir.</summary>
-    Task<MatchViewer?> GetViewerAsync(Guid matchId, Guid viewerId, CancellationToken ct);
-
-    /// <summary>Inscrições ativas: confirmados e depois espera, cada grupo por <c>queue_seq</c>.</summary>
-    Task<IReadOnlyList<ParticipantRow>> ListParticipantsAsync(Guid matchId, ParticipantsKey? after, int take, CancellationToken ct);
+    /// <summary>
+    /// Autoriza <paramref name="viewerId"/> e lê a página no mesmo snapshot. Devolve erro se a partida não existir
+    /// ou se o usuário não for o organizador nem tiver inscrição ativa. Ordena confirmados e depois espera por <c>queue_seq</c>.
+    /// </summary>
+    Task<Result<IReadOnlyList<ParticipantRow>>> ListParticipantsAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct);
 
     /// <summary>Partidas organizadas por <paramref name="userId"/> com <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>.</summary>
     Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);

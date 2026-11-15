@@ -2,6 +2,8 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
 
 namespace Applada.Api.IntegrationTests;
@@ -40,6 +42,46 @@ public class ParticipantsTests(ApiFactory factory)
         }
 
         DisposeAll(players);
+    }
+
+    [Fact]
+    public async Task Active_participant_authorization_and_page_use_one_database_statement()
+    {
+        var (organizer, players, matchId) = await MatchWithThreePlayersAsync();
+        try
+        {
+            using var logs = new CapturingLoggerProvider();
+            await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureLogging(logging => logging.AddProvider(logs)));
+            using var client = host.CreateClient();
+            client.DefaultRequestHeaders.Authorization = players[0].Client.DefaultRequestHeaders.Authorization;
+            logs.Clear();
+
+            AssertListsThreePlayers(await GetPageAsync(client, matchId), players);
+
+            var read = Assert.Single(logs.Entries, entry =>
+                entry.Category == "Microsoft.EntityFrameworkCore.Database.Command"
+                && (entry.Message.Contains("FROM matches.matches", StringComparison.Ordinal)
+                    || entry.Message.Contains("FROM matches.registrations", StringComparison.Ordinal)));
+            Assert.Contains("FROM matches.matches", read.Message, StringComparison.Ordinal);
+            Assert.Contains("FROM matches.registrations", read.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            organizer.Dispose();
+            DisposeAll(players);
+        }
+    }
+
+    [Fact]
+    public async Task Organizer_with_no_registrations_gets_an_empty_page()
+    {
+        using var organizer = await NewUserAsync(factory, "part");
+        var matchId = await CreateMatchAsync(organizer.Client, factory.Clock.GetUtcNow().AddDays(2), capacity: 10);
+
+        var page = await GetPageAsync(organizer.Client, matchId);
+
+        Assert.Empty(page.Items);
+        Assert.Null(page.NextCursor);
     }
 
     [Fact]

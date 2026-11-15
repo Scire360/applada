@@ -2,9 +2,6 @@ using Applada.Modules.Matches.Domain;
 
 namespace Applada.Modules.Matches.Application.Queries;
 
-/// <summary>Quem organiza a partida e a inscrição ativa de quem consulta (nula se não houver ou se saiu).</summary>
-public sealed record MatchViewer(Guid OrganizerId, RegistrationStatus? ActiveRegistration);
-
 /// <summary>
 /// Participante exibido na lista. <see cref="Position"/> só em espera: quantos <c>waitlisted</c> têm <c>queue_seq</c>
 /// menor ou igual (1 = próximo a ser promovido).
