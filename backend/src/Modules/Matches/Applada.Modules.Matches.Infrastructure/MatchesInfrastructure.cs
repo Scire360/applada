@@ -15,8 +15,9 @@ public static class MatchesInfrastructure
     private const string ConnectionStringName = "applada";
 
     /// <summary>
-    /// Registra o <see cref="MatchesDbContext"/>, a unidade de trabalho, as migrations na subida e o publicador do
-    /// outbox de Matches. Exige um <c>IIntegrationEventPublisher</c> registrado (como no Identity).
+    /// Registra o <see cref="MatchesDbContext"/>, a unidade de trabalho, as migrations na subida, a limpeza periódica de
+    /// <c>idempotency_keys</c> e o publicador do outbox de Matches. Exige um <c>IIntegrationEventPublisher</c> registrado
+    /// (como no Identity).
     /// </summary>
     public static IServiceCollection AddMatchesInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -40,6 +41,8 @@ public static class MatchesInfrastructure
         services.TryAddSingleton<MatchesMetrics>();
         services.AddScoped<IMatchesUnitOfWork, MatchesUnitOfWork>();
         services.AddScoped<IMatchQueries, MatchQueries>();
+        services.AddScoped<IdempotencyRetentionCleanup>();
+        services.AddHostedService<IdempotencyCleanupService>();
         services.AddMigrationsOnStartup<MatchesDbContext>();
         services.AddOutboxPublisher<MatchesDbContext>();
 

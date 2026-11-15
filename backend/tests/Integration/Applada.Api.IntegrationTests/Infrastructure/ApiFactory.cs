@@ -63,6 +63,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Authentication:Audience", TestJwt.Audience);
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
         builder.UseSetting("Messaging:PublisherEnabled", "false");
+        // Os testes mexem no relógio compartilhado: a limpeza periódica rodaria contra um "agora" adiantado. Os testes
+        // chamam IdempotencyRetentionCleanup diretamente.
+        builder.UseSetting("Matches:IdempotencyCleanupEnabled", "false");
         builder.UseSetting("Matches:WriteRateLimitPerMinute", "10000");
 
         builder.ConfigureServices(services =>
