@@ -7,6 +7,8 @@ using Applada.BuildingBlocks.Messaging;
 using Applada.BuildingBlocks.Persistence.Outbox;
 using Applada.Modules.Identity.Contracts;
 using Applada.Modules.Identity.Infrastructure;
+using Applada.Modules.Matches.Contracts;
+using Applada.Modules.Matches.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -98,6 +100,37 @@ public class OutboxTests(ApiFactory factory)
         Assert.Equal("userId", Assert.Single(envelope.Payload.EnumerateObject()).Name);
 
         var published = Assert.Single(await OutboxRowsForAsync(userId));
+        Assert.NotNull(published.PublishedAt);
+    }
+
+    [Fact]
+    public async Task Matches_processor_publishes_match_created_envelope_from_matches_schema()
+    {
+        // Exercita o ClaimBatchSql de MatchesDbContext (schema matches), não só o do Identity.
+        await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "matches.#");
+        using var organizer = await MatchesApi.NewUserAsync(factory, "outbox-org");
+        var matchId = await MatchesApi.CreateMatchAsync(organizer.Client, factory.Clock.GetUtcNow().AddDays(3), capacity: 10);
+        var outbox = Assert.Single(
+            await MatchesOutboxRowsForAsync(matchId),
+            m => m.EventType == MatchCreatedV1.Type);
+        Assert.Null(outbox.PublishedAt);
+
+        await DrainAsync<MatchesDbContext>();
+
+        var message = await queue.WaitForAsync(m => m.BasicProperties.MessageId == outbox.Id.ToString(), ReceiveTimeout);
+        Assert.Equal("applada.events", message.Exchange);
+        Assert.Equal(MatchCreatedV1.Type, message.RoutingKey);
+        Assert.Equal(outbox.CorrelationId, message.BasicProperties.CorrelationId);
+        var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelope>(message.Body.Span, IntegrationEventJson.Options);
+        Assert.NotNull(envelope);
+        Assert.Equal(outbox.Id, envelope.EventId);
+        Assert.Equal(MatchCreatedV1.Type, envelope.EventType);
+        Assert.Equal(1, envelope.SchemaVersion);
+        Assert.Equal(matchId, envelope.AggregateId);
+        Assert.Equal(matchId, envelope.Payload.GetProperty("matchId").GetGuid());
+        Assert.Equal(organizer.Id, envelope.Payload.GetProperty("organizerId").GetGuid());
+
+        var published = Assert.Single(await MatchesOutboxRowsForAsync(matchId), m => m.Id == outbox.Id);
         Assert.NotNull(published.PublishedAt);
     }
 
@@ -388,18 +421,25 @@ public class OutboxTests(ApiFactory factory)
     private static string NewSubject() => $"sub-{Guid.NewGuid():N}";
 
     private OutboxProcessor<IdentityDbContext> CreateProcessor(IIntegrationEventPublisher publisher, OutboxOptions? options = null) =>
+        CreateProcessor<IdentityDbContext>(publisher, options);
+
+    private OutboxProcessor<TContext> CreateProcessor<TContext>(IIntegrationEventPublisher publisher, OutboxOptions? options = null)
+        where TContext : DbContext, IHasOutbox =>
         new(
             factory.Services.GetRequiredService<IServiceScopeFactory>(),
             publisher,
             factory.Clock,
             Options.Create(options ?? new OutboxOptions()),
             factory.Services.GetRequiredService<OutboxMetrics>(),
-            NullLogger<OutboxProcessor<IdentityDbContext>>.Instance);
+            NullLogger<OutboxProcessor<TContext>>.Instance);
 
     /// <summary>Publica tudo o que está pendente e vencido (inclusive sobras de outras classes de teste da coleção).</summary>
-    private async Task DrainAsync()
+    private Task DrainAsync() => DrainAsync<IdentityDbContext>();
+
+    private async Task DrainAsync<TContext>()
+        where TContext : DbContext, IHasOutbox
     {
-        var processor = CreateProcessor(factory.Services.GetRequiredService<IIntegrationEventPublisher>());
+        var processor = CreateProcessor<TContext>(factory.Services.GetRequiredService<IIntegrationEventPublisher>());
         while (await processor.ProcessBatchAsync(Ct) > 0)
         {
         }
@@ -449,6 +489,13 @@ public class OutboxTests(ApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        return await db.OutboxMessages.AsNoTracking().Where(m => m.AggregateId == aggregateId).ToListAsync(Ct);
+    }
+
+    private async Task<List<OutboxMessage>> MatchesOutboxRowsForAsync(Guid aggregateId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
         return await db.OutboxMessages.AsNoTracking().Where(m => m.AggregateId == aggregateId).ToListAsync(Ct);
     }
 
