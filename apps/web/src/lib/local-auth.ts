@@ -18,7 +18,7 @@ const maxEntries = 128;
 
 type Expiring = { expires: number };
 type Login = Expiring & { verifier: string; state: string; returnTo: string };
-type Session = Expiring & { token: string };
+type Session = Expiring & { token: string; userId: string };
 type Store = { logins: Map<string, Login>; sessions: Map<string, Session> };
 const local = globalThis as typeof globalThis & { appladaLocalAuth?: Store };
 const store = local.appladaLocalAuth ??= { logins: new Map(), sessions: new Map() };
@@ -143,12 +143,17 @@ export async function completeLogin(request: NextRequest) {
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
-    if (!identity.ok) return fail();
+    if (!identity.ok) {
+      await identity.body?.cancel();
+      return fail();
+    }
+    const { userId } = await identity.json() as { userId: string };
+    if (!matchIdPattern.test(userId)) return fail();
 
     const id = opaqueId();
     const maxAge = Math.min(expires_in - 5, maxSessionSeconds);
     store.sessions.delete(request.cookies.get(sessionCookie)?.value ?? "");
-    if (!remember(store.sessions, id, { token: access_token, expires: Date.now() + maxAge * 1000 })) return fail();
+    if (!remember(store.sessions, id, { token: access_token, userId, expires: Date.now() + maxAge * 1000 })) return fail();
     const response = redirect(login.returnTo);
     setCookie(response, sessionCookie, id, maxAge);
     setCookie(response, flowCookie, "", 0);
@@ -158,8 +163,8 @@ export async function completeLogin(request: NextRequest) {
   }
 }
 
-export function sessionToken(request: NextRequest) {
-  return readEntry(store.sessions, request.cookies.get(sessionCookie)?.value ?? "")?.token;
+export function currentSession(request: NextRequest) {
+  return readEntry(store.sessions, request.cookies.get(sessionCookie)?.value ?? "");
 }
 
 export function clearSession(request: NextRequest, response: NextResponse) {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { MatchDemoProvider } from "@/components/match-demo-provider";
+import { AccountProvider } from "@/components/account-provider";
+import { AccountDialog } from "@/components/account-dialog";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +14,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html data-scroll-behavior="smooth" lang="pt-BR">
       <body>
-        <MatchDemoProvider>{children}</MatchDemoProvider>
+        <AccountProvider>
+          <MatchDemoProvider>{children}</MatchDemoProvider>
+          <AccountDialog />
+        </AccountProvider>
       </body>
     </html>
   );

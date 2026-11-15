@@ -53,6 +53,68 @@ async function clickAndCheck(page, button, method, path, status) {
   return response;
 }
 
+async function checkAvatar(browser, first, second, password, cleanups) {
+  const path = "/api/local/avatar";
+  const initial = await second.page.request.get(path, { timeout: waitTimeout });
+  assert.equal(initial.status(), 204, "O jogador2.dev precisa começar sem foto para o teste de Storage.");
+
+  const account = second.page.getByRole("banner").getByRole("button", { name: "Abrir conta", exact: true });
+  const dialog = second.page.getByRole("dialog", { name: "Sua conta" });
+  await account.click();
+  const picker = dialog.getByLabel("Escolher foto", { exact: true });
+  await picker.setInputFiles({ name: "grande.png", mimeType: "image/png", buffer: Buffer.alloc(1_000_001) });
+  await dialog.getByText("A foto deve ter até 1 MB.", { exact: true }).waitFor();
+
+  const makeFixture = (color) => second.page.evaluate((fillStyle) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 24;
+    canvas.height = 24;
+    const context = canvas.getContext("2d");
+    context.fillStyle = fillStyle;
+    context.fillRect(0, 0, 24, 24);
+    return canvas.toDataURL("image/png").split(",")[1];
+  }, color);
+  await picker.setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: Buffer.from(await makeFixture("#426f52"), "base64") });
+  cleanups.push(async () => {
+    const response = await second.page.request.delete(path, { headers: { Origin: webOrigin }, timeout: waitTimeout });
+    assert.equal(response.status(), 204, "Limpeza da foto de teste");
+  });
+  await clickAndCheck(second.page, dialog.getByRole("button", { name: "Salvar foto", exact: true }), "PUT", path, 204);
+  await dialog.getByText("Foto de perfil salva.", { exact: true }).waitFor();
+
+  const newSession = await signIn(browser, "jogador2.dev", password);
+  const freshAvatar = newSession.page.getByRole("banner").getByRole("button", { name: "Abrir conta", exact: true });
+  const freshImageSize = await freshAvatar.locator("img").evaluate(async (image) => {
+    await image.decode();
+    return [image.naturalWidth, image.naturalHeight];
+  });
+  assert.deepEqual(freshImageSize, [192, 192]);
+  const beforeRemoval = await first.page.request.get(path, { timeout: waitTimeout });
+  const afterUpload = await second.page.request.get(path, { timeout: waitTimeout });
+  assert.equal(afterUpload.status(), 200);
+  assert.equal(afterUpload.headers()["content-type"], "image/png");
+  assert.match(afterUpload.headers()["cache-control"], /private, no-store/);
+  const originalBytes = await afterUpload.body();
+  if (beforeRemoval.status() === 200) {
+    assert.notDeepEqual(await beforeRemoval.body(), originalBytes, "A primeira conta não deve receber a foto da segunda.");
+  } else {
+    assert.equal(beforeRemoval.status(), 204);
+  }
+
+  await picker.setInputFiles({ name: "substituta.png", mimeType: "image/png", buffer: Buffer.from(await makeFixture("#b45d28"), "base64") });
+  await clickAndCheck(second.page, dialog.getByRole("button", { name: "Salvar foto", exact: true }), "PUT", path, 204);
+  await dialog.getByText("Foto de perfil salva.", { exact: true }).waitFor();
+  const replaced = await second.page.request.get(path, { timeout: waitTimeout });
+  assert.equal(replaced.status(), 200);
+  assert.notDeepEqual(await replaced.body(), originalBytes);
+
+  await clickAndCheck(second.page, dialog.getByRole("button", { name: "Remover foto", exact: true }), "DELETE", path, 204);
+  await dialog.getByText("Foto de perfil removida.", { exact: true }).waitFor();
+  await second.page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal((await second.page.request.get(path, { timeout: waitTimeout })).status(), 204);
+}
+
 test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", { timeout: 120_000 }, async (t) => {
   const password = process.env.APPLADA_E2E_TEST_PASSWORD;
   assert.ok(password, "Defina APPLADA_E2E_TEST_PASSWORD com a senha das três contas locais de teste.");
@@ -82,6 +144,11 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   const profilePath = "/api/local/profile";
   const profileBefore = await second.page.request.get(profilePath, { timeout: waitTimeout });
   assert.equal(profileBefore.status(), 200);
+  const mismatchedAccount = await second.page.request.get(profilePath, {
+    headers: { "X-Applada-Account": first.userId },
+    timeout: waitTimeout,
+  });
+  assert.equal(mismatchedAccount.status(), 409, "O perfil não troca de conta dentro de uma aba já aberta.");
   const { displayName: previousName } = await profileBefore.json();
   if (previousName !== null) {
     cleanups.push(async () => {
@@ -98,15 +165,34 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   const displayName = "Jogador da fila " + randomUUID().slice(0, 8);
   const profileCard = second.page.getByRole("region", { name: "Meu perfil", exact: true });
   const nameInput = profileCard.getByRole("textbox", { name: "Nome de exibição", exact: true });
-  await nameInput.fill(displayName);
+  const account = second.page.getByRole("banner").getByRole("button", { name: "Abrir conta", exact: true });
+  const dialog = second.page.getByRole("dialog", { name: "Sua conta" });
+  const desktop = second.page.viewportSize();
+  await second.page.setViewportSize({ width: 320, height: 700 });
+  await account.click();
+  await dialog.waitFor({ state: "visible" });
+  const bounds = await dialog.boundingBox();
+  assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 320, "O modal deve caber na tela compacta.");
+  await dialog.getByRole("button", { name: "Configurações", exact: true }).click();
+  await dialog.getByRole("link", { name: "Configurações do grupo", exact: true }).waitFor();
+  await dialog.getByRole("button", { name: "Perfil", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Nome de exibição", exact: true }).fill(displayName);
   const updatedProfile = await clickAndCheck(
-    second.page, profileCard.getByRole("button", { name: "Salvar nome", exact: true }), "PUT", profilePath, 200,
+    second.page, dialog.getByRole("button", { name: "Salvar nome", exact: true }), "PUT", profilePath, 200,
   );
   assert.equal((await updatedProfile.json()).displayName, displayName);
-  await profileCard.getByText("Nome de exibição salvo.", { exact: true }).waitFor({ state: "visible" });
+  await dialog.getByText("Nome de exibição salvo.", { exact: true }).waitFor({ state: "visible" });
+  await second.page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  assert.ok(await account.evaluate((button) => button === document.activeElement), "O foco volta ao avatar.");
+  await second.page.setViewportSize(desktop);
   await second.page.reload();
   await nameInput.and(second.page.locator("input:enabled")).waitFor({ state: "visible" });
   assert.equal(await nameInput.inputValue(), displayName);
+  if (process.env.APPLADA_E2E_AVATAR_STORAGE === "1") {
+    await checkAvatar(browser, first, second, password, cleanups);
+    t.diagnostic("Foto validada no Supabase Storage com limite, persistência e remoção.");
+  }
 
   const title = `E2E vaga única ${randomUUID()}`;
   t.diagnostic(`Título reservado para o teste ${title}`);

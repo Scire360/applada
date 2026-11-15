@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/icon";
 import type { ScreenGroup } from "@/lib/screens";
+import { HeaderAccountButton, SidebarAccountButton } from "./account-dialog";
 
 type NavigationItem = {
   href: string;
@@ -152,14 +153,7 @@ export function AppShell({ active, activePath, title, variant, children }: AppSh
             </span>
           </div>
           <div className="sidebar-profile">
-            <Link aria-label="Abrir perfil de Rafael Martins" className="sidebar-profile-link" href="/jogadores/perfil">
-              <span className="avatar avatar-dark">RM</span>
-              <span className="profile-copy">
-                <strong>Rafael Martins</strong>
-                <span>Organizador</span>
-              </span>
-              <Icon className="profile-chevron" name="chevron-down" />
-            </Link>
+            <SidebarAccountButton />
           </div>
         </div>}
       </aside>
@@ -179,9 +173,7 @@ export function AppShell({ active, activePath, title, variant, children }: AppSh
               <span className="status-dot" />
               {variant === "local" ? "Ambiente local" : "Prévia · dados ilustrativos"}
             </span>
-            {!variant && <span aria-label="Usuário Rafael Martins" className="avatar avatar-light">
-              RM
-            </span>}
+            <HeaderAccountButton />
           </div>
         </header>
         <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>

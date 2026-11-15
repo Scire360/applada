@@ -378,6 +378,280 @@ svg {
   color: #49624e;
 }
 
+.account-trigger,
+.account-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.account-trigger:hover,
+.account-close:hover,
+.account-sidebar-trigger:hover {
+  background: var(--green-light);
+}
+
+.account-avatar {
+  overflow: hidden;
+  background: #e8f0e8;
+  color: var(--green-dark);
+  font-size: 0.8rem;
+}
+
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-photo .account-avatar {
+  font-size: 1.3rem;
+}
+
+.account-sidebar-trigger {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-sidebar-trigger strong {
+  display: block;
+  max-width: 115px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-dialog {
+  inline-size: min(35rem, calc(100% - 24px));
+  max-inline-size: none;
+  max-block-size: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid #dfe8df;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 20px 70px rgb(24 45 33 / 24%);
+}
+
+.account-dialog::backdrop {
+  background: rgb(16 33 24 / 52%);
+}
+
+.account-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 22px 22px 12px;
+}
+
+.account-dialog h2,
+.account-dialog h3,
+.account-dialog p {
+  margin: 0;
+}
+
+.account-dialog h2 {
+  font-size: 1.42rem;
+  letter-spacing: -0.035em;
+}
+
+.account-dialog h3 {
+  font-size: 1rem;
+}
+
+.account-dialog p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.account-dialog-heading p {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.account-close {
+  background: var(--canvas);
+}
+
+.account-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 6px 22px 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--canvas);
+}
+
+.account-sections button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-sections button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--green-dark);
+  box-shadow: 0 1px 4px rgb(23 35 29 / 12%);
+}
+
+.account-sections svg,
+.account-settings a svg {
+  width: 17px;
+  height: 17px;
+}
+
+.account-dialog-body {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  padding: 22px;
+}
+
+.account-photo {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-photo-info,
+.account-settings,
+.account-session,
+.account-empty {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.account-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-file-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.account-file-button:focus-within {
+  outline: 3px solid #477a58;
+  outline-offset: 2px;
+}
+
+.account-file-button input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.account-text-action {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--green-dark);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-text-action:hover {
+  background: var(--green-light);
+}
+
+.account-name-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 10px;
+}
+
+.account-name-form > p {
+  grid-column: 1 / -1;
+}
+
+.account-feedback:empty {
+  display: none;
+}
+
+.account-dialog .button,
+.account-name-form .button,
+.account-name-form input {
+  min-height: 44px;
+}
+
+.account-dialog .form-feedback-error,
+.account-name-form .form-feedback-error {
+  color: #952e2e;
+}
+
+.account-empty .button {
+  justify-self: start;
+}
+
+.account-settings a {
+  display: grid;
+  min-height: 46px;
+  grid-template-columns: 19px minmax(0, 1fr) 17px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.account-settings a:hover {
+  background: var(--green-light);
+}
+
+.account-session {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 520px) {
+  .topbar .topbar-meta { gap: 4px; }
+  .topbar .preview-status { display: none; }
+  .topbar .breadcrumbs { min-width: 0; }
+  .topbar .breadcrumbs strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-dialog-heading { padding: 16px 14px 10px; }
+  .account-sections { margin-inline: 14px; }
+  .account-dialog-body { padding: 14px; }
+  .account-photo { gap: 10px; }
+  .account-name-form { grid-template-columns: minmax(0, 1fr); }
+  .account-name-form .button { justify-self: start; }
+}
+
 .main-column {
   min-height: 100vh;
   margin-left: 252px;

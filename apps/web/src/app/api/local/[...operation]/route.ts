@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiOrigin, beginLogin, clearSession, completeLogin, localError, localIntegrationEnabled, logout, matchIdPattern, secureResponse, sessionToken, webOrigin } from "@/lib/local-auth";
+import { handleAvatar } from "@/lib/avatar-storage";
+import { localAccountHeader } from "@/lib/connected-matches";
+import { apiOrigin, beginLogin, clearSession, completeLogin, currentSession, localError, localIntegrationEnabled, logout, matchIdPattern, secureResponse, webOrigin } from "@/lib/local-auth";
 
 type Context = { params: Promise<{ operation: string[] }> };
 
@@ -20,8 +22,7 @@ function apiPath(operation: string[], method: string) {
   return null;
 }
 
-async function readBoundedBody(request: NextRequest) {
-  const maxBytes = 16 * 1024;
+async function readBoundedBody(request: NextRequest, maxBytes = 16 * 1024) {
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
   const buffer = new Uint8Array(maxBytes);
@@ -55,10 +56,18 @@ async function handle(request: NextRequest, { params }: Context) {
     if (operation[0] === "logout" && request.method === "POST") return logout(request);
   }
 
+  const avatar = operation.length === 1 && operation[0] === "avatar"
+    && (request.method === "GET" || request.method === "PUT" || request.method === "DELETE");
   const path = apiPath(operation, request.method);
-  if (!path) return localError(404, "Operação não encontrada.");
-  const token = sessionToken(request);
-  if (!token) return localError(401, "Entre com uma conta de teste para continuar.");
+  if (!path && !avatar) return localError(404, "Operação não encontrada.");
+  const session = currentSession(request);
+  if (!session) return localError(401, "Entre com uma conta de teste para continuar.");
+
+  const expectedAccount = request.headers.get(localAccountHeader);
+  if ((avatar || path === "/me/profile") && expectedAccount !== null && expectedAccount !== session.userId) {
+    return localError(409, "A conta nesta aba mudou. Atualize a página e tente novamente.");
+  }
+  if (!path) return handleAvatar(request, session.token, readBoundedBody);
 
   const upstream = new URL(`/api/v1${path}`, apiOrigin);
   if (request.method === "GET" && (path === "/me/matches" || path.endsWith("/registrations"))) {
@@ -69,7 +78,7 @@ async function handle(request: NextRequest, { params }: Context) {
     }
   }
 
-  const headers = new Headers({ Accept: "application/json, application/problem+json", Authorization: `Bearer ${token}` });
+  const headers = new Headers({ Accept: "application/json, application/problem+json", Authorization: `Bearer ${session.token}` });
   try {
     let body: Uint8Array<ArrayBuffer> | undefined;
     if (path === "/matches" || request.method === "PATCH" || request.method === "PUT") {

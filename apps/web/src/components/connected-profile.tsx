@@ -1,71 +1,63 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { localApi } from "@/lib/connected-matches";
+import { useState, type FormEvent } from "react";
+import { useAccount } from "./account-provider";
 
-type Phase = "loading" | "ready" | "saving" | "unavailable";
-
-export function ConnectedProfile({ onSaved }: { onSaved: (displayName: string) => void }) {
-  const [name, setName] = useState("");
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [error, setError] = useState("");
+export function DisplayNameForm() {
+  const { account, saveName } = useAccount();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadProfile() {
-      try {
-        const profile = await localApi<{ displayName: string | null }>("profile", { signal: controller.signal });
-        if (!controller.signal.aborted) {
-          setName(profile.displayName ?? "");
-          setPhase("ready");
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setPhase("unavailable");
-          setError("Não foi possível carregar o perfil. Atualize a página para tentar novamente.");
-        }
-      }
-    }
-
-    void loadProfile();
-    return () => controller.abort();
-  }, []);
-
-  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPhase("saving");
+    if (account.state !== "ready" || saving) return;
+    setSaving(true);
     setError("");
     setNotice("");
     try {
-      const profile = await localApi<{ displayName: string }>("profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: name }),
-      });
-      setName(profile.displayName);
+      await saveName(draft ?? account.displayName ?? "");
+      setDraft(null);
       setNotice("Nome de exibição salvo.");
-      onSaved(profile.displayName);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Não foi possível salvar o nome de exibição.");
+      setError(failure instanceof Error ? failure.message : "Não foi possível salvar o nome.");
     } finally {
-      setPhase("ready");
+      setSaving(false);
     }
   }
 
+  const ready = account.state === "ready";
+  const name = ready ? account.displayName ?? "" : "";
+
+  return (
+    <form className="account-name-form" onSubmit={submit}>
+      <label className="preview-field">
+        <span>Nome de exibição</span>
+        <input
+          disabled={!ready || saving}
+          maxLength={80}
+          name="displayName"
+          onChange={(event) => { setDraft(event.target.value); setNotice(""); setError(""); }}
+          required
+          value={draft ?? name}
+        />
+      </label>
+      <button className="button button-primary" disabled={!ready || saving} type="submit">
+        {saving ? "Salvando…" : "Salvar nome"}
+      </button>
+      <p className="account-feedback" role="status">{account.state === "loading" ? "Carregando perfil…" : notice}</p>
+      {account.state === "unavailable" && <p className="form-feedback form-feedback-error" role="alert">Não foi possível carregar o perfil.</p>}
+      {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
+    </form>
+  );
+}
+
+export function ConnectedProfile() {
   return (
     <section className="surface-card connected-card" aria-labelledby="meu-perfil-conectado">
       <h2 id="meu-perfil-conectado">Meu perfil</h2>
-      <form className="preview-form" onSubmit={saveProfile}>
-        <label className="preview-field">
-          <span>Nome de exibição</span>
-          <input disabled={phase !== "ready"} maxLength={80} name="displayName" onChange={(event) => setName(event.target.value)} required value={name} />
-        </label>
-        <button className="button button-primary" disabled={phase !== "ready"} type="submit">Salvar nome</button>
-        <p role="status">{phase === "loading" ? "Carregando perfil…" : phase === "saving" ? "Salvando…" : notice}</p>
-        {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
-      </form>
+      <DisplayNameForm />
     </section>
   );
 }

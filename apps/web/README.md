@@ -37,6 +37,22 @@ Em **Meu perfil**, o jogador salva seu próprio nome de exibição. O nome apare
 A lista continua visível ao organizador e às inscrições ativas. Quem ainda não definiu um nome aparece
 pelo identificador.
 
+## Perfil pelo avatar
+
+O avatar do cabeçalho abre **Sua conta**. Em **Perfil**, edite o nome e, depois de escolher um arquivo,
+revise a miniatura antes de salvar. O arquivo escolhido deve ter até 1 MB (1.000.000 bytes) e ser JPG,
+PNG ou WebP. A aplicação recorta uma miniatura quadrada de 192 × 192. No modo de prévia, o nome e a
+foto ficam no navegador. Na conta conectada, o nome fica no PostgreSQL e a miniatura fica no Storage.
+
+Para habilitar a foto da conta conectada, crie no projeto Supabase do Applada um bucket privado
+`applada-avatars`, limitado a 1 MB e ao MIME `image/png`. Mantenha a leitura e a escrita diretas do
+bucket fechadas para os papéis `anon` e `authenticated`. A aplicação envia e serve a miniatura pelo
+BFF, que resolve a identidade no backend e só acessa o objeto da própria conta.
+
+Configure `APPLADA_SUPABASE_URL` e `APPLADA_SUPABASE_STORAGE_KEY` no processo do Next.js ou em
+`.env.local` ignorado pelo Git. A chave é secreta e exclusiva do servidor. A capacidade assinada
+de upload também fica no servidor. Reinicie o Next.js depois de configurar o ambiente.
+
 ## E2E de partida com uma vaga
 
 Com a API, o Keycloak e a web local ativos, conforme os passos acima, instale o Google Chrome e prepare
@@ -55,6 +71,10 @@ try {
   Remove-Item Env:APPLADA_E2E_TEST_PASSWORD
 }
 ```
+
+Com um bucket de teste configurado e a conta `jogador2.dev` sem foto, defina
+`APPLADA_E2E_AVATAR_STORAGE=1` para o E2E verificar o limite de tamanho, salvar o avatar, conferi-lo
+em outra sessão e removê-lo ao final.
 
 O Playwright abre três sessões independentes no Chrome. O segundo jogador salva um nome de exibição
 e o teste confirma que o nome persiste após recarregar a página. O organizador cria uma partida com uma vaga.

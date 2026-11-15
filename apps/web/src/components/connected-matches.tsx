@@ -7,6 +7,7 @@ import {
 } from "@/lib/connected-matches";
 import { CreateConnectedMatch, EditConnectedMatch } from "./connected-match-forms";
 import { ConnectedProfile } from "./connected-profile";
+import { useAccount } from "./account-provider";
 
 type Session = { userId: string };
 type Phase = "checking" | "disabled" | "signed-out" | "error" | "signed-in";
@@ -27,6 +28,7 @@ function detailPath(id: string) {
 }
 
 export function ConnectedMatches() {
+  const { account } = useAccount();
   const [phase, setPhase] = useState<Phase>("checking");
   const [session, setSession] = useState<Session>();
   const [role, setRole] = useState<MatchRole>("organizer");
@@ -201,13 +203,6 @@ export function ConnectedMatches() {
     });
   }
 
-  function updateOwnParticipantName(displayName: string) {
-    setParticipants((current) => current && {
-      ...current,
-      items: current.items.map((item) => item.userId === session?.userId ? { ...item, displayName } : item),
-    });
-  }
-
   if (phase !== "signed-in") {
     return (
       <section className="surface-card connected-card" aria-labelledby="conexao">
@@ -243,7 +238,7 @@ export function ConnectedMatches() {
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
       </div>
 
-      <ConnectedProfile onSaved={updateOwnParticipantName} />
+      <ConnectedProfile />
 
       {match && (
         <section className="surface-card connected-card" aria-labelledby="partida-selecionada" aria-busy={busy}>
@@ -274,11 +269,12 @@ export function ConnectedMatches() {
           {participants && (
             <div className="connected-participants">
               <h3>Participantes</h3>
-              {participants.items.length ? <ul>{participants.items.map((item) => (
-                <li key={item.userId}>
-                  {item.displayName ?? <code>{item.userId}</code>} · {registrationLabel(item.status, item.position)}
-                </li>
-              ))}</ul> : <p>Nenhuma inscrição ativa.</p>}
+              {participants.items.length ? <ul>{participants.items.map((item) => {
+                const name = account.state === "ready" && account.userId === item.userId ? account.displayName : item.displayName;
+                return <li key={item.userId}>
+                  {name ?? <code>{item.userId}</code>} · {registrationLabel(item.status, item.position)}
+                </li>;
+              })}</ul> : <p>Nenhuma inscrição ativa.</p>}
               {participants.nextCursor && <button className="button button-secondary" disabled={busy} onClick={() => void listParticipants(match.id, participants.nextCursor ?? undefined)} type="button">Mais participantes</button>}
             </div>
           )}

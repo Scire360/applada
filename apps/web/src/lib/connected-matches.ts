@@ -1,3 +1,5 @@
+export const localAccountHeader = "X-Applada-Account";
+
 export type MatchSummary = {
   id: string;
   title: string;
