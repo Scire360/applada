@@ -1580,6 +1580,20 @@ svg {
   outline: 3px solid #eaf2e9;
 }
 
+.preview-field input[aria-invalid="true"],
+.preview-field select[aria-invalid="true"],
+.preview-field textarea[aria-invalid="true"] {
+  border-color: #c56d5a;
+  background: #fffaf8;
+}
+
+.preview-field input[aria-invalid="true"]:focus,
+.preview-field select[aria-invalid="true"]:focus,
+.preview-field textarea[aria-invalid="true"]:focus {
+  border-color: #a84b38;
+  outline-color: #fff0ec;
+}
+
 .preview-form-actions {
   display: flex;
   align-items: center;

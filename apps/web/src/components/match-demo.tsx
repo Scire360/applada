@@ -47,6 +47,7 @@ export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "g
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
   const score = `${goals.filter((goal) => goal.side === "green").length} × ${goals.filter((goal) => goal.side === "blue").length}`;
   const pendingCheckIns = Math.max(0, attendees.length - checkedIn.length);
+  const checkInsNeededToStart = Math.max(0, 2 - checkedIn.length);
 
   const metrics = mode === "game"
     ? [
@@ -90,8 +91,16 @@ export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "g
         <strong>{mode === "checkin"
           ? !match
             ? "Crie uma pelada para começar."
+            : status === "live"
+              ? "Partida em andamento"
+              : status === "completed"
+                ? "Partida encerrada"
             : attendees.length
-              ? pendingCheckIns ? "Check-in em andamento" : "Todos chegaram"
+              ? checkedIn.length >= 2
+                ? "Elenco pronto para começar"
+                : pendingCheckIns
+                  ? "Check-in em andamento"
+                  : `Mais ${checkInsNeededToStart} ${checkInsNeededToStart === 1 ? "check-in" : "check-ins"} para iniciar`
               : "Aguardando confirmações"
           : playerOfTheMatch ?? (match ? metrics[1][2] : "Crie uma pelada para começar.")}</strong>
         <span>Prévia local; nada é salvo nem enviado.</span>
@@ -104,12 +113,35 @@ export function MatchCreationForm() {
   const { createMatch } = useMatchDemo();
   const router = useRouter();
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<"title" | "date" | "time" | "location" | "capacity" | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const capacityInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (dateInputRef.current) dateInputRef.current.min = formatLocalDate(new Date());
   }, []);
+
+  function showFieldError(message: string, field: NonNullable<typeof errorField>) {
+    setError(message);
+    setErrorField(field);
+    const inputRefs = {
+      title: titleInputRef,
+      date: dateInputRef,
+      time: timeInputRef,
+      location: locationInputRef,
+      capacity: capacityInputRef,
+    };
+    inputRefs[field].current?.focus();
+  }
+
+  function clearFieldError(field: NonNullable<typeof errorField>) {
+    if (errorField !== field && !(field === "date" && errorField === "time")) return;
+    setError("");
+    setErrorField(null);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,26 +156,28 @@ export function MatchCreationForm() {
     };
 
     if (!draft.title || !draft.date || !draft.time || !draft.location) {
-      setError("Preencha os campos obrigatórios e informe pelo menos uma vaga.");
+      const field = !draft.title ? "title" : !draft.date ? "date" : !draft.time ? "time" : "location";
+      showFieldError("Preencha os campos obrigatórios e informe pelo menos uma vaga.", field);
       return;
     }
     if (!Number.isSafeInteger(draft.capacity) || draft.capacity < 1) {
-      setError("Informe uma quantidade inteira de vagas igual ou maior que 1.");
+      showFieldError("Informe uma quantidade inteira de vagas igual ou maior que 1.", "capacity");
       return;
     }
 
     const now = new Date();
     const today = formatLocalDate(now);
     if (draft.date < today) {
-      setError("Escolha uma data de hoje ou posterior.");
+      showFieldError("Escolha uma data de hoje ou posterior.", "date");
       return;
     }
     if (draft.date === today && new Date(`${draft.date}T${draft.time}:00`) <= now) {
-      setError("Escolha um horário futuro para a partida de hoje.");
+      showFieldError("Escolha um horário futuro para a partida de hoje.", "time");
       return;
     }
 
     setError("");
+    setErrorField(null);
     createMatch(draft);
     router.push("/peladas");
   }
@@ -153,15 +187,28 @@ export function MatchCreationForm() {
       <div className="preview-form-grid">
         <label className="preview-field preview-field-wide" htmlFor="match-title">
           <span>Nome do encontro<span aria-hidden="true"> *</span></span>
-          <input autoComplete="off" id="match-title" name="match-title" placeholder="Ex.: Quinta de futebol" required />
+          <input
+            aria-describedby={errorField === "title" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "title" || undefined}
+            autoComplete="off"
+            id="match-title"
+            name="match-title"
+            onChange={() => clearFieldError("title")}
+            placeholder="Ex.: Quinta de futebol"
+            ref={titleInputRef}
+            required
+          />
         </label>
         <label className="preview-field" htmlFor="match-date">
           <span>Data<span aria-hidden="true"> *</span></span>
           <input
+            aria-describedby={errorField === "date" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "date" || undefined}
             id="match-date"
             name="match-date"
             onChange={(event) => {
               const now = new Date();
+              clearFieldError("date");
               if (timeInputRef.current) {
                 if (event.currentTarget.value === formatLocalDate(now)) {
                   now.setSeconds(0, 0);
@@ -179,15 +226,46 @@ export function MatchCreationForm() {
         </label>
         <label className="preview-field" htmlFor="match-time">
           <span>Horário<span aria-hidden="true"> *</span></span>
-          <input id="match-time" name="match-time" ref={timeInputRef} required type="time" />
+          <input
+            aria-describedby={errorField === "time" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "time" || undefined}
+            id="match-time"
+            name="match-time"
+            onChange={() => clearFieldError("time")}
+            ref={timeInputRef}
+            required
+            type="time"
+          />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-location">
           <span>Local e campo<span aria-hidden="true"> *</span></span>
-          <input autoComplete="off" id="match-location" name="match-location" placeholder="Arena, endereço ou ponto de encontro" required />
+          <input
+            aria-describedby={errorField === "location" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "location" || undefined}
+            autoComplete="off"
+            id="match-location"
+            name="match-location"
+            onChange={() => clearFieldError("location")}
+            placeholder="Arena, endereço ou ponto de encontro"
+            ref={locationInputRef}
+            required
+          />
         </label>
         <label className="preview-field" htmlFor="match-capacity">
           <span>Número de vagas<span aria-hidden="true"> *</span></span>
-          <input id="match-capacity" min="1" name="match-capacity" placeholder="18" required step="1" type="number" />
+          <input
+            aria-describedby={errorField === "capacity" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "capacity" || undefined}
+            id="match-capacity"
+            min="1"
+            name="match-capacity"
+            onChange={() => clearFieldError("capacity")}
+            placeholder="18"
+            ref={capacityInputRef}
+            required
+            step="1"
+            type="number"
+          />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-notes">
           <span>Detalhes para o time</span>
@@ -198,7 +276,7 @@ export function MatchCreationForm() {
         <button className="button button-primary" type="submit">Criar prévia da pelada</button>
         <span className="form-disclaimer">Demonstração local: os dados não serão enviados nem salvos.</span>
       </div>
-      {error ? <p className="form-feedback form-feedback-error" role="alert">{error}</p> : null}
+      {error ? <p className="form-feedback form-feedback-error" id="match-creation-error" role="alert">{error}</p> : null}
     </form>
   );
 }
@@ -438,6 +516,9 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
 
       {notice ? <p aria-live="polite" className="form-feedback" role="status">{notice}</p> : null}
       <div className="match-demo-links">
+        {isCheckIn && status === "scheduled" && checkedIn.length >= 2 ? (
+          <Link className="button button-primary" href="/partidas/ao-vivo">Ir para central da partida</Link>
+        ) : null}
         {mode !== "presence" && !(isCheckIn && candidates.length === 0)
           ? <Link href="/presenca">Gerenciar confirmações</Link>
           : null}

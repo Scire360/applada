@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMatchDemo } from "@/components/match-demo-provider";
 import type { MatchGoal } from "@/components/match-demo-provider";
 
@@ -33,6 +33,20 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
   } = useMatchDemo();
   const [notice, setNotice] = useState("");
   const [confirmEnding, setConfirmEnding] = useState(false);
+  const endMatchButtonRef = useRef<HTMLButtonElement>(null);
+  const continueButtonRef = useRef<HTMLButtonElement>(null);
+  const voteHighlightLinkRef = useRef<HTMLAnchorElement>(null);
+  const wasConfirmingEnding = useRef(false);
+
+  useEffect(() => {
+    if (confirmEnding) {
+      continueButtonRef.current?.focus();
+    } else if (wasConfirmingEnding.current) {
+      if (status === "completed") voteHighlightLinkRef.current?.focus();
+      else endMatchButtonRef.current?.focus();
+    }
+    wasConfirmingEnding.current = confirmEnding;
+  }, [confirmEnding, status]);
 
   if (!match) {
     return <MatchRequired>Nenhuma pelada foi criada nesta sessão de demonstração.</MatchRequired>;
@@ -179,8 +193,9 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
                 <strong>Encerrar esta partida?</strong>
                 <span>O placar ficará fechado nesta prévia e a votação de destaque será liberada.</span>
               </div>
-              <div className="game-state-actions">
-                <button className="button button-secondary" onClick={() => setConfirmEnding(false)} type="button">Continuar jogando</button>
+              <div aria-describedby="end-match-description" aria-labelledby="end-match-title" className="game-state-actions" role="group">
+                <strong className="sr-only" id="end-match-title">Confirmar encerramento</strong>
+                <button className="button button-secondary" onClick={() => setConfirmEnding(false)} ref={continueButtonRef} type="button">Continuar jogando</button>
                 <button
                   className="button button-primary"
                   onClick={() => {
@@ -194,9 +209,12 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
                   Confirmar encerramento
                 </button>
               </div>
+              <span className="sr-only" id="end-match-description">
+                O placar será fechado nesta prévia e a votação de destaque será liberada.
+              </span>
             </section>
           ) : (
-            <button className="button button-secondary game-end-button" onClick={() => setConfirmEnding(true)} type="button">
+            <button className="button button-secondary game-end-button" onClick={() => setConfirmEnding(true)} ref={endMatchButtonRef} type="button">
               Encerrar partida
             </button>
           )}
@@ -209,7 +227,7 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
             <strong>Resultado final para conferência</strong>
             <span>Este resultado é ilustrativo e não foi enviado para aprovação.</span>
           </div>
-          <Link className="button button-primary" href="/destaques/votacao">Votar destaque</Link>
+          <Link className="button button-primary" href="/destaques/votacao" ref={voteHighlightLinkRef}>Votar destaque</Link>
         </section>
       ) : null}
 
