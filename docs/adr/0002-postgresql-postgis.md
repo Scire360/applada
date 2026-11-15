@@ -27,7 +27,8 @@ justifica PostGIS desde já.
   3. aplica a regra no agregado `Match`, que altera contadores e inscrições;
   4. grava partida, inscrições, chave de idempotência e outbox num único `SaveChanges` e faz commit.
   Só uma linha é travada por transação, então não há deadlock entre partidas. Estouro de `lock_timeout`
-  (SQLSTATE `55P03`) vira o erro `lock-timeout`, que a API devolve como 503.
+  (SQLSTATE `55P03`) vira o erro de domínio `MatchErrors.LockTimeout` (`ErrorKind.Unavailable`). O mapeamento
+  para HTTP 503 com `Retry-After` está planejado (Tarefas 10/11); os endpoints ainda não existem.
 - **`CHECK` como defesa em profundidade.** As regras estão no domínio e o banco as repete:
   `capacity` entre 1 e 200, `duration_minutes` entre 15 e 600, `confirmed_count` entre 0 e `capacity`,
   `waitlist_count` entre 0 e 50, `status` e `visibility` em conjuntos fechados, e `ck_registrations_status`.
@@ -41,7 +42,8 @@ justifica PostGIS desde já.
   inscrição.
 - **Sem retry automático do Npgsql/EF Core.** `EnableRetryOnFailure` não é usado: a estratégia de retry não
   convive com a transação explícita da unidade de trabalho (`MatchesUnitOfWork`). Falha transitória de banco
-  chega ao cliente como erro; o cliente repete (escritas sensíveis aceitam `Idempotency-Key`).
+  chega ao chamador como erro. A tabela `matches.idempotency_keys` e `IdempotencyConflictException` já existem;
+  o cabeçalho HTTP `Idempotency-Key` está planejado (Tarefa 10).
 
 ## Alternativas consideradas
 
@@ -61,11 +63,12 @@ justifica PostGIS desde já.
 
 **Negativas e limites conhecidos**
 - Escritas na mesma partida são serializadas; uma transação lenta segura as demais até o `lock_timeout`, e
-  quem estoura recebe 503. Dimensionado para dezenas de pessoas por partida; não há teste de carga que meça
+  quem estoura recebe `LockTimeout` (503 planejado, Tarefas 10/11). Dimensionado para dezenas de pessoas por partida; não há teste de carga que meça
   o limite.
 - O banco é ponto único de falha: sem retry automático e sem réplica definida, banco fora do ar significa
   API sem escrita. Backup, alta disponibilidade e RPO/RTO: a decidir.
-- A corrida de idempotência com a mesma chave pode passar do `lock_timeout` e virar 503.
+- Numa corrida com a mesma `Idempotency-Key`, o segundo INSERT na PK de `idempotency_keys` espera, limitado
+  pelo `lock_timeout` (padrão 5 s, `MatchesPersistenceOptions`); se estourar, vira 503 (resposta planejada).
 - Os `CHECK` duplicam regras do domínio; mudar um limite exige migration e mudança de domínio (a spec prevê
   migration expansiva para ampliar `visibility`).
 - PostGIS está previsto mas sem uso; o benefício é futuro.
@@ -75,5 +78,4 @@ justifica PostGIS desde já.
 - Spec: `specs/2026-11-13-backend-fundacao-matches-design.md` §4.3, §8, §9
 - Código: `backend/src/Modules/Matches/Applada.Modules.Matches.Infrastructure/MatchesUnitOfWork.cs`,
   `MatchesSession.cs`, `MatchesDbContext.cs`, `Configurations/`
-- Testes: `backend/tests/Integration/Applada.Api.IntegrationTests/MatchesPersistenceTests.cs`,
-  `MatchesLockTimeoutApiTests.cs`, `MatchesLifecycleTests.cs`
+- Testes: `backend/tests/Integration/Applada.Api.IntegrationTests/MatchesPersistenceTests.cs`

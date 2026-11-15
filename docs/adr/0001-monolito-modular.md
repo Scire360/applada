@@ -18,11 +18,13 @@ extração seja possível e para que nenhum módulo leia tabela de outro.
 Um único processo de API (`Applada.Api`, composition root) hospeda os módulos em `backend/src/Modules/*`.
 
 - **Um schema PostgreSQL, um `DbContext` e um conjunto de migrations por módulo.** Hoje: `identity` e
-  `matches`, cada um com `__EFMigrationsHistory` e tabela `outbox_messages` próprios.
+  `matches`, cada um com `__ef_migrations_history` (no schema do módulo) e tabela `outbox_messages` próprios.
 - **Integração entre módulos** só por contrato publicado: consulta síncrona via projeto `*.Contracts` ou
   evento de integração versionado via outbox (ADR-0005).
 - **Estrutura de projetos:** Matches é dividido em `Domain`, `Application`, `Infrastructure`, `Api` e
-  `Contracts`. Identity é um módulo pequeno: um projeto de implementação (pastas internas por camada) e um
+  `Contracts`. Em 2026-11-14 existem `Domain`, `Application` e `Infrastructure`; `Api` (endpoints) e
+  `Contracts` (eventos publicados) estão planejados (Tarefas 10 a 12), e os endpoints de Matches ainda não
+  existem. Identity é um módulo pequeno: um projeto de implementação (pastas internas por camada) e um
   `Contracts`.
 - **Sem mediador.** Endpoints chamam handlers de aplicação injetados (classes simples). Sem
   `GenericRepository<T>`.
@@ -37,8 +39,8 @@ em Matches os namespaces coincidem com os nomes dos assemblies.
 
 | Teste | Regra |
 |---|---|
-| `Domain_does_not_depend_on_infrastructure_api_efcore_or_aspnet` | `*.Domain` não depende de Infrastructure, Api, EF Core nem ASP.NET Core |
-| `Application_depends_only_on_domain_and_contracts` | `*.Application` depende só de Domain, Contracts e BuildingBlocks |
+| `Domain_does_not_depend_on_infrastructure_api_efcore_or_aspnet` | `*.Domain` não depende de Application, Infrastructure, Api, EF Core nem ASP.NET Core |
+| `Application_depends_only_on_domain_and_contracts` | regra negativa: `*.Application` não depende de `*.Infrastructure`, `*.Api`, `Microsoft.AspNetCore*`, `Npgsql*` nem `RabbitMQ*` |
 | `Modules_reference_other_modules_only_through_contracts` | um módulo só referencia outro via `*.Contracts` |
 | `Contracts_do_not_depend_on_module_internals` | `*.Contracts` não depende de Domain, Application, Infrastructure nem Api |
 | `No_generic_repository` | nenhum `GenericRepository<T>` |
@@ -65,6 +67,8 @@ em Matches os namespaces coincidem com os nomes dos assemblies.
 - As regras testam dependência de tipos e referências de projeto. Elas **não** impedem um módulo de executar
   SQL contra o schema de outro; isso depende de revisão e de um `DbContext` por módulo.
 - A divisão por namespace em Identity depende de disciplina de pastas dentro de um único assembly.
+- A regra de Application é só uma lista de proibições: Application ainda pode referenciar EF Core e outras
+  bibliotecas.
 - Só existem Identity e Matches; os demais módulos da arquitetura v1 ainda não foram criados.
 - Não há teste de carga; o comportamento sob volume real não foi medido.
 

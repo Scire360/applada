@@ -59,8 +59,9 @@ Scalar fica mapeado só em Development para teste manual com Authorization Code 
 **Negativas e limites conhecidos**
 - **ADR-0004 segue em aberto:** provedor de produção, fluxo web (BFF) e mobile, e como unificar usuários se
   `issuer` mudar (migração de `(issuer, subject)`) estão a decidir.
-- Cada requisição autenticada faz acesso ao banco para resolver o usuário (2 idas em alguns casos); sem cache
-  nesta fatia.
+- Toda requisição autenticada depois da primeira do usuário executa 2 consultas (o `INSERT ... ON CONFLICT`,
+  que não retorna linha, e o `SELECT`) dentro de uma transação (BEGIN/COMMIT); sem cache nesta fatia
+  (`UserProvisioner.cs`).
 - O middleware provisiona usuário também em endpoint anônimo quando há bearer válido.
 - Sem nome, e-mail ou foto: perfis ficam para o módulo Profiles. Exclusão de usuário (LGPD) não está
   desenhada; `Single()` na leitura do `id` pode quebrar se houver exclusão futura de linhas.
