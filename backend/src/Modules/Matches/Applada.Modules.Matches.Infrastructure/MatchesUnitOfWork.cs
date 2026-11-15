@@ -1,6 +1,7 @@
 using System.Data;
 using Applada.BuildingBlocks.Domain;
 using Applada.BuildingBlocks.Persistence.Idempotency;
+using Applada.Modules.Matches.Application;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public sealed partial class MatchesUnitOfWork(
     MatchesDbContext db,
     TimeProvider timeProvider,
     IOptions<MatchesPersistenceOptions> options,
+    MatchesMetrics metrics,
     ILogger<MatchesUnitOfWork> logger) : IMatchesUnitOfWork
 {
     public async Task<Result<T>> ExecuteAsync<T>(Func<IMatchesSession, CancellationToken, Task<Result<T>>> work, CancellationToken ct)
@@ -41,6 +43,7 @@ public sealed partial class MatchesUnitOfWork(
         db.ChangeTracker.Clear();
 
         var lockTimeout = options.Value.LockTimeout;
+        var session = new MatchesSession(db, timeProvider);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         try
         {
@@ -48,7 +51,7 @@ public sealed partial class MatchesUnitOfWork(
             var setting = $"{(long)lockTimeout.TotalMilliseconds}ms";
             await db.Database.ExecuteSqlAsync($"SELECT set_config('lock_timeout', {setting}, true)", ct);
 
-            var result = await work(new MatchesSession(db, timeProvider), ct);
+            var result = await work(session, ct);
             if (!result.IsSuccess)
             {
                 await RollbackAsync(transaction);
@@ -62,8 +65,8 @@ public sealed partial class MatchesUnitOfWork(
         catch (Exception ex) when (FindPostgresException(ex) is { SqlState: PostgresErrorCodes.LockNotAvailable })
         {
             await RollbackAsync(transaction);
-            // Ponto de extensão da métrica de lock-timeout (Tarefa 11).
-            LogLockTimeout(logger, lockTimeout);
+            metrics.LockTimedOut();
+            LogLockTimeout(logger, session.LockedMatchId, lockTimeout);
             return MatchErrors.LockTimeout;
         }
         catch (Exception ex) when (IsIdempotencyKeyConflict(ex))
@@ -116,8 +119,8 @@ public sealed partial class MatchesUnitOfWork(
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Lock da partida não obtido em {LockTimeout}; operação devolvida como lock-timeout.")]
-    private static partial void LogLockTimeout(ILogger logger, TimeSpan lockTimeout);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Lock da partida {MatchId} não obtido em {LockTimeout}; operação devolvida como lock-timeout.")]
+    private static partial void LogLockTimeout(ILogger logger, Guid? matchId, TimeSpan lockTimeout);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rollback da unidade de trabalho de Matches falhou.")]
     private static partial void LogRollbackFailed(ILogger logger, Exception exception);

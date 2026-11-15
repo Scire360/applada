@@ -14,10 +14,16 @@ namespace Applada.Modules.Matches.Infrastructure;
 /// </summary>
 internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvider) : IMatchesSession
 {
-    public Task<Match?> GetMatchForUpdateAsync(Guid matchId, CancellationToken ct) =>
-        db.Matches
+    /// <summary>Última partida cujo lock esta sessão pediu (para o log de lock-timeout).</summary>
+    public Guid? LockedMatchId { get; private set; }
+
+    public Task<Match?> GetMatchForUpdateAsync(Guid matchId, CancellationToken ct)
+    {
+        LockedMatchId = matchId;
+        return db.Matches
             .FromSql($"SELECT * FROM matches.matches WHERE id = {matchId} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
+    }
 
     public Task<Registration?> FindRegistrationAsync(Guid matchId, Guid userId, CancellationToken ct) =>
         db.Registrations.SingleOrDefaultAsync(r => r.MatchId == matchId && r.UserId == userId, ct);
@@ -36,6 +42,11 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
             .Take(count)
             .ToListAsync(ct);
     }
+
+    public Task<int> CountWaitlistedUpToAsync(Guid matchId, long queueSeq, CancellationToken ct) =>
+        db.Registrations.CountAsync(
+            r => r.MatchId == matchId && r.Status == RegistrationStatus.Waitlisted && r.QueueSeq <= queueSeq,
+            ct);
 
     public async Task<IdempotencyEntry?> FindIdempotencyAsync(Guid userId, string key, CancellationToken ct)
     {

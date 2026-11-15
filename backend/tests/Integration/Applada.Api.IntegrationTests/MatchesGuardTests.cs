@@ -104,6 +104,46 @@ public class MatchesGuardTests(ApiFactory factory)
         Assert.Equal((1, 1), (match.Capacity, match.Version));
     }
 
+    [Fact]
+    public async Task Counter_divergence_on_withdraw_returns_500_and_logs_match_id()
+    {
+        var logs = new CapturingLoggerProvider();
+        await using var host = HostWithLogs(logs);
+        using var organizer = ClientFor(host);
+        using var player = ClientFor(host);
+        var matchId = await CreateMatchAsync(organizer, capacity: 1);
+        using (var registered = await player.PostAsync($"{MatchesPath}/{matchId}/registrations", content: null, Ct))
+        {
+            Assert.Equal(HttpStatusCode.Created, registered.StatusCode);
+        }
+
+        // O contador diz que há 1 em espera, mas não existe linha em espera: a saída do confirmado não tem quem promover.
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+            await db.Database.ExecuteSqlAsync($"UPDATE matches.matches SET waitlist_count = 1 WHERE id = {matchId}", Ct);
+        }
+
+        logs.Clear();
+
+        using var response = await player.DeleteAsync($"{MatchesPath}/{matchId}/registrations/me", Ct);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var divergence = Assert.Single(logs.Entries, e => e.Category == "Applada.Modules.Matches.Api.RegistrationEndpoints");
+        Assert.Equal(LogLevel.Error, divergence.Level);
+        Assert.Contains(matchId.ToString(), divergence.Message, StringComparison.Ordinal);
+        Assert.IsType<MatchStateDivergenceException>(divergence.Exception);
+
+        // Nada mudou: a inscrição continua confirmada e nenhum evento foi gravado.
+        await using var verify = host.Services.CreateAsyncScope();
+        var verifyDb = verify.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        var match = await verifyDb.Matches.AsNoTracking().SingleAsync(m => m.Id == matchId, Ct);
+        Assert.Equal((1, 1), (match.ConfirmedCount, match.WaitlistCount));
+        Assert.Equal(RegistrationStatus.Confirmed, (await verifyDb.Registrations.AsNoTracking().SingleAsync(r => r.MatchId == matchId, Ct)).Status);
+        Assert.Equal(0, await verifyDb.OutboxMessages.CountAsync(o => o.AggregateId == matchId && o.EventType == "matches.spot-released.v1", Ct));
+    }
+
     private WebApplicationFactory<Program> HostWithLogs(CapturingLoggerProvider logs) =>
         factory.WithWebHostBuilder(b => b.ConfigureLogging(l => l.AddProvider(logs)));
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.BuildingBlocks.Contracts;
 using Applada.BuildingBlocks.Domain;
+using Applada.Modules.Matches.Application;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
 using Applada.Modules.Matches.Infrastructure;
@@ -71,6 +72,7 @@ public class MatchesPersistenceTests(ApiFactory factory)
             scope.ServiceProvider.GetRequiredService<MatchesDbContext>(),
             factory.Clock,
             Options.Create(new MatchesPersistenceOptions { LockTimeout = TimeSpan.FromSeconds(1) }),
+            scope.ServiceProvider.GetRequiredService<MatchesMetrics>(),
             NullLogger<MatchesUnitOfWork>.Instance);
         var reachedAfterLock = false;
 

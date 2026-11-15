@@ -92,3 +92,16 @@ public sealed record MatchResponse(
 
 /// <summary>Inscrição ativa de quem consulta; <see cref="Position"/> só em espera (1 = próximo a ser promovido).</summary>
 public sealed record MyRegistrationResponse(string Status, int? Position);
+
+/// <summary>Corpo de <c>POST /matches/{id}/registrations</c>: <see cref="Position"/> só em espera (1 = próximo a ser promovido).</summary>
+public sealed record RegistrationResponse(string Status, int? Position);
+
+/// <summary>Item de <c>GET /matches/{id}/registrations</c>: só o id interno, o status e a posição na espera.</summary>
+public sealed record ParticipantResponse(Guid UserId, string Status, int? Position)
+{
+    internal static ParticipantResponse From(Participant participant)
+    {
+        ArgumentNullException.ThrowIfNull(participant);
+        return new ParticipantResponse(participant.UserId, StatusText.Of(participant.Status), participant.Position);
+    }
+}

@@ -45,6 +45,39 @@ public class RateLimitingTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
     }
 
+    [Fact]
+    public async Task Registration_writes_count_against_the_limit_and_reads_do_not()
+    {
+        await using var limited = factory.WithWebHostBuilder(b => b.UseSetting("Matches:WriteRateLimitPerMinute", "3"));
+        using var organizer = ClientFor(limited, $"rate-{Guid.NewGuid():N}");
+        using var player = ClientFor(limited, $"rate-{Guid.NewGuid():N}");
+        using var created = await PostMatchAsync(organizer);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var matchId = JsonDocument.Parse(await created.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("id").GetGuid();
+        var registrations = $"/api/v1/matches/{matchId}/registrations";
+
+        var statuses = new List<HttpStatusCode>();
+        foreach (var write in new Func<Task<HttpResponseMessage>>[]
+        {
+            () => player.PostAsync(registrations, content: null, Ct),
+            () => player.DeleteAsync($"{registrations}/me", Ct),
+            () => player.PostAsync(registrations, content: null, Ct),
+            () => player.DeleteAsync($"{registrations}/me", Ct),
+        })
+        {
+            using var response = await write();
+            statuses.Add(response.StatusCode);
+        }
+
+        Assert.Equal([HttpStatusCode.Created, HttpStatusCode.NoContent, HttpStatusCode.Created, HttpStatusCode.TooManyRequests], statuses);
+
+        // Leituras não entram na conta.
+        using var participants = await player.GetAsync(registrations, Ct);
+        Assert.Equal(HttpStatusCode.OK, participants.StatusCode);
+        using var mine = await player.GetAsync("/api/v1/me/matches?role=participant", Ct);
+        Assert.Equal(HttpStatusCode.OK, mine.StatusCode);
+    }
+
     private HttpClient ClientFor(WebApplicationFactory<Program> host, string subject)
     {
         var client = host.CreateClient();

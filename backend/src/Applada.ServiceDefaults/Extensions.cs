@@ -18,6 +18,9 @@ public static class Extensions
     /// <summary>Meter do outbox (Applada.BuildingBlocks.Messaging), registrado por nome para não acoplar os projetos.</summary>
     private const string OutboxMeterName = "Applada.Outbox";
 
+    /// <summary>Meter de Matches (MatchesMetrics), registrado por nome pelo mesmo motivo.</summary>
+    private const string MatchesMeterName = "Applada.Matches";
+
     /// <summary>
     /// Configura OpenTelemetry (traces, métricas e logs) e os health checks padrão.
     /// O exportador OTLP só é ligado quando OTEL_EXPORTER_OTLP_ENDPOINT está definido.
@@ -60,7 +63,8 @@ public static class Extensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter(OutboxMeterName))
+                .AddMeter(OutboxMeterName)
+                .AddMeter(MatchesMeterName))
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()

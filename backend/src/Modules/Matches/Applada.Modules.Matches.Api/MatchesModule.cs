@@ -1,6 +1,9 @@
 using Applada.Modules.Matches.Application.CancelMatch;
 using Applada.Modules.Matches.Application.CreateMatch;
+using Applada.Modules.Matches.Application.Queries;
+using Applada.Modules.Matches.Application.Register;
 using Applada.Modules.Matches.Application.UpdateMatch;
+using Applada.Modules.Matches.Application.Withdraw;
 using Applada.Modules.Matches.Infrastructure;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -23,18 +26,25 @@ public static class MatchesModule
         services.AddScoped<CreateMatchHandler>();
         services.AddScoped<UpdateMatchHandler>();
         services.AddScoped<CancelMatchHandler>();
+        services.AddScoped<RegisterHandler>();
+        services.AddScoped<WithdrawHandler>();
+        services.AddScoped<ParticipantsQuery>();
+        services.AddScoped<MyMatchesQuery>();
 
         return services;
     }
 
     /// <summary>
-    /// Mapeia <c>/api/v1/matches</c>. As escritas exigem a política de rate limiting <c>"writes"</c> registrada na
+    /// Mapeia <c>/api/v1/matches</c> (partidas e inscrições) e <c>/api/v1/me/matches</c>. As escritas exigem a política de rate limiting <c>"writes"</c> registrada na
     /// raiz de composição.
     /// </summary>
     public static IEndpointRouteBuilder MapMatchesEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        return endpoints.MapMatchEndpoints();
+        return endpoints
+            .MapMatchEndpoints()
+            .MapRegistrationEndpoints()
+            .MapMyMatchesEndpoints();
     }
 }

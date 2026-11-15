@@ -6,8 +6,11 @@ using Applada.Modules.Matches.Domain;
 
 namespace Applada.Modules.Matches.Application.UpdateMatch;
 
-/// <summary>Edição do organizador sob o lock da partida. Aumentar a capacidade promove a espera na mesma transação.</summary>
-public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQueries queries, TimeProvider timeProvider)
+/// <summary>
+/// Edição do organizador sob o lock da partida. Aumentar a capacidade promove a espera na mesma transação; as promoções
+/// entram na métrica <c>matches.registrations</c> (<c>promoted</c>) depois do commit.
+/// </summary>
+public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQueries queries, MatchesMetrics metrics, TimeProvider timeProvider)
 {
     /// <exception cref="MatchStateDivergenceException">
     /// Contadores da partida divergem das linhas de inscrição (bug ou alteração fora da aplicação). Não é mascarado:
@@ -22,7 +25,7 @@ public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQuer
         int? capacity,
         CancellationToken ct)
     {
-        var updated = await unitOfWork.ExecuteAsync<bool>(
+        var updated = await unitOfWork.ExecuteAsync<int>(
             async (session, token) =>
             {
                 var match = await session.GetMatchForUpdateAsync(matchId, token);
@@ -54,8 +57,9 @@ public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQuer
                     return changed.Error;
                 }
 
+                var promotions = MatchesMetrics.PendingPromotions(match);
                 MatchEventMapper.PublishPending(match, session);
-                return true;
+                return promotions;
             },
             ct);
 
@@ -63,6 +67,8 @@ public sealed class UpdateMatchHandler(IMatchesUnitOfWork unitOfWork, IMatchQuer
         {
             return updated.Error;
         }
+
+        metrics.Promoted(updated.Value);
 
         // Lida depois do commit, pelo mesmo caminho do GET: corpo e ETag vêm da mesma leitura.
         return await queries.GetAsync(matchId, userId, ct) is { } details ? details : MatchErrors.MatchNotFound;

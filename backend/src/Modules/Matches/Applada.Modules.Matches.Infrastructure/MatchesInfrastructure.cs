@@ -1,5 +1,6 @@
 using Applada.BuildingBlocks.Messaging;
 using Applada.BuildingBlocks.Persistence;
+using Applada.Modules.Matches.Application;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Application.Queries;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,7 @@ public static class MatchesInfrastructure
             .ValidateOnStart();
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<MatchesMetrics>();
         services.AddScoped<IMatchesUnitOfWork, MatchesUnitOfWork>();
         services.AddScoped<IMatchQueries, MatchQueries>();
         services.AddMigrationsOnStartup<MatchesDbContext>();

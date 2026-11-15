@@ -19,6 +19,12 @@ public interface IMatchesSession
     Task<IReadOnlyList<Registration>> GetWaitlistHeadAsync(Guid matchId, int count, CancellationToken ct);
 
     /// <summary>
+    /// Quantas inscrições em espera gravadas têm <c>queue_seq</c> menor ou igual a <paramref name="queueSeq"/> (a posição
+    /// de quem tem esse <c>queue_seq</c>). Lê o banco: alterações ainda não gravadas nesta sessão não contam.
+    /// </summary>
+    Task<int> CountWaitlistedUpToAsync(Guid matchId, long queueSeq, CancellationToken ct);
+
+    /// <summary>
     /// Resposta guardada para a chave do usuário. Entrada com mais de 24 h (pelo <see cref="TimeProvider"/>) conta como
     /// ausente e é removida nesta transação, para que a chave possa ser gravada de novo com <see cref="AddIdempotency"/>.
     /// </summary>
