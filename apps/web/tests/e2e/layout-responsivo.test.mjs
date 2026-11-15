@@ -3,6 +3,8 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { chromium } from "playwright";
 
+const base = "http://localhost:" + (process.env.APPLADA_LAYOUT_TEST_PORT ?? "3000");
+
 const viewports = [
   [320, 568], [360, 800], [390, 844], [430, 932], [568, 320],
   [640, 820], [641, 820], [690, 820], [768, 1024], [844, 390],
@@ -27,7 +29,7 @@ async function measureLayout() {
   const content = document.querySelector(".page-content");
   const breadcrumbs = document.querySelector(".breadcrumbs");
   const account = document.querySelector(".topbar .account-trigger");
-  const community = document.querySelector('.sidebar a[aria-label="Comunidade"]');
+  const community = document.querySelector('.compact-primary-nav a[aria-label="Comunidade"]');
   const range = document.createRange();
   range.selectNodeContents(community.querySelector("span"));
 
@@ -60,7 +62,6 @@ async function measureLayout() {
 }
 
 test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas", { timeout: 240_000 }, async (t) => {
-  const base = "http://localhost:3000";
   const routes = await appRoutes();
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   const failures = [];
@@ -100,4 +101,41 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
   t.diagnostic(routes.length + " páginas × " + viewports.length + " telas, " + checked + " combinações");
   const examples = failures.filter((failure) => failure.includes(" excede ") || failure.includes(" corta "));
   assert.equal(failures.length, 0, [...new Set([...examples, ...failures])].slice(0, 22).join("\n"));
+});
+
+test("seções do sidebar começam fechadas e os atalhos compactos ficam acessíveis", async () => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.goto(base + "/peladas");
+    const nav = page.getByRole("navigation", { name: "Navegação principal" });
+    const groups = nav.locator("details");
+    assert.deepEqual(await groups.locator("summary").allTextContents(), [
+      "Menu", "Dentro de campo", "Comunidade", "Acompanhamento", "Espaço do grupo", "Ferramentas",
+    ]);
+    assert.equal(await nav.locator("details[open]").count(), 0);
+    assert.equal(await nav.getByRole("link").count(), 0);
+
+    const menu = groups.filter({ has: page.locator("summary").getByText("Menu", { exact: true }) });
+    const field = groups.filter({ has: page.locator("summary").getByText("Dentro de campo", { exact: true }) });
+    await menu.locator("summary").press("Enter");
+    assert.equal(await nav.getByRole("link", { name: "Peladas", exact: true }).getAttribute("aria-current"), "page");
+    await field.locator("summary").click();
+    assert.equal(await nav.locator("details[open]").count(), 2);
+    await menu.locator("summary").press("Space");
+    assert.equal(await nav.getByRole("link", { name: "Peladas", exact: true }).count(), 0);
+    assert.equal(await nav.getByRole("link", { name: "Organizar pelada", exact: true }).isVisible(), true);
+    await page.reload();
+    assert.equal(await nav.locator("details[open]").count(), 0);
+
+    for (const width of [768, 320]) {
+      await page.setViewportSize({ width, height: 820 });
+      assert.equal(await groups.locator("summary:visible").count(), 0);
+      assert.deepEqual(await nav.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href"))), [
+        "/", "/peladas", "/jogadores", "/comunidade", "/financeiro",
+      ]);
+    }
+  } finally {
+    await browser.close();
+  }
 });

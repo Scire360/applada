@@ -175,7 +175,6 @@ svg {
 }
 
 .eyebrow,
-.nav-heading,
 .stat-overline,
 .date-tile > span {
   color: var(--muted);
@@ -211,17 +210,58 @@ svg {
 }
 
 .nav-heading {
-  margin: 0 0 8px 11px;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 4px 11px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  list-style: none;
+  text-transform: uppercase;
 }
 
-.nav-section {
+.nav-heading::-webkit-details-marker {
+  display: none;
+}
+
+.nav-heading:hover,
+.nav-section[open] > .nav-heading {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.nav-heading:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
+}
+
+.nav-heading svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  transform: rotate(-90deg);
+  transition: transform 160ms ease;
+}
+
+.nav-section[open] > .nav-heading svg {
+  transform: none;
+}
+
+.nav-section-links {
   display: grid;
   gap: 3px;
-  margin-top: 17px;
+  padding: 3px 0 5px;
 }
 
-.nav-section .nav-heading {
-  margin-bottom: 5px;
+.nav-section:not([open]) > .nav-section-links,
+.compact-primary-nav {
+  display: none;
 }
 
 .nav-link {
@@ -3242,7 +3282,6 @@ svg {
 
   .brand-wordmark,
   .workspace-copy,
-  .nav-heading,
   .nav-link > span,
   .sidebar-bottom {
     display: none;
@@ -3273,8 +3312,8 @@ svg {
     display: none;
   }
 
-  .primary-nav > .nav-heading:not(:first-child) {
-    display: none;
+  .compact-primary-nav {
+    display: contents;
   }
 
   .nav-link svg {
@@ -3327,8 +3366,7 @@ svg {
 
   .brand,
   .workspace-switcher,
-  .sidebar-bottom,
-  .nav-heading {
+  .sidebar-bottom {
     display: none;
   }
 
@@ -3354,10 +3392,6 @@ svg {
     gap: 3px;
     border-radius: 11px;
     padding: 4px 1px;
-  }
-
-  .nav-section {
-    display: none;
   }
 
   .nav-link > span {

@@ -23,7 +23,7 @@ const primaryNavigation: NavigationItem[] = [
 
 const navigationSections: { title: string; links: NavigationItem[] }[] = [
   {
-    title: "DENTRO DE CAMPO",
+    title: "Dentro de campo",
     links: [
       { href: "/eventos/novo", label: "Organizar pelada", icon: "plus", key: "events-new" },
       { href: "/peladas/abertas", label: "Peladas abertas", icon: "search", key: "open-matches" },
@@ -34,7 +34,7 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "COMUNIDADE",
+    title: "Comunidade",
     links: [
       { href: "/galeria", label: "Galeria", icon: "image", key: "gallery-center" },
       { href: "/aniversarios", label: "Aniversários", icon: "calendar", key: "birthdays-center" },
@@ -44,7 +44,7 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "ACOMPANHAMENTO",
+    title: "Acompanhamento",
     links: [
       { href: "/financeiro/lancamentos", label: "Lançamentos", icon: "wallet", key: "finance-entries" },
       { href: "/financeiro/cobrancas", label: "Contribuições", icon: "wallet", key: "finance-collections" },
@@ -54,12 +54,19 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "ESPAÇO DO GRUPO",
+    title: "Espaço do grupo",
     links: [
       { href: "/administracao", label: "Administração", icon: "settings", key: "admin-center" },
       { href: "/administracao/usuarios", label: "Pessoas e acessos", icon: "people", key: "users-list" },
       { href: "/administracao/organizacoes", label: "Espaços e grupos", icon: "shield", key: "organizations-center" },
       { href: "/administracao/configuracoes", label: "Configurações", icon: "settings", key: "settings-center" },
+    ],
+  },
+  {
+    title: "Ferramentas",
+    links: [
+      { href: "/buscar", label: "Buscar no Applada", icon: "search", key: "search" },
+      { href: "/modulos", label: "Mapa de funcionalidades", icon: "file", key: "catalog" },
     ],
   },
 ];
@@ -72,7 +79,36 @@ type AppShellProps = {
   children: ReactNode;
 };
 
+function NavigationSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="nav-section">
+      <summary className="nav-heading"><span>{title}</span><Icon name="chevron-down" /></summary>
+      <div className="nav-section-links">{children}</div>
+    </details>
+  );
+}
+
 export function AppShell({ active, activePath, title, variant, children }: AppShellProps) {
+  const primaryLinks = primaryNavigation.map((item) => {
+    const isActive = item.href === "/"
+      ? active === "overview"
+      : item.key === active || activePath === item.href;
+    return (
+      <Link
+        aria-current={(activePath ? activePath === item.href : isActive) ? "page" : undefined}
+        aria-label={item.label}
+        className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
+        href={item.href}
+        key={item.key}
+        title={item.label}
+      >
+        <Icon name={item.icon} />
+        <span>{item.label}</span>
+        {item.count ? <span aria-hidden="true" className="nav-count">{item.count}</span> : null}
+      </Link>
+    );
+  });
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
@@ -93,29 +129,9 @@ export function AppShell({ active, activePath, title, variant, children }: AppSh
         </div>
 
         <nav aria-label="Navegação principal" className="primary-nav">
-          <p className="nav-heading">MENU</p>
-          {primaryNavigation.map((item) => {
-            const isActive = item.href === "/"
-              ? active === "overview"
-              : item.key === active || activePath === item.href;
-            return (
-              <Link
-                aria-current={(activePath ? activePath === item.href : isActive) ? "page" : undefined}
-                aria-label={item.label}
-                className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
-                href={item.href}
-                key={item.key}
-                title={item.label}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-                {item.count ? <span aria-hidden="true" className="nav-count">{item.count}</span> : null}
-              </Link>
-            );
-          })}
+          <NavigationSection title="Menu">{primaryLinks}</NavigationSection>
           {navigationSections.map((section) => (
-            <div className="nav-section" key={section.title}>
-              <p className="nav-heading">{section.title}</p>
+            <NavigationSection title={section.title} key={section.title}>
               {section.links.map((item) => (
                 <Link
                   aria-current={activePath === item.href ? "page" : undefined}
@@ -127,19 +143,9 @@ export function AppShell({ active, activePath, title, variant, children }: AppSh
                   <span>{item.label}</span>
                 </Link>
               ))}
-            </div>
+            </NavigationSection>
           ))}
-          <div className="nav-section nav-tools">
-            <p className="nav-heading">FERRAMENTAS</p>
-            <Link aria-current={activePath === "/buscar" ? "page" : undefined} className={`nav-link nav-link-secondary${activePath === "/buscar" ? " is-active" : ""}`} href="/buscar">
-              <Icon name="search" />
-              <span>Buscar no Applada</span>
-            </Link>
-            <Link aria-current={activePath === "/modulos" ? "page" : undefined} className={`nav-link nav-link-secondary${activePath === "/modulos" ? " is-active" : ""}`} href="/modulos">
-              <Icon name="file" />
-              <span>Mapa de funcionalidades</span>
-            </Link>
-          </div>
+          <div className="compact-primary-nav">{primaryLinks}</div>
         </nav>
 
         {!variant && <div className="sidebar-bottom">
