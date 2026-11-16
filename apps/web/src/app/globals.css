@@ -5004,6 +5004,11 @@ body {
     row-gap: 13px;
   }
 
+  .match-creation-form .preview-field,
+  .match-creation-form .form-disclaimer {
+    font-size: 10px;
+  }
+
   .match-creation-form .preview-form-actions {
     align-items: stretch;
   }
