@@ -258,7 +258,7 @@ async function LegacyScreenContent({
           ) : null}
         </section>
 
-        {isMatchCreation ? null : isMatchFlow ? (
+        {isMatchCreation || isModuleCatalog ? null : isMatchFlow ? (
           <MatchDemoMetrics mode={matchMetricsMode} />
         ) : (
           <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
