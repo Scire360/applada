@@ -50,7 +50,13 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
   }, [confirmEnding, status]);
 
   if (!match) {
-    return <MatchRequired>Nenhuma pelada foi criada nesta sessão de demonstração.</MatchRequired>;
+    return (
+      <MatchRequired>
+        {mode === "live"
+          ? "Organize uma pelada para liberar o placar e o registro de lances."
+          : "Organize uma pelada e registre o jogo para liberar a votação de destaque."}
+      </MatchRequired>
+    );
   }
 
   if (!checkedIn.length) {

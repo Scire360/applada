@@ -238,7 +238,9 @@ async function LegacyScreenContent({
       ? screen.legacyView === "open-matches"
         ? "DESCUBRA UM JOGO"
         : screen.legacyView === "checkin-center" ? "DIA DA PARTIDA" : "ELENCO DO GRUPO"
-      : isMatchFlow ? "Etapa demonstrativa"
+      : isGameDemo
+        ? gameDemoMode === "live" ? "DIA DO JOGO" : "PÓS-JOGO"
+        : isMatchFlow ? "Etapa demonstrativa"
       : form ? "Preencha para visualizar" : isModuleCatalog ? "Vistas do produto" : "Conteúdo ilustrativo";
 
   return (
