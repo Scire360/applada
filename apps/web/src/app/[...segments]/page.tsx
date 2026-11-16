@@ -224,13 +224,21 @@ async function LegacyScreenContent({
   const primaryTitle = isMatchCreation
     ? "Detalhes da pelada"
     : hasMatchDemo
-      ? "Organização da partida"
+      ? screen.legacyView === "open-matches"
+        ? "Encontros com vagas"
+        : screen.legacyView === "checkin-center"
+          ? "Receber o elenco"
+          : "Presença e confirmações"
       : isGameDemo
         ? gameDemoMode === "live" ? "Placar e lances" : "Destaque da partida"
         : form ? "Informações do grupo" : isModuleCatalog ? "Todas as áreas" : "Movimento recente";
   const primaryLabel = isMatchCreation
     ? "Crie e continue a demonstração"
-    : isMatchFlow ? "Etapa demonstrativa"
+    : hasMatchDemo
+      ? screen.legacyView === "open-matches"
+        ? "DESCUBRA UM JOGO"
+        : screen.legacyView === "checkin-center" ? "DIA DA PARTIDA" : "ELENCO DO GRUPO"
+      : isMatchFlow ? "Etapa demonstrativa"
       : form ? "Preencha para visualizar" : isModuleCatalog ? "Vistas do produto" : "Conteúdo ilustrativo";
 
   return (

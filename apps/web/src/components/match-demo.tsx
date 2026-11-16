@@ -339,9 +339,25 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
   const [notice, setNotice] = useState("");
 
   if (!match) {
+    const emptyState = mode === "open"
+      ? {
+        eyebrow: "ENCONTROS COM VAGAS",
+        message: "As partidas abertas aparecem aqui quando o grupo organiza um jogo.",
+      }
+      : mode === "checkin"
+        ? {
+          eyebrow: "CHECK-IN AGUARDANDO",
+          message: "Crie uma pelada e confirme o elenco para registrar a chegada no dia do jogo.",
+        }
+        : {
+          eyebrow: "PRESENÇA DO ELENCO",
+          message: "As confirmações ficam disponíveis quando uma pelada entrar na agenda.",
+        };
+
     return (
       <div className="match-demo-empty">
-        <p>Nenhuma pelada foi criada nesta sessão de demonstração.</p>
+        <span className="eyebrow">{emptyState.eyebrow}</span>
+        <p>{emptyState.message}</p>
         <Link className="button button-primary" href="/eventos/novo">Organizar uma pelada</Link>
       </div>
     );
