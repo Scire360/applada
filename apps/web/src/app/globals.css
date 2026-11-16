@@ -4834,6 +4834,32 @@ body {
   .cashflow-card {
     padding: 16px 0;
   }
+
+  .transaction-row {
+    gap: 8px;
+  }
+
+  .transaction-copy > strong,
+  .transaction-amount > strong {
+    font-size: 11px;
+  }
+
+  .transaction-copy > span {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .transaction-amount {
+    min-width: 78px;
+  }
+
+  .transaction-amount > strong {
+    white-space: nowrap;
+  }
+
+  .transaction-amount > span {
+    font-size: 10px;
+  }
 }
 
 .nav-section {
