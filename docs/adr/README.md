@@ -13,3 +13,4 @@ ADRs planejados (seção 11 da Especificação de Arquitetura v1.0):
 | 0004 | Autenticação OIDC/OAuth2 com PKCE | pendente |
 | 0005 | Transactional outbox + RabbitMQ | pendente |
 | 0006 | Deploy em VPS com Docker | pendente |
+| 0007 | Supabase como PostgreSQL gerenciado para desenvolvimento | aceito; região pendente |
