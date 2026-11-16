@@ -4942,3 +4942,29 @@ body {
     width: 100%;
   }
 }
+
+.match-demo-empty {
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding: 22px 0 4px;
+}
+
+.match-demo-empty .eyebrow {
+  color: var(--muted);
+}
+
+.match-demo-empty p {
+  max-width: 620px;
+  color: var(--ink-soft);
+  font-family: var(--font-editorial);
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .match-demo-empty {
+    gap: 12px;
+    padding-top: 18px;
+  }
+}

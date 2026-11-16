@@ -45,6 +45,8 @@ function formatLocalDate(date: Date) {
 
 export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "game" }) {
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
+  if (!match) return null;
+
   const score = `${goals.filter((goal) => goal.side === "green").length} × ${goals.filter((goal) => goal.side === "blue").length}`;
   const pendingCheckIns = Math.max(0, attendees.length - checkedIn.length);
   const checkInsNeededToStart = Math.max(0, 2 - checkedIn.length);

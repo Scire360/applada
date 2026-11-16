@@ -12,6 +12,7 @@ type GameDemoPanelProps = {
 function MatchRequired({ children }: { children: React.ReactNode }) {
   return (
     <div className="match-demo-empty">
+      <span className="eyebrow">PRÓXIMO PASSO</span>
       <p>{children}</p>
       <Link className="button button-primary" href="/eventos/novo">Organizar uma pelada</Link>
     </div>
@@ -55,6 +56,7 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
   if (!checkedIn.length) {
     return (
       <div className="match-demo-empty">
+        <span className="eyebrow">CHECK-IN NECESSÁRIO</span>
         <p>Registre o check-in de pelo menos uma pessoa para continuar esta etapa.</p>
         <Link className="button button-primary" href="/presenca/check-in">Ir para check-in</Link>
       </div>
@@ -65,6 +67,7 @@ export function GameDemoPanel({ mode }: GameDemoPanelProps) {
     if (status !== "completed") {
       return (
         <div className="match-demo-empty">
+          <span className="eyebrow">APÓS O APITO FINAL</span>
           <p>Encerre a partida para abrir a votação de destaque.</p>
           <Link className="button button-primary" href="/partidas/ao-vivo">Ir para central da partida</Link>
         </div>
