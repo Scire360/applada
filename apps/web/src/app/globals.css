@@ -4437,6 +4437,15 @@ body {
   .roster-card {
     padding: 16px 0;
   }
+
+  .roster-position {
+    font-size: 10px;
+  }
+
+  .roster-status {
+    gap: 6px;
+    font-size: 9px;
+  }
 }
 
 .community-layout {
