@@ -70,7 +70,19 @@ type AppShellProps = {
   children: ReactNode;
 };
 
+const titlesByNavigation: Record<AppShellProps["active"], string> = {
+  overview: "Visão geral",
+  matches: "Peladas",
+  players: "Jogadores",
+  community: "Comunidade",
+  finance: "Financeiro",
+  analytics: "Estatísticas",
+  admin: "Administração",
+};
+
 export function AppShell({ active, activePath, title, children }: AppShellProps) {
+  const currentTitle = title ?? titlesByNavigation[active];
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -172,10 +184,10 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
 
       <div className="main-column">
         <header className="topbar">
-          <div aria-label={`Você está em ${title ?? (active === "overview" ? "Visão geral" : "seu espaço")}`} className="breadcrumbs">
+          <div aria-label={`Você está em ${currentTitle}`} className="breadcrumbs">
             <span>Santa Cecília FC</span>
             <span className="breadcrumb-divider">/</span>
-            <strong>{title ?? (active === "overview" ? "Visão geral" : "Seu espaço")}</strong>
+            <strong>{currentTitle}</strong>
           </div>
           <div className="topbar-meta">
             <span className="preview-status">
