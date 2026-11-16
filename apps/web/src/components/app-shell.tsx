@@ -98,7 +98,9 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               : item.key === active || activePath === item.href;
             return (
               <Link
-                aria-current={isActive ? "page" : undefined}
+                aria-current={item.href === "/"
+                  ? active === "overview" ? "page" : undefined
+                  : activePath === item.href ? "page" : undefined}
                 className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
                 href={item.href}
                 key={item.key}
@@ -110,8 +112,12 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             );
           })}
           {navigationSections.map((section) => (
-            <div className="nav-section" key={section.title}>
-              <p className="nav-heading">{section.title}</p>
+            <details
+              className="nav-section"
+              key={section.title}
+              open={section.links.some((item) => activePath === item.href)}
+            >
+              <summary className="nav-heading">{section.title}</summary>
               {section.links.map((item) => (
                 <Link
                   aria-current={activePath === item.href ? "page" : undefined}
@@ -123,10 +129,13 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
                   <span>{item.label}</span>
                 </Link>
               ))}
-            </div>
+            </details>
           ))}
-          <div className="nav-section nav-tools">
-            <p className="nav-heading">FERRAMENTAS</p>
+          <details
+            className="nav-section nav-tools"
+            open={activePath === "/buscar" || activePath === "/modulos"}
+          >
+            <summary className="nav-heading">FERRAMENTAS</summary>
             <Link aria-current={activePath === "/buscar" ? "page" : undefined} className={`nav-link nav-link-secondary${activePath === "/buscar" ? " is-active" : ""}`} href="/buscar">
               <Icon name="search" />
               <span>Buscar no Applada</span>
@@ -135,7 +144,7 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               <Icon name="file" />
               <span>Mapa de funcionalidades</span>
             </Link>
-          </div>
+          </details>
         </nav>
 
         <div className="sidebar-bottom">

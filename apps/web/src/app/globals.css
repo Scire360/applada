@@ -4800,3 +4800,48 @@ body {
     padding: 16px 0;
   }
 }
+
+.nav-section {
+  display: grid;
+}
+
+.nav-section > .nav-heading {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.nav-section > .nav-heading::-webkit-details-marker {
+  display: none;
+}
+
+.nav-section > .nav-heading::after {
+  content: "+";
+  color: rgb(246 239 228 / 48%);
+  font-family: var(--font-system);
+  font-size: 13px;
+}
+
+.nav-section[open] > .nav-heading::after {
+  content: "−";
+}
+
+.nav-section:not([open]) > .nav-link {
+  display: none;
+}
+
+.nav-section > .nav-heading:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .nav-section {
+    display: none;
+  }
+}
