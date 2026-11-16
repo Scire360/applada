@@ -4250,6 +4250,41 @@ body {
     padding: 17px 0;
   }
 
+  .schedule-card .quiet-label {
+    display: none;
+  }
+
+  .schedule-row {
+    min-height: 0;
+    gap: 10px;
+    padding: 11px 0;
+  }
+
+  .schedule-info {
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .schedule-info > strong {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .schedule-info > span {
+    max-width: none;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .schedule-attendance {
+    min-width: 54px;
+    font-size: 10px;
+  }
+
+  .schedule-attendance > span {
+    font-size: 9px;
+  }
+
   .match-hero-art {
     contain: paint;
   }
