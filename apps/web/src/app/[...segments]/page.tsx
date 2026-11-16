@@ -250,7 +250,7 @@ async function LegacyScreenContent({
           ) : null}
         </section>
 
-        {isMatchFlow ? (
+        {isMatchCreation ? null : isMatchFlow ? (
           <MatchDemoMetrics mode={matchMetricsMode} />
         ) : (
           <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
@@ -273,13 +273,13 @@ async function LegacyScreenContent({
         )}
 
         <section className="screen-workspace">
-          <article className="surface-card screen-primary-card" id={form ? "formulario" : undefined}>
+          <article className={`surface-card screen-primary-card${isMatchCreation ? " match-creation-card" : ""}`} id={form ? "formulario" : undefined}>
             <div className="section-title-row">
               <div>
-                <p className="eyebrow">{isMatchFlow ? "DEMONSTRAÇÃO DA JORNADA" : form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
+                <p className="eyebrow">{isMatchCreation ? "DETALHES DO ENCONTRO" : isMatchFlow ? "DEMONSTRAÇÃO DA JORNADA" : form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
                 <h2>{primaryTitle}</h2>
               </div>
-              <span className="quiet-label">{primaryLabel}</span>
+              {isMatchCreation ? null : <span className="quiet-label">{primaryLabel}</span>}
             </div>
             {isMatchCreation ? (
               <MatchCreationForm />

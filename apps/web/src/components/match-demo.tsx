@@ -183,7 +183,7 @@ export function MatchCreationForm() {
   }
 
   return (
-    <form className="preview-form" onSubmit={handleSubmit}>
+    <form className="preview-form match-creation-form" onSubmit={handleSubmit}>
       <div className="preview-form-grid">
         <label className="preview-field preview-field-wide" htmlFor="match-title">
           <span>Nome do encontro<span aria-hidden="true"> *</span></span>

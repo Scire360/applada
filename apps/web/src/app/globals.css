@@ -4845,3 +4845,100 @@ body {
     display: none;
   }
 }
+
+.match-creation-card .section-title-row {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.match-creation-card .section-title-row .eyebrow {
+  color: var(--muted);
+}
+
+.match-creation-form {
+  max-width: 900px;
+  gap: 20px;
+}
+
+.match-creation-form .preview-form-grid {
+  column-gap: 18px;
+  row-gap: 17px;
+}
+
+.match-creation-form .preview-field {
+  gap: 8px;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.match-creation-form .preview-field > span > span {
+  color: #a64c38;
+}
+
+.match-creation-form .preview-field input,
+.match-creation-form .preview-field textarea {
+  min-height: 44px;
+  border-color: var(--line);
+  border-radius: 2px;
+  background: rgb(255 250 241 / 76%);
+  color: var(--ink);
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 11px 12px;
+}
+
+.match-creation-form .preview-field textarea {
+  min-height: 94px;
+}
+
+.match-creation-form .preview-field input::placeholder,
+.match-creation-form .preview-field textarea::placeholder {
+  color: var(--muted);
+}
+
+.match-creation-form .preview-field input:focus,
+.match-creation-form .preview-field textarea:focus {
+  border-color: #708b3a;
+  background: var(--surface);
+}
+
+.match-creation-form .preview-form-actions {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.match-creation-form .form-disclaimer {
+  max-width: 340px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+@media (max-width: 640px) {
+  .match-creation-card .section-title-row {
+    margin-bottom: 16px;
+  }
+
+  .match-creation-form {
+    gap: 16px;
+  }
+
+  .match-creation-form .preview-form-grid {
+    row-gap: 13px;
+  }
+
+  .match-creation-form .preview-form-actions {
+    align-items: stretch;
+  }
+
+  .match-creation-form .preview-form-actions .button {
+    width: 100%;
+  }
+}
