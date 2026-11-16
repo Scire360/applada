@@ -4254,3 +4254,152 @@ body {
     contain: paint;
   }
 }
+
+.player-summary-grid {
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.player-highlight {
+  min-height: 135px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 17px 22px 17px 0;
+}
+
+.player-highlight + .player-highlight {
+  padding-left: 22px;
+}
+
+.player-highlight .stat-icon {
+  display: none;
+}
+
+.player-highlight .eyebrow {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.player-highlight .stat-value {
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.player-highlight .stat-value > span {
+  color: var(--muted);
+  font-family: var(--font-system);
+  font-size: 12px;
+}
+
+.player-highlight .stat-caption {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.player-quote {
+  border-right: 0;
+  background: transparent;
+}
+
+.player-quote h2 {
+  color: var(--green-dark);
+  font-size: 19px;
+}
+
+.player-quote > span:last-child {
+  color: var(--muted);
+}
+
+.roster-card {
+  border: 0;
+  border-top: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  padding: 20px 0;
+}
+
+.roster-table {
+  margin-top: 14px;
+}
+
+.roster-header {
+  border-top-color: var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.roster-row {
+  min-height: 66px;
+  border-top-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.roster-person {
+  color: var(--ink);
+}
+
+.roster-person strong {
+  font-weight: 500;
+}
+
+.roster-attendance strong {
+  color: var(--green);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .player-summary-grid {
+    gap: 0;
+  }
+
+  .player-highlight,
+  .player-highlight + .player-highlight {
+    display: grid;
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    border-top: 1px solid var(--line);
+    border-right: 0;
+    padding: 12px 0;
+  }
+
+  .player-highlight:first-child {
+    border-top: 0;
+  }
+
+  .player-highlight .eyebrow {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    margin: 0;
+  }
+
+  .player-highlight .stat-value {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .player-highlight .stat-caption {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 3px 0 0;
+  }
+
+  .player-highlight.player-quote {
+    display: block;
+    border-top: 1px solid var(--line);
+  }
+
+  .roster-card {
+    padding: 16px 0;
+  }
+}
