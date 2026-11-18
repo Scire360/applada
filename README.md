@@ -61,3 +61,34 @@ npm run dev
 
 O frontend usa Next.js, React e TypeScript estrito. Consulte [`apps/web/README.md`](apps/web/README.md)
 para comandos de build, lint e verificação de tipos.
+
+## Executar a API .NET
+
+Configure a conexão Supabase como User Secret local no formato de parâmetros do Npgsql
+(`Host=...;Port=...;Database=...;Username=...;Password=...`).
+O URI `postgresql://...` exibido pelo painel não deve ser copiado diretamente para o Npgsql.
+Em redes IPv4, selecione `Session pooler` em Connect e use os parâmetros apresentados pelo
+Supabase:
+
+```powershell
+cd backend
+$secure = Read-Host "Npgsql connection string" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+try {
+    $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    $output = & dotnet user-secrets set "ConnectionStrings:Applada" $plain --project src\Applada.Api 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to save the connection string in User Secrets."
+    }
+    Write-Output "Connection string saved in User Secrets."
+}
+finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+    Remove-Variable secure, plain, ptr, output -ErrorAction SilentlyContinue
+}
+dotnet run --project src\Applada.Api
+```
+
+O endpoint `GET /health/ready` valida a conexão PostgreSQL; `GET /health/live` valida apenas
+que a API está em execução. Não envie credenciais pelo chat, não as coloque no frontend e não
+as versione. As tabelas de domínio e migrations ainda serão definidas no workshop do schema.

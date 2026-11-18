@@ -25,17 +25,23 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-Repositório em fundação: ainda não há solution .NET nem pipeline. O frontend em
-`apps/web` usa Next.js, React e TypeScript estrito.
+O backend agora contém a solution .NET 10 e uma API mínima com probes de disponibilidade
+do PostgreSQL. O schema de negócio, migrations e endpoints de domínio ainda não foram
+implementados. O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
 - Ambiente local web: `cd apps\web` e `npm run dev`
 - Build web: `npm run build`
 - Lint web: `npm run lint`
 - Type-check web: `npm run typecheck`
 - Testes web: ainda não configurados.
+- Build backend: `cd backend` e `dotnet build Applada.slnx`
+- Executar API: `cd backend` e `dotnet run --project src\Applada.Api`
+- Readiness do PostgreSQL: `GET /health/ready` (requer `ConnectionStrings:Applada`)
+- Liveness da API: `GET /health/live`
 
-Ao adicionar solution ou pipeline, atualize esta seção com os comandos reais. Não invente
-comandos que não existem.
+Configure a conexão local com `dotnet user-secrets` no projeto da API; em implantação,
+use o secret manager do ambiente. Nunca versione connection strings. Migrations devem
+continuar pertencendo a cada módulo.
 
 ## 4. Arquitetura — regras invioláveis
 
