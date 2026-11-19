@@ -1,6 +1,10 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { signOutOfApplada } from "@/app/actions/auth";
 import { Icon } from "@/components/icon";
+import { hasAdminRole, isAdminPath } from "@/lib/authorization";
 import type { ScreenGroup } from "@/lib/screens";
 
 type NavigationItem = {
@@ -81,7 +85,39 @@ const titlesByNavigation: Record<AppShellProps["active"], string> = {
 };
 
 export function AppShell({ active, activePath, title, children }: AppShellProps) {
+  return (
+    <Suspense fallback={<div className="auth-loading" role="status">Carregando seu espaço…</div>}>
+      <AuthenticatedAppShell active={active} activePath={activePath} title={title}>
+        {children}
+      </AuthenticatedAppShell>
+    </Suspense>
+  );
+}
+
+async function AuthenticatedAppShell({
+  active,
+  activePath,
+  title,
+  children,
+}: AppShellProps) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const hasAdminAccess = hasAdminRole(session.user.roles);
+  if (
+    (active === "admin" || isAdminPath(activePath ?? "")) &&
+    !hasAdminAccess
+  ) {
+    redirect("/acesso-negado");
+  }
+
   const currentTitle = title ?? titlesByNavigation[active];
+  const profileName = session.user.name?.trim() || session.user.email || "Sua conta";
+  const profileInitials = profileName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .toLocaleUpperCase("pt-BR");
 
   return (
     <div className="app-shell">
@@ -123,26 +159,31 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               </Link>
             );
           })}
-          {navigationSections.map((section) => (
-            <details
-              className="nav-section"
-              key={section.title}
-              open={section.links.some((item) => activePath === item.href)}
-            >
-              <summary className="nav-heading">{section.title}</summary>
-              {section.links.map((item) => (
-                <Link
-                  aria-current={activePath === item.href ? "page" : undefined}
-                  className={`nav-link nav-link-secondary${activePath === item.href ? " is-active" : ""}`}
-                  href={item.href}
-                  key={item.key}
-                >
-                  <Icon name={item.icon} />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </details>
-          ))}
+          {navigationSections
+            .filter(
+              (section) =>
+                section.title !== "ESPAÇO DO GRUPO" || hasAdminAccess,
+            )
+            .map((section) => (
+              <details
+                className="nav-section"
+                key={section.title}
+                open={section.links.some((item) => activePath === item.href)}
+              >
+                <summary className="nav-heading">{section.title}</summary>
+                {section.links.map((item) => (
+                  <Link
+                    aria-current={activePath === item.href ? "page" : undefined}
+                    className={`nav-link nav-link-secondary${activePath === item.href ? " is-active" : ""}`}
+                    href={item.href}
+                    key={item.key}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </details>
+            ))}
           <details
             className="nav-section nav-tools"
             open={activePath === "/buscar" || activePath === "/modulos"}
@@ -170,14 +211,18 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             </span>
           </div>
           <div className="sidebar-profile">
-            <Link aria-label="Abrir perfil de Rafael Martins" className="sidebar-profile-link" href="/jogadores/perfil">
-              <span className="avatar avatar-dark">RM</span>
+            <Link aria-label="Abrir perfil do jogador" className="sidebar-profile-link" href="/jogadores/perfil">
+              <span className="avatar avatar-dark">{profileInitials || "AP"}</span>
               <span className="profile-copy">
-                <strong>Rafael Martins</strong>
-                <span>Organizador</span>
+                <strong>{profileName}</strong>
+                <span>Conta Applada</span>
               </span>
-              <Icon className="profile-chevron" name="chevron-down" />
             </Link>
+            <form action={signOutOfApplada} className="sidebar-logout-form">
+              <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
+                Sair
+              </button>
+            </form>
           </div>
         </div>
       </aside>
@@ -194,8 +239,8 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               <span className="status-dot" />
               Prévia · dados ilustrativos
             </span>
-            <span aria-label="Usuário Rafael Martins" className="avatar avatar-light">
-              RM
+            <span aria-label={`Usuário ${profileName}`} className="avatar avatar-light">
+              {profileInitials || "AP"}
             </span>
           </div>
         </header>

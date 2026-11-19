@@ -12,6 +12,47 @@ npm run dev
 
 O servidor local fica disponível em `http://localhost:3000`.
 
+## Autenticação web
+
+A web usa Auth.js como BFF com OIDC/PKCE e Keycloak. A senha é digitada somente
+na página hospedada pelo Keycloak; a aplicação mantém apenas a sessão protegida
+por cookie HttpOnly. As rotas do produto exigem sessão. A tela do Applada
+permite entrar e recuperar senha, mas não exibe uma opção de
+cadastro. Isso não desativa o autocadastro do Keycloak: se ele estiver habilitado
+no realm, a própria tela do provedor ainda poderá oferecê-lo. Para recuperar a
+senha, use o link de recuperação na página do Keycloak.
+
+As rotas `/administracao/*` exigem a role de cliente `applada-admin` no cliente
+OIDC `applada-web`; contas sem essa role são redirecionadas para `/acesso-negado`.
+A API .NET ainda não possui endpoints de domínio: aplique autorização também no
+backend quando esses endpoints forem implementados.
+
+1. Copie `.env.example` para `.env.local`.
+2. Gere `AUTH_SECRET` com `npx auth secret` e configure-o somente em `.env.local`
+   (em produção, use o secret manager).
+3. Configure `AUTH_KEYCLOAK_ISSUER` com a URL do issuer do realm e preencha
+   `AUTH_KEYCLOAK_ID` e `AUTH_KEYCLOAK_SECRET` do cliente OIDC confidencial.
+4. No Keycloak, habilite o fluxo padrão, PKCE S256 e recuperação de senha.
+   Habilite o registro no realm somente se o autocadastro for desejado. Cadastre
+   `http://localhost:3000/api/auth/callback/keycloak` como redirect URI válido.
+   Restrinja as origens e redirects ao domínio da aplicação.
+5. Copie `keycloak-theme/applada` para `<KC_HOME>/themes/applada`, selecione
+   `applada` como tema de login do realm e defina o idioma padrão como `pt-BR`.
+   O tema preserva os templates padrão do Keycloak e aplica a paleta, tipografia
+   e composição editorial do Applada. As ações de entrar, cadastrar e recuperar
+   senha iniciam o Keycloak em português do Brasil; o seletor de idioma mantém
+   inglês como alternativa.
+6. Reinicie `npm run dev`. Sem as variáveis necessárias, a tela informa que o
+   acesso não está configurado.
+
+`AUTH_TRUST_HOST=true` é adequado para desenvolvimento local. Em produção,
+configure-o somente atrás de um proxy confiável, junto do host público correto.
+O logout encerra a sessão local; ele não encerra a sessão SSO do Keycloak.
+
+Este fluxo autentica a aplicação web. A API .NET ainda não possui endpoints de
+domínio; qualquer endpoint futuro com dados de usuário precisa validar tokens e
+implementar autorização no servidor.
+
 ## Verificações
 
 ```powershell
