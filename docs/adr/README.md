@@ -14,3 +14,4 @@ ADRs planejados (seção 11 da Especificação de Arquitetura v1.0):
 | 0005 | Transactional outbox + RabbitMQ | pendente |
 | 0006 | Deploy em VPS com Docker | pendente |
 | 0007 | Supabase como PostgreSQL gerenciado para desenvolvimento | aceito; região pendente |
+| 0008 | Limite de tentativas de login por IP no Keycloak | aceito |

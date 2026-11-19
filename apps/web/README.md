@@ -49,6 +49,11 @@ backend quando esses endpoints forem implementados.
 configure-o somente atrás de um proxy confiável, junto do host público correto.
 O logout encerra a sessão local; ele não encerra a sessão SSO do Keycloak.
 
+O limite de tentativas de senha por IP precisa ser instalado e ativado no Keycloak.
+Consulte [`infra/keycloak-rate-limit/README.md`](../../infra/keycloak-rate-limit/README.md)
+para build, Redis, fluxo Browser e configuração de proxy confiável. Sem essa ativação
+no realm, o código OIDC da web não limita tentativas de senha.
+
 Este fluxo autentica a aplicação web. A API .NET ainda não possui endpoints de
 domínio; qualquer endpoint futuro com dados de usuário precisa validar tokens e
 implementar autorização no servidor.
