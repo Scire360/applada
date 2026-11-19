@@ -1,6 +1,9 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { headers } from "next/headers";
+import { connection } from "next/server";
 import { Icon } from "@/components/icon";
+import { signOut } from "@/app/login/actions";
 import type { ScreenGroup } from "@/lib/screens";
 
 type NavigationItem = {
@@ -70,7 +73,26 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({ active, activePath, title, children }: AppShellProps) {
+export function AppShell(props: AppShellProps) {
+  return (
+    <Suspense fallback={<div className="screen-loading" role="status">Carregando seu espaço…</div>}>
+      <AuthenticatedAppShell {...props} />
+    </Suspense>
+  );
+}
+
+async function AuthenticatedAppShell({ active, activePath, title, children }: AppShellProps) {
+  await connection();
+  const requestHeaders = await headers();
+  const accountEmail = requestHeaders.get("x-applada-auth-email") || "Membro Applada";
+  const accountInitials = accountEmail
+    .split("@")[0]
+    .split(/[.\s_-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "AP";
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -149,14 +171,16 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
             </span>
           </div>
           <div className="sidebar-profile">
-            <Link aria-label="Abrir perfil de Rafael Martins" className="sidebar-profile-link" href="/jogadores/perfil">
-              <span className="avatar avatar-dark">RM</span>
+            <div className="sidebar-profile-info">
+              <span aria-hidden="true" className="avatar avatar-dark">{accountInitials}</span>
               <span className="profile-copy">
-                <strong>Rafael Martins</strong>
-                <span>Organizador</span>
+                <strong title={accountEmail}>{accountEmail}</strong>
+                <span>Conta autenticada</span>
               </span>
-              <Icon className="profile-chevron" name="chevron-down" />
-            </Link>
+            </div>
+            <form action={signOut}>
+              <button className="sidebar-signout" type="submit">Sair da conta</button>
+            </form>
           </div>
         </div>
       </aside>
@@ -173,8 +197,8 @@ export function AppShell({ active, activePath, title, children }: AppShellProps)
               <span className="status-dot" />
               Prévia · dados ilustrativos
             </span>
-            <span aria-label="Usuário Rafael Martins" className="avatar avatar-light">
-              RM
+            <span aria-label={`Conta autenticada: ${accountEmail}`} className="avatar avatar-light">
+              {accountInitials}
             </span>
           </div>
         </header>

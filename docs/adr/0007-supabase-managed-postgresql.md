@@ -11,8 +11,8 @@ um banco de desenvolvimento; a modelagem de domínio continua pendente do worksh
 
 ## Decisão
 
-- Usar o Supabase somente como PostgreSQL gerenciado neste estágio. Supabase Auth não faz parte
-  desta decisão; a estratégia OIDC permanece em aberto conforme ADR-0004.
+- Usar o Supabase como PostgreSQL gerenciado neste estágio. A decisão de autenticação web está
+  separada e registrada no ADR-0004.
 - Somente o backend ASP.NET Core acessa o banco. Web e mobile não recebem connection strings,
   `service_role` ou credenciais do PostgreSQL.
 - A API recebe `ConnectionStrings:Applada` via User Secrets no desenvolvimento e via secret
