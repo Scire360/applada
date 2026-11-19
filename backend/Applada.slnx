@@ -2,4 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/Applada.Api/Applada.Api.csproj" />
   </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/Applada.Integration.Tests.csproj" />
+  </Folder>
 </Solution>
