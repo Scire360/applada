@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Domain\Applada.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Messaging\Applada.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\Profiles\Applada.Modules.Profiles.Contracts\Applada.Modules.Profiles.Contracts.csproj" />
+    <ProjectReference Include="..\Applada.Modules.Communities.Contracts\Applada.Modules.Communities.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

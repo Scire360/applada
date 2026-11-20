@@ -10,6 +10,10 @@
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Messaging/Applada.BuildingBlocks.Messaging.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Communities/">
+    <Project Path="src/Modules/Communities/Applada.Modules.Communities/Applada.Modules.Communities.csproj" />
+    <Project Path="src/Modules/Communities/Applada.Modules.Communities.Contracts/Applada.Modules.Communities.Contracts.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity/">
     <Project Path="src/Modules/Identity/Applada.Modules.Identity/Applada.Modules.Identity.csproj" />
     <Project Path="src/Modules/Identity/Applada.Modules.Identity.Contracts/Applada.Modules.Identity.Contracts.csproj" />

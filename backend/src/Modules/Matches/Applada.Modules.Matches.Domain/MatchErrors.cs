@@ -47,6 +47,10 @@ public static class MatchErrors
     public static Error IdempotencyKeyReused { get; } =
         new("idempotency-key-reused", ErrorKind.Unprocessable, "Esta Idempotency-Key já foi usada com outro conteúdo.");
 
+    /// <summary>Grupo inexistente ou o organizador não é owner/admin dele: a mesma resposta, para não revelar o grupo.</summary>
+    public static Error GroupNotAllowed { get; } =
+        new("group-not-allowed", ErrorKind.Unprocessable, "Grupo inexistente ou você não pode organizar partidas nele.");
+
     public static Error LockTimeout { get; } =
         new("lock-timeout", ErrorKind.Unavailable, "A partida está ocupada no momento; tente de novo em instantes.");
 

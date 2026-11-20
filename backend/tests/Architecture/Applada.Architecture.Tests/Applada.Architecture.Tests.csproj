@@ -21,6 +21,8 @@
     <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Domain\Applada.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Messaging\Applada.BuildingBlocks.Messaging.csproj" />
     <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Communities\Applada.Modules.Communities\Applada.Modules.Communities.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Communities\Applada.Modules.Communities.Contracts\Applada.Modules.Communities.Contracts.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity\Applada.Modules.Identity.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity.Contracts\Applada.Modules.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Api\Applada.Modules.Matches.Api.csproj" />

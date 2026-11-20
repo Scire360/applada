@@ -1,4 +1,5 @@
 using Applada.BuildingBlocks.Domain;
+using Applada.Modules.Communities.Contracts;
 using Applada.Modules.Matches.Application.Events;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
@@ -16,8 +17,11 @@ namespace Applada.Modules.Matches.Application.CreateMatch;
 /// (<see cref="IdempotencyConflictException"/>) e releem a resposta gravada uma vez, numa transação nova.
 /// Essa espera conta no <c>lock_timeout</c>: se a primeira segurar a transação por mais que ele, a segunda recebe
 /// <c>lock-timeout</c> (503 com <c>Retry-After</c>) e o cliente repete. Aceitável: a repetição devolve a resposta gravada.
+/// <para>Partida de grupo: o organizador precisa ser owner ou admin do grupo (contrato <see cref="IGroupMembership"/> do
+/// Communities). A consulta acontece antes da transação, em outro módulo: perder o papel entre a consulta e o commit é
+/// uma janela aceita (a partida fica no grupo e o organizador continua dono dela).</para>
 /// </remarks>
-public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider)
+public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider, IGroupMembership groups)
 {
     public async Task<Result<(int Status, string Body)>> HandleAsync(
         NewMatch data,
@@ -31,6 +35,12 @@ public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvid
         ArgumentException.ThrowIfNullOrEmpty(idempotencyKey);
         ArgumentException.ThrowIfNullOrEmpty(requestHash);
         ArgumentNullException.ThrowIfNull(render);
+
+        if (data.GroupId is { } groupId
+            && await groups.GetRoleAsync(groupId, userId, ct) is not (GroupRole.Owner or GroupRole.Admin))
+        {
+            return MatchErrors.GroupNotAllowed;
+        }
 
         try
         {
