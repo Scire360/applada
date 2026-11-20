@@ -51,6 +51,13 @@ export function isAuthConfigured() {
   return isKeycloakConfigured() && Boolean(process.env.AUTH_SECRET);
 }
 
+export function isVisualPreview() {
+  return process.env.NODE_ENV === "development"
+    && !isAuthConfigured()
+    && !process.env.APPLADA_API_ORIGIN?.trim()
+    && process.env.APPLADA_LOCAL_INTEGRATION !== "1";
+}
+
 export function getPublicAppUrl(fallback?: string) {
   const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
   const appUrl =
@@ -266,6 +273,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
           if (!session?.user) {
             return apiProblem(401, "Entre novamente para continuar.");
           }
+          return true;
+        }
+
+        if (isVisualPreview()) {
           return true;
         }
 

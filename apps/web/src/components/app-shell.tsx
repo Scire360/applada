@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { auth, isVisualPreview } from "@/auth";
 import { signOutOfApplada } from "@/app/actions/auth";
 import { Icon } from "@/components/icon";
 import { hasAdminRole, isAdminPath } from "@/lib/authorization";
@@ -119,9 +119,10 @@ async function AuthenticatedAppShell({
   variant,
   children,
 }: AppShellProps) {
-  const session = variant === "local" ? null : await auth();
-  if (variant !== "local" && !session?.user) redirect("/login");
-  const hasAdminAccess = hasAdminRole(session?.user?.roles ?? []);
+  const visualPreview = isVisualPreview();
+  const session = variant === "local" || visualPreview ? null : await auth();
+  if (variant !== "local" && !visualPreview && !session?.user) redirect("/login");
+  const hasAdminAccess = visualPreview || hasAdminRole(session?.user?.roles ?? []);
   if (
     (active === "admin" || isAdminPath(activePath ?? "")) &&
     !hasAdminAccess

@@ -17,7 +17,7 @@ async function signIn(browser, username, password, returnTo = connectedPath) {
   context.setDefaultTimeout(waitTimeout);
 
   const page = await context.newPage();
-  await page.goto(returnTo);
+  await page.goto(returnTo, { waitUntil: "commit" });
   await Promise.all([
     page.waitForURL((url) => url.origin === keycloakOrigin && url.pathname.startsWith("/realms/applada/")),
     page.getByRole("button", { name: "Entrar com conta de teste", exact: true }).click(),

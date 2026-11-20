@@ -178,9 +178,23 @@ o acesso autenticado ao BFF e que a resposta de identidade não inclui o access 
 
 Com o app rodando em `http://localhost:3000` e o Chrome instalado, execute
 `npm run test:layout` para verificar as páginas estáticas e as rotas do
-catálogo em tamanhos de tela entre 320 px e 4K. O teste usa a prévia sem login.
+catálogo em tamanhos de tela entre 320 px e 4K. Para abrir a prévia sem login,
+inicie o Next.js com Auth e integrações desabilitados no processo:
 
 ```powershell
+$env:AUTH_SECRET = ' '
+$env:AUTH_KEYCLOAK_ID = ' '
+$env:AUTH_KEYCLOAK_SECRET = ' '
+$env:AUTH_KEYCLOAK_ISSUER = ' '
+$env:APPLADA_API_ORIGIN = ' '
+$env:APPLADA_LOCAL_INTEGRATION = '0'
+npm run dev -- --hostname localhost --port 3000
+```
+
+Em outro terminal:
+
+```powershell
+npm run test:layout
 npm run lint
 npm run typecheck
 npm run build
