@@ -30,11 +30,15 @@ backend quando esses endpoints forem implementados.
 1. Copie `.env.example` para `.env.local`.
 2. Gere `AUTH_SECRET` com `npx auth secret` e configure-o somente em `.env.local`
    (em produção, use o secret manager).
+   Em produção, use pelo menos 32 bytes aleatórios e configure `AUTH_URL` com a
+   origem HTTPS pública exata da aplicação.
 3. Configure `AUTH_KEYCLOAK_ISSUER` com a URL do issuer do realm e preencha
    `AUTH_KEYCLOAK_ID` e `AUTH_KEYCLOAK_SECRET` do cliente OIDC confidencial.
 4. No Keycloak, habilite o fluxo padrão, PKCE S256 e recuperação de senha.
    Habilite o registro no realm somente se o autocadastro for desejado. Cadastre
-   `http://localhost:3000/api/auth/callback/keycloak` como redirect URI válido.
+   `http://localhost:3000/api/auth/callback/keycloak` como redirect URI e
+   `http://localhost:3000/login` como post-logout redirect URI válido. Em
+   produção, cadastre somente as URLs HTTPS exatas da aplicação e callback.
    Restrinja as origens e redirects ao domínio da aplicação.
 5. Copie `keycloak-theme/applada` para `<KC_HOME>/themes/applada`, selecione
    `applada` como tema de login do realm e defina o idioma padrão como `pt-BR`.
@@ -47,7 +51,17 @@ backend quando esses endpoints forem implementados.
 
 `AUTH_TRUST_HOST=true` é adequado para desenvolvimento local. Em produção,
 configure-o somente atrás de um proxy confiável, junto do host público correto.
-O logout encerra a sessão local; ele não encerra a sessão SSO do Keycloak.
+O logout encerra a sessão local e também encerra a sessão SSO do Keycloak por
+requisição server-to-server com `id_token_hint`. Os ID e access tokens ficam
+somente no JWT Auth.js criptografado e protegido pelo cookie HttpOnly, nunca no
+objeto `session` enviado ao frontend nem em URL. A sessão local Auth.js expira
+após uma hora de inatividade. Cada verificação autenticada valida o access token
+e atualiza os papéis disponíveis no UserInfo do Keycloak, permitindo revogar
+cópias do cookie quando a sessão SSO é encerrada e refletir mudanças de papel
+publicadas nesse endpoint. Isso adiciona uma chamada ao Keycloak por verificação;
+a sessão também deixa de valer quando o access token expira, exigindo novo login.
+Configure no cliente Keycloak a post-logout redirect URI exata
+`http://localhost:3000/login` (e a URL HTTPS equivalente em produção).
 
 O limite de tentativas de senha por IP precisa ser instalado e ativado no Keycloak.
 Consulte [`infra/keycloak-rate-limit/README.md`](../../infra/keycloak-rate-limit/README.md)

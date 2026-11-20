@@ -17,6 +17,16 @@ backend ainda não possui endpoints de domínio.
 - Usar Auth.js no servidor Next.js como BFF. Tokens de sessão ficam em cookie
   HttpOnly, Secure em produção e SameSite; tokens do provedor não são expostos à
   camada cliente.
+- Exigir `AUTH_SECRET` com pelo menos 32 bytes e `AUTH_URL` HTTPS em produção;
+  limitar a sessão local a uma hora de inatividade.
+- Ao sair, limpar a sessão local e redirecionar ao endpoint de logout do Keycloak
+  server-to-server com `id_token_hint`, sem expor o token ao JavaScript ou
+  adicioná-lo à sessão enviada ao frontend. ID e access tokens ficam apenas no
+  JWT Auth.js criptografado e protegido pelo cookie HttpOnly. Validar o access
+  token e atualizar os papéis publicados no UserInfo do Keycloak em cada
+  verificação autenticada revoga cópias do cookie após o fim da sessão SSO e
+  reflete mudanças de papel publicadas nesse endpoint, ao custo de uma chamada
+  de rede por verificação e de limitar a sessão ao tempo de vida do access token.
 - Proteger as rotas do produto no Proxy e validar a sessão também no `AppShell`.
 - Usar as telas hospedadas pelo Keycloak para credenciais e autenticação. O
   cadastro usa `prompt=create`; a recuperação de senha começa no login do
@@ -31,8 +41,9 @@ backend ainda não possui endpoints de domínio.
 - O callback local é
   `http://localhost:3000/api/auth/callback/keycloak`; o callback de produção
   deve ser cadastrado explicitamente no cliente.
-- O logout implementado encerra a sessão local do Applada; a sessão SSO do
-  Keycloak pode continuar ativa.
+- O cliente OIDC precisa permitir a post-logout redirect URI HTTPS da aplicação.
+  O logout encerra a sessão SSO no Keycloak, mas access tokens JWT já emitidos
+  podem continuar válidos em validadores offline até expirarem.
 - O backend atual contém apenas probes de saúde. Antes de adicionar endpoints
   com dados de usuário, a API deve validar tokens e aplicar autorização por
   recurso/operação. A sessão web não substitui essa validação.
