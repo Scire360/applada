@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "node --test tests/e2e/partida-uma-vaga.test.mjs",
+    "test:e2e": "node --test tests/e2e/backend-bff.test.mjs tests/e2e/partida-uma-vaga.test.mjs",
+    "test:auth-bff": "node --test tests/e2e/backend-bff-auth.test.mjs",
     "test:layout": "node --test tests/e2e/layout-responsivo.test.mjs",
     "test:auth-theme": "node --test tests/e2e/tema-login.test.mjs"
   },

@@ -19,6 +19,11 @@ definidas antes do respectivo lançamento.
   como BFF. O navegador recebe somente cookie de sessão `HttpOnly`,
   `Secure` em produção e `SameSite`; tokens não são expostos à camada cliente
   nem armazenados em `localStorage`/`sessionStorage`.
+- O BFF de domínio valida a sessão Auth.js no servidor e lê o access token
+  exclusivamente do JWT criptografado da sessão para encaminhar operações
+  allowlisted à API. Não incluir access/ID tokens no callback `session` nem em
+  respostas ao navegador. A API continua validando o bearer token e a
+  autorização por recurso independentemente.
 - Manter `AUTH_SECRET` forte e exclusivo por ambiente; em produção exigir HTTPS
   e configurar somente a origem pública confiável.
 - A sessão web dura no máximo uma hora. Nas verificações autenticadas, validar o
@@ -30,7 +35,8 @@ definidas antes do respectivo lançamento.
   aplicado na configuração de cada realm antes de produção.
 - **API:** validar independentemente JWT Bearer (issuer, audience e assinatura)
   e autorizar cada operação no servidor. A sessão web não autoriza chamadas à
-  API; o vínculo com o usuário interno segue o ADR-0007.
+  API; o vínculo com o usuário interno segue o ADR-0007. O client OIDC da web
+  deve incluir `applada-api` na audience do access token (`oidc-audience-mapper`).
 - **Mobile:** quando implementado, usar Authorization Code com PKCE e guardar
   tokens exclusivamente em `expo-secure-store`, nunca em `AsyncStorage`.
 - Configurar tokens de curta duração e rotação/revogação de refresh tokens nos
@@ -51,6 +57,9 @@ definidas antes do respectivo lançamento.
   segura de callbacks, logout, roles, MFA e proxy confiável.
 - O UserInfo em cada verificação autenticada acrescenta uma chamada ao Keycloak;
   sessões também deixam de funcionar quando o access token expira.
+- A leitura server-side do JWT usa o helper `getToken` do Auth.js. Como essa API
+  é version-sensitive, upgrades do Auth.js devem executar os testes do BFF e
+  confirmar que os tokens continuam restritos ao servidor.
 - O limite de tentativas de senha por IP no fluxo Browser é definido no ADR-0008.
 - A integração de Identity exige a revisão de segurança aprofundada antes de
   release, conforme `CLAUDE.md` seção 7.

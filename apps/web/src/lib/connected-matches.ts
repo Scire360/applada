@@ -33,14 +33,16 @@ export type MatchCreation = MatchEdit & {
   visibility: "public";
 };
 
-export class LocalApiError extends Error {
+export type ApiCall = <T>(path: string, options?: RequestInit) => Promise<T>;
+
+export class ApiError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
   }
 }
 
-export async function localApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/local/${path}`, { ...options, cache: "no-store" });
+async function callApi<T>(basePath: string, path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${basePath}/${path}`, { ...options, cache: "no-store" });
   if (!response.ok) {
     const problem: { title?: string; errors?: Record<string, string[]> } = await response.json().catch(() => ({}));
     const detail = problem.errors && Object.values(problem.errors).flat().join(" ");
@@ -50,9 +52,17 @@ export async function localApi<T>(path: string, options?: RequestInit): Promise<
       : response.status === 429 && retryAfter
         ? `Aguarde ${retryAfter} s antes de tentar novamente.`
         : detail || problem.title || "A operação falhou. Tente novamente.";
-    throw new LocalApiError(response.status, message);
+    throw new ApiError(response.status, message);
   }
   return response.status === 204 ? undefined as T : response.json();
+}
+
+export function localApi<T>(path: string, options?: RequestInit) {
+  return callApi<T>("/api/local", path, options);
+}
+
+export function backendApi<T>(path: string, options?: RequestInit) {
+  return callApi<T>("/api/backend", path, options);
 }
 
 export function matchDate(startsAt: string, timeZone?: string) {

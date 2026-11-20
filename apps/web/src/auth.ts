@@ -7,6 +7,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function apiProblem(status: number, title: string) {
+  return NextResponse.json({ status, title }, {
+    status,
+    headers: {
+      "Cache-Control": "private, no-store",
+      "Content-Type": "application/problem+json",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 function getClientRoles(profile: unknown): string[] {
   const clientId = process.env.AUTH_KEYCLOAK_ID;
   if (!clientId || !isRecord(profile)) {
@@ -39,7 +51,7 @@ export function isAuthConfigured() {
   return isKeycloakConfigured() && Boolean(process.env.AUTH_SECRET);
 }
 
-function getPublicAppUrl(fallback?: string) {
+export function getPublicAppUrl(fallback?: string) {
   const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
   const appUrl =
     configuredUrl ??
@@ -226,6 +238,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       authorized({ auth: session, request }) {
         const { pathname } = request.nextUrl;
 
+        if (
+          process.env.NODE_ENV === "development" &&
+          process.env.APPLADA_LOCAL_INTEGRATION === "1" &&
+          request.headers.get("host") === "localhost:3000" &&
+          (pathname === "/peladas" ||
+            pathname === "/peladas/conectadas" ||
+            pathname === "/eventos/novo")
+        ) {
+          return true;
+        }
+
         if (pathname === "/acesso-negado") {
           return true;
         }
@@ -234,6 +257,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
           return session?.user
             ? NextResponse.redirect(new URL("/", request.url))
             : true;
+        }
+
+        if (pathname === "/api/backend" || pathname.startsWith("/api/backend/")) {
+          if (request.method !== "GET" && request.headers.get("origin") !== getPublicAppUrl()) {
+            return apiProblem(403, "Origem da solicitação não permitida.");
+          }
+          if (!session?.user) {
+            return apiProblem(401, "Entre novamente para continuar.");
+          }
+          return true;
         }
 
         if (

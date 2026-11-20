@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ConnectedMatches } from "@/components/connected-matches";
 import { GameDemoPanel } from "@/components/game-demo";
 import { MatchCreationForm, MatchDemoMetrics, MatchDemoPanel } from "@/components/match-demo";
 import { PreviewForm, type FormField } from "@/components/preview-form";
 import { ScreenCatalog, type ScreenCatalogItem } from "@/components/screen-catalog";
 import { ScreenDirectory, type DirectoryRecord } from "@/components/screen-directory";
 import { Icon } from "@/components/icon";
+import { getApiMode } from "@/lib/api-mode";
 import { routeByLegacyView, screenByLegacyView, screenByPath, screens } from "@/lib/screens";
 
 const forms: Record<string, { submitLabel: string; fields: FormField[] }> = {
@@ -191,8 +193,26 @@ async function LegacyScreenContent({
   const { segments } = await params;
   const path = `/${segments.join("/")}`;
   const screen = screenByPath.get(path);
+  const apiMode = getApiMode();
 
   if (!screen) notFound();
+
+  if (screen.legacyView === "events-new" && apiMode !== "preview") {
+    return (
+      <AppShell active="matches" activePath={screen.path} title={screen.title} variant={apiMode === "local" ? "local" : undefined}>
+        <div className="module-page connected-page">
+          <section className="page-heading">
+            <div>
+              <p className="eyebrow page-eyebrow">PARTIDAS · AMBIENTE LOCAL</p>
+              <h1>Organizar uma pelada.</h1>
+              <p className="page-subtitle">Crie uma partida persistida no backend e acompanhe as inscrições.</p>
+            </div>
+          </section>
+          <ConnectedMatches apiMode={apiMode} loginReturnTo="/eventos/novo" />
+        </div>
+      </AppShell>
+    );
+  }
 
   const form = forms[screen.legacyView];
   const nextScreens = screen.nextSteps

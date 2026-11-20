@@ -113,6 +113,7 @@ function PhotoEditor() {
         {!userId && <p>A foto da prévia fica neste navegador.</p>}
         {photoState === "loading" && <p role="status">Carregando foto…</p>}
         {photoState === "unavailable" && <p role="status">O armazenamento de fotos está indisponível neste ambiente.</p>}
+        {photoState === "unsupported" && <p role="status">O upload de fotos ainda não está disponível nesta integração.</p>}
         {photoState === "ready" && (
           <div className="account-photo-actions">
             <label className="button button-secondary account-file-button">

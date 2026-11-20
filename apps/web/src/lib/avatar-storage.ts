@@ -3,7 +3,8 @@ import "server-only";
 import { Buffer } from "node:buffer";
 import { deflateSync } from "node:zlib";
 import { NextResponse, type NextRequest } from "next/server";
-import { apiOrigin, localError, matchIdPattern, secureResponse } from "./local-auth";
+import { matchIdPattern } from "./api-routes";
+import { apiOrigin, localError, secureResponse } from "./local-auth";
 import { avatarPixelBytes, avatarSide } from "./avatar-photo";
 
 const bucket = "applada-avatars";

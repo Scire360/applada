@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { LocalApiError, localAccountHeader, localApi } from "@/lib/connected-matches";
+import { ApiError, backendApi, localAccountHeader, localApi, type ApiCall } from "@/lib/connected-matches";
+import type { ApiMode } from "@/lib/api-mode";
 import type { AvatarThumbnail } from "@/lib/avatar-photo";
 
 type ReadyAccount = {
@@ -9,7 +10,7 @@ type ReadyAccount = {
   userId: string | null;
   displayName: string | null;
   photo: string | null;
-  photoState: "loading" | "ready" | "unavailable";
+  photoState: "loading" | "ready" | "unavailable" | "unsupported";
 };
 type Account = ReadyAccount | { state: "loading" | "signed-out" | "unavailable" };
 type StoredAccount = { displayName?: string; photo?: string };
@@ -41,13 +42,14 @@ type AccountContextValue = {
 
 const AccountContext = createContext<AccountContextValue | null>(null);
 
-export function AccountProvider({ children }: { children: ReactNode }) {
+export function AccountProvider({ children, apiMode }: { children: ReactNode; apiMode: ApiMode }) {
   const [account, setAccount] = useState<Account>({ state: "loading" });
   const [open, setOpen] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
   const photoWrite = useRef(false);
   const previousFocus = useRef<HTMLButtonElement | null>(null);
   const photoUrl = account.state === "ready" ? account.photo : null;
+  const api: ApiCall = apiMode === "backend" ? backendApi : localApi;
 
   useEffect(() => () => {
     if (photoUrl?.startsWith("blob:")) URL.revokeObjectURL(photoUrl);
@@ -58,23 +60,25 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const { signal } = controller;
 
     async function load() {
+      if (apiMode === "preview") {
+        const saved = readStoredAccount(null);
+        setAccount({ state: "ready", userId: null, displayName: saved.displayName ?? demoName, photo: saved.photo ?? null, photoState: "ready" });
+        return;
+      }
+
       let session: { userId: string };
       try {
-        session = await localApi<{ userId: string }>("session", { signal });
+        session = await api<{ userId: string }>("session", { signal });
       } catch (failure) {
         if (signal.aborted) return;
-        if (failure instanceof LocalApiError && failure.status === 404) {
-          const saved = readStoredAccount(null);
-          setAccount({ state: "ready", userId: null, displayName: saved.displayName ?? demoName, photo: saved.photo ?? null, photoState: "ready" });
-        } else {
-          setAccount({ state: failure instanceof LocalApiError && failure.status === 401 ? "signed-out" : "unavailable" });
-        }
+        setAccount({ state: failure instanceof ApiError && failure.status === 401 ? "signed-out" : "unavailable" });
         return;
       }
 
       try {
-        const profile = await localApi<{ displayName: string | null }>("profile", {
-          signal, headers: { [localAccountHeader]: session.userId },
+        const profile = await api<{ displayName: string | null }>("profile", {
+          signal,
+          headers: apiMode === "local" ? { [localAccountHeader]: session.userId } : undefined,
         });
         if (!signal.aborted) {
           setAccount({
@@ -82,15 +86,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             userId: session.userId,
             displayName: profile.displayName,
             photo: null,
-            photoState: "loading",
+            photoState: apiMode === "local" ? "loading" : "unsupported",
           });
         }
       } catch (failure) {
         if (!signal.aborted) {
-          setAccount({ state: failure instanceof LocalApiError && failure.status === 401 ? "signed-out" : "unavailable" });
+          setAccount({ state: failure instanceof ApiError && failure.status === 401 ? "signed-out" : "unavailable" });
         }
         return;
       }
+
+      if (apiMode !== "local") return;
 
       try {
         const response = await fetch("/api/local/avatar", {
@@ -111,7 +117,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     void load();
     return () => controller.abort();
-  }, []);
+  }, [api, apiMode]);
 
   function openAccount(trigger: HTMLButtonElement) {
     previousFocus.current = trigger;
@@ -132,18 +138,23 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     let saved = name;
     if (account.userId) {
-      const profile = await localApi<{ displayName: string }>("profile", {
+      const profile = await api<{ displayName: string }>("profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", [localAccountHeader]: account.userId },
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiMode === "local" ? { [localAccountHeader]: account.userId } : {}),
+        },
         body: JSON.stringify({ displayName: name }),
       });
       saved = profile.displayName;
-    } else {
+    } else if (apiMode === "preview") {
       try {
         localStorage.setItem(storageKey(null), JSON.stringify({ ...readStoredAccount(null), displayName: name }));
       } catch {
         throw new Error("O navegador não conseguiu salvar o nome da prévia.");
       }
+    } else {
+      throw new Error("O perfil ainda não está disponível.");
     }
 
     setAccount((current) => current.state === "ready" && current.userId === account.userId
@@ -159,17 +170,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     setPhotoSaving(true);
     try {
       if (account.userId) {
-        await localApi("avatar", photo ? {
+        await api("avatar", photo ? {
           method: "PUT",
           headers: { "Content-Type": "application/octet-stream", [localAccountHeader]: account.userId },
           body: photo.pixels,
         } : { method: "DELETE", headers: { [localAccountHeader]: account.userId } });
-      } else {
+      } else if (apiMode === "preview") {
         try {
           localStorage.setItem(storageKey(null), JSON.stringify({ ...readStoredAccount(null), photo: photo?.preview }));
         } catch {
           throw new Error("O navegador não conseguiu salvar a foto da prévia. Libere espaço e tente novamente.");
         }
+      } else {
+        throw new Error("A foto não está disponível nesta integração.");
       }
       setAccount((current) => current.state === "ready" && current.userId === account.userId
         ? { ...current, photo: photo?.preview ?? null }

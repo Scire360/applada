@@ -1,26 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleAvatar } from "@/lib/avatar-storage";
+import { mapApiPath } from "@/lib/api-routes";
 import { localAccountHeader } from "@/lib/connected-matches";
-import { apiOrigin, beginLogin, clearSession, completeLogin, currentSession, localError, localIntegrationEnabled, logout, matchIdPattern, secureResponse, webOrigin } from "@/lib/local-auth";
+import { apiOrigin, beginLogin, clearSession, completeLogin, currentSession, localError, localIntegrationEnabled, logout, secureResponse, webOrigin } from "@/lib/local-auth";
 
 type Context = { params: Promise<{ operation: string[] }> };
-
-function apiPath(operation: string[], method: string) {
-  const [name, id, action, member] = operation;
-  if (name === "session" && operation.length === 1 && method === "GET") return "/me";
-  if (name === "profile" && operation.length === 1 && (method === "GET" || method === "PUT")) return "/me/profile";
-  if (name === "mine" && operation.length === 1 && method === "GET") return "/me/matches";
-  if (name !== "matches") return null;
-  if (operation.length === 1 && method === "POST") return "/matches";
-  if (!id || !matchIdPattern.test(id)) return null;
-  const match = `/matches/${id}`;
-  if (operation.length === 2 && (method === "GET" || method === "PATCH")) return match;
-  if (operation.length === 3 && action === "cancellation" && method === "POST") return match + "/cancellation";
-  if (action !== "registrations") return null;
-  if (operation.length === 3 && (method === "GET" || method === "POST")) return match + "/registrations";
-  if (operation.length === 4 && member === "me" && method === "DELETE") return match + "/registrations/me";
-  return null;
-}
 
 async function readBoundedBody(request: NextRequest, maxBytes = 16 * 1024) {
   if (!request.body) return new Uint8Array();
@@ -58,7 +42,7 @@ async function handle(request: NextRequest, { params }: Context) {
 
   const avatar = operation.length === 1 && operation[0] === "avatar"
     && (request.method === "GET" || request.method === "PUT" || request.method === "DELETE");
-  const path = apiPath(operation, request.method);
+  const path = mapApiPath(operation, request.method);
   if (!path && !avatar) return localError(404, "Operação não encontrada.");
   const session = currentSession(request);
   if (!session) return localError(401, "Entre com uma conta de teste para continuar.");

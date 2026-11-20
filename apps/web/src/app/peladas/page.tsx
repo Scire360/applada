@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { ConnectedMatches } from "@/components/connected-matches";
 import { Icon } from "@/components/icon";
 import { MatchSchedule, type ScheduledMatch } from "@/components/match-demo";
+import { getApiMode } from "@/lib/api-mode";
 import campo from "./campo.module.css";
 
 const matches: ScheduledMatch[] = [
@@ -11,6 +13,24 @@ const matches: ScheduledMatch[] = [
 ];
 
 export default function MatchesPage() {
+  const apiMode = getApiMode();
+  if (apiMode !== "preview") {
+    return (
+      <AppShell active="matches" activePath="/peladas" title="Peladas" variant={apiMode === "local" ? "local" : undefined}>
+        <div className="module-page connected-page">
+          <section className="page-heading">
+            <div>
+              <p className="eyebrow page-eyebrow">PARTIDAS · AMBIENTE LOCAL</p>
+              <h1>Minha agenda de partidas.</h1>
+              <p className="page-subtitle">Acompanhe as partidas que organiza ou participa e crie o próximo encontro.</p>
+            </div>
+          </section>
+          <ConnectedMatches apiMode={apiMode} loginReturnTo="/peladas" />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell active="matches">
       <div className={`module-page ${campo.page}`}>

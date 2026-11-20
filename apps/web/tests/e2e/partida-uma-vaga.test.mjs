@@ -8,7 +8,7 @@ const keycloakOrigin = "http://localhost:8080";
 const connectedPath = "/peladas/conectadas";
 const waitTimeout = 15_000;
 
-async function signIn(browser, username, password) {
+async function signIn(browser, username, password, returnTo = connectedPath) {
   const context = await browser.newContext({
     baseURL: webOrigin,
     locale: "pt-BR",
@@ -17,7 +17,7 @@ async function signIn(browser, username, password) {
   context.setDefaultTimeout(waitTimeout);
 
   const page = await context.newPage();
-  await page.goto(connectedPath);
+  await page.goto(returnTo);
   await Promise.all([
     page.waitForURL((url) => url.origin === keycloakOrigin && url.pathname.startsWith("/realms/applada/")),
     page.getByRole("button", { name: "Entrar com conta de teste", exact: true }).click(),
@@ -36,6 +36,7 @@ async function signIn(browser, username, password) {
   await signedIn.or(keycloakNotice).first().waitFor({ state: "visible" });
   assert.ok(await signedIn.isVisible(), `Prepare a conta local ${username} e confira a senha dos testes.`);
   assert.equal(new URL(page.url()).origin, webOrigin);
+  assert.equal(new URL(page.url()).pathname, returnTo);
 
   const session = await context.request.get("/api/local/session", { timeout: waitTimeout });
   assert.equal(session.status(), 200, `Sessão do Applada para ${username}`);
@@ -136,11 +137,20 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
     }
   });
 
-  const organizer = await signIn(browser, "jogador3.dev", password);
+  const organizer = await signIn(browser, "jogador3.dev", password, "/eventos/novo");
   const first = await signIn(browser, "jogador1.dev", password);
   const second = await signIn(browser, "jogador2.dev", password);
   assert.equal(new Set([organizer.userId, first.userId, second.userId]).size, 3);
 
+  for (const [path, heading] of [
+    ["/peladas", "Minha agenda de partidas."],
+    ["/eventos/novo", "Organizar uma pelada."],
+  ]) {
+    await organizer.page.goto(path);
+    await organizer.page.getByRole("heading", { name: heading, exact: true }).waitFor();
+    await organizer.page.getByRole("region", { name: "Organizar partida", exact: true }).waitFor();
+    assert.equal(await organizer.page.getByText("Prévia visual com dados ilustrativos.", { exact: true }).count(), 0);
+  }
   const profilePath = "/api/local/profile";
   const profileBefore = await second.page.request.get(profilePath, { timeout: waitTimeout });
   assert.equal(profileBefore.status(), 200);

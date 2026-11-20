@@ -42,6 +42,10 @@ valida seus próprios tokens Bearer e aplica autorização no servidor.
    origem HTTPS pública exata da aplicação.
 3. Configure `AUTH_KEYCLOAK_ISSUER` com a URL do issuer do realm e preencha
    `AUTH_KEYCLOAK_ID` e `AUTH_KEYCLOAK_SECRET` do cliente OIDC confidencial.
+   Configure também `APPLADA_API_ORIGIN` com a origem da API .NET. Em produção,
+   use a origem HTTPS exata; HTTP só é aceito para loopback em desenvolvimento.
+   A partir daí, `/peladas`, `/eventos/novo` e `/peladas/conectadas` usam o BFF
+   Auth.js e os contratos existentes de Matches e Profiles.
 4. No Keycloak, habilite o fluxo padrão, PKCE S256 e recuperação de senha.
    Habilite o registro no realm somente se o autocadastro for desejado. Cadastre
    `http://localhost:3000/api/auth/callback/keycloak` como redirect URI e
@@ -95,12 +99,16 @@ Bearer e autorizar a operação no servidor; a sessão web não substitui isso.
 
    Se a prévia no Brave recarregar repetidamente com o erro `Element type is invalid`
    e o painel indicar Webpack, reinicie o frontend com o comando acima para usar Turbopack.
-3. Abra [Partidas conectadas](http://localhost:3000/peladas/conectadas). Entre como `organizador.dev` com a senha temporária `trocar-no-primeiro-login`. O Keycloak pede uma nova senha no primeiro acesso. Para simular a fila, crie uma partida futura com uma vaga e compartilhe seu link em dois perfis ou janelas isoladas, com contas diferentes como `jogador1.dev` e `jogador2.dev`.
+3. Abra [Partidas conectadas](http://localhost:3000/peladas/conectadas). Entre como `organizador.dev` com a senha temporária `trocar-no-primeiro-login`. O Keycloak pede uma nova senha no primeiro acesso. Com a integração local habilitada, `/peladas` mostra a agenda da conta conectada e `/eventos/novo` abre a criação persistida. Para simular a fila, crie uma partida futura com uma vaga e compartilhe seu link em dois perfis ou janelas isoladas, com contas diferentes como `jogador1.dev` e `jogador2.dev`.
 4. Confirme a primeira conta, inscreva a segunda na espera, retire a primeira e use **Atualizar partida** na segunda. Os dados vêm do PostgreSQL. O organizador pode editar, cancelar e ver os participantes. A API aplica as restrições de cada papel.
 
-O servidor web usa o client `applada-dev-web` com PKCE e mantém a sessão em memória até o access token expirar ou o servidor reiniciar. O cookie contém um identificador opaco e usa `HttpOnly`, `Secure` e `SameSite=Lax`. O modo exige `npm run dev`, a flag de integração e a origem exata `http://localhost:3000`. Sair encerra a sessão web local. O próximo acesso pede as credenciais novamente no Keycloak.
+O servidor web usa o client `applada-dev-web` com PKCE e mantém a sessão em memória até o access token expirar ou o servidor reiniciar. O cookie contém um identificador opaco e usa `HttpOnly`, `Secure` e `SameSite=Lax`. O modo exige `npm run dev`, a flag de integração e a origem exata `http://localhost:3000`. Nesse modo, Auth.js libera somente `/peladas`, `/peladas/conectadas` e `/eventos/novo` para renderizar o login local; as rotas `/api/local` não passam pelo proxy Auth.js, e seus handlers validam a flag, o host e a sessão local. Escritas também exigem a origem da aplicação. Sair encerra a sessão web local. O próximo acesso pede as credenciais novamente no Keycloak.
 
 O contrato de Matches oferece partidas que o usuário organiza ou das quais participa. O fluxo usa links para abrir outras partidas por ID. Check-in, placar e votação seguem na demonstração.
+
+Com `APPLADA_LOCAL_INTEGRATION=1` em desenvolvimento, `/peladas` e `/eventos/novo` usam o fluxo de teste persistido da API. Sem essa flag, uma `APPLADA_API_ORIGIN` configurada ativa o BFF Auth.js; sem flag nem origem, o desenvolvimento mantém a prévia visual. A integração de teste continua restrita ao ambiente local e ao host `http://localhost:3000`.
+
+No BFF Auth.js, o servidor valida a sessão OIDC e lê o access token somente do JWT Auth.js criptografado. O token é enviado apenas à API em `Authorization: Bearer`; não é adicionado ao objeto `session`, ao HTML nem às respostas do BFF. Escritas exigem `Origin` igual à origem pública configurada, e o proxy aceita somente as operações de Matches e Profiles mapeadas. A API valida o token e a autorização por conta própria. A descoberta pública, o check-in, o placar e a votação ainda não têm integração persistida.
 
 Em **Meu perfil**, o jogador salva seu próprio nome de exibição. O nome aparece na lista de participantes.
 A lista continua visível ao organizador e às inscrições ativas. Quem ainda não definiu um nome aparece
@@ -120,7 +128,8 @@ BFF, que resolve a identidade no backend e só acessa o objeto da própria conta
 
 Configure `APPLADA_SUPABASE_URL` e `APPLADA_SUPABASE_STORAGE_KEY` no processo do Next.js ou em
 `.env.local` ignorado pelo Git. A chave é secreta e exclusiva do servidor. A capacidade assinada
-de upload também fica no servidor. Reinicie o Next.js depois de configurar o ambiente.
+de upload também fica no servidor. Esse fluxo de avatar permanece disponível somente na integração
+local; o BFF de produção ainda não oferece upload de fotos. Reinicie o Next.js depois de configurar o ambiente.
 
 ## E2E de partida com uma vaga
 
@@ -141,11 +150,9 @@ try {
 }
 ```
 
-Com um bucket de teste configurado e a conta `jogador2.dev` sem foto, defina
-`APPLADA_E2E_AVATAR_STORAGE=1` para o E2E verificar o limite de tamanho, salvar o avatar, conferi-lo
-em outra sessão e removê-lo ao final.
-
-O Playwright abre três sessões independentes no Chrome. O segundo jogador salva um nome de exibição
+O Playwright abre três sessões independentes no Chrome. O organizador inicia o login em `/eventos/novo`;
+o teste confirma que a criação conectada funciona nessa rota e que `/peladas` apresenta a agenda persistida.
+O segundo jogador salva um nome de exibição
 e o teste confirma que o nome persiste após recarregar a página. O organizador cria uma partida com uma vaga.
 O teste verifica a confirmação do primeiro jogador, o nome do segundo na lista de espera e sua promoção
 após a saída do primeiro. A conta que saiu perde a lista na interface e recebe
@@ -154,6 +161,18 @@ após a saída do primeiro. A conta que saiu perde a lista na interface e recebe
 Ao final, o teste cancela sua partida e restaura o nome anterior do segundo jogador, se havia um.
 Se o perfil estava vazio, o nome sintético fica na conta de teste. O registro da partida cancelada fica no
 banco local.
+
+Com um bucket de teste configurado e a conta `jogador2.dev` sem foto, defina
+`APPLADA_E2E_AVATAR_STORAGE=1` para o E2E verificar o limite de tamanho, salvar o avatar, conferi-lo
+em outra sessão e removê-lo ao final.
+
+### E2E do BFF Auth.js
+
+Com a API e o Keycloak locais ativos, configure `APPLADA_API_ORIGIN=http://localhost:5080`
+e as variáveis Auth.js em `.env.local`, sem habilitar `APPLADA_LOCAL_INTEGRATION`. Inicie o Next.js
+em `http://localhost:3000` e execute `npm run test:auth-bff` com
+`APPLADA_E2E_TEST_PASSWORD` definido para `jogador3.dev`. O teste valida o login OIDC,
+o acesso autenticado ao BFF e que a resposta de identidade não inclui o access token.
 
 ## Verificações
 
@@ -186,6 +205,8 @@ O mapa em `/modulos` reúne as 43 vistas identificadas no frontend legado e perm
 nome, caminho ou área do produto. Nas telas demonstrativas, formulários e listas simulam a interação em memória no navegador.
 
 ## Demonstração da jornada de peladas
+
+Os passos desta seção descrevem a prévia visual, apresentada quando a integração local não está habilitada.
 
 Em `/eventos/novo`, crie uma pelada de demonstração com data de hoje ou futura; para hoje, o horário também precisa estar no futuro. Continue pela agenda em `/peladas`.
 Em `/peladas/abertas`, `/presenca` e `/presenca/check-in`, é possível simular confirmações e

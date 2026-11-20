@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  LocalApiError, localApi, matchDate, registrationLabel,
+  ApiError, backendApi, localApi, matchDate, registrationLabel,
+  type ApiCall,
   type MatchCreation, type MatchDetails, type MatchEdit, type MatchRole, type MatchSummary, type Page, type Participant,
 } from "@/lib/connected-matches";
+import { matchIdPattern } from "@/lib/api-routes";
 import { CreateConnectedMatch, EditConnectedMatch } from "./connected-match-forms";
 import { ConnectedProfile } from "./connected-profile";
 import { useAccount } from "./account-provider";
@@ -15,19 +18,26 @@ const blankPage = { items: [], nextCursor: null };
 const roles: MatchRole[] = ["organizer", "participant"];
 const roleLabel = { organizer: "Organizo", participant: "Participo" };
 const connectedPath = "/peladas/conectadas";
-const matchIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+type LoginReturnPath = typeof connectedPath | "/peladas" | "/eventos/novo";
 
-function mine(role: MatchRole, cursor?: string) {
+function mine(api: ApiCall, role: MatchRole, cursor?: string) {
   const query = new URLSearchParams({ role });
   if (cursor) query.set("cursor", cursor);
-  return localApi<Page<MatchSummary>>(`mine?${query}`);
+  return api<Page<MatchSummary>>(`mine?${query}`);
 }
 
 function detailPath(id: string) {
   return `matches/${id}`;
 }
 
-export function ConnectedMatches() {
+export function ConnectedMatches({
+  apiMode = "local",
+  loginReturnTo = connectedPath,
+}: {
+  apiMode?: "local" | "backend";
+  loginReturnTo?: LoginReturnPath;
+}) {
+  const api: ApiCall = apiMode === "backend" ? backendApi : localApi;
   const { account } = useAccount();
   const [phase, setPhase] = useState<Phase>("checking");
   const [session, setSession] = useState<Session>();
@@ -53,13 +63,13 @@ export function ConnectedMatches() {
     async function load() {
       let authenticated = false;
       try {
-        const identity = await localApi<Session>("session", { signal: controller.signal });
+        const identity = await api<Session>("session", { signal: controller.signal });
         if (controller.signal.aborted) return;
         authenticated = true;
         setSession(identity);
         const [list, selected] = await Promise.allSettled([
-          mine("organizer"),
-          id ? localApi<MatchDetails>(detailPath(id), { signal: controller.signal }) : Promise.resolve(undefined),
+          mine(api, "organizer"),
+          id ? api<MatchDetails>(detailPath(id), { signal: controller.signal }) : Promise.resolve(undefined),
         ]);
         if (controller.signal.aborted) return;
         if (list.status === "fulfilled") setPage(list.value);
@@ -70,7 +80,7 @@ export function ConnectedMatches() {
         if (failure?.status === "rejected") throw failure.reason;
       } catch (failure) {
         if (controller.signal.aborted) return;
-        const status = failure instanceof LocalApiError ? failure.status : 0;
+        const status = failure instanceof ApiError ? failure.status : 0;
         if (status === 401) {
           setPhase("signed-out");
           if (url.searchParams.has("login")) setError("O login não foi concluído. Tente novamente.");
@@ -87,7 +97,7 @@ export function ConnectedMatches() {
 
     void load();
     return () => controller.abort();
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (!match) return;
@@ -108,7 +118,7 @@ export function ConnectedMatches() {
     try {
       await action();
     } catch (failure) {
-      if (failure instanceof LocalApiError && failure.status === 401) setPhase("signed-out");
+      if (failure instanceof ApiError && failure.status === 401) setPhase("signed-out");
       setError(failure instanceof Error ? failure.message : "Não foi possível concluir a ação.");
     } finally {
       setBusy(false);
@@ -128,7 +138,7 @@ export function ConnectedMatches() {
     try {
       await reload();
     } catch (failure) {
-      if (failure instanceof LocalApiError && failure.status === 401) throw failure;
+      if (failure instanceof ApiError && failure.status === 401) throw failure;
       setError("A alteração foi salva. Atualize a página para carregar os dados mais recentes.");
     }
   }
@@ -137,7 +147,7 @@ export function ConnectedMatches() {
     void run(async () => {
       const body = JSON.stringify({ ...fields, locationText: fields.locationText || null });
       if (creationKey.current?.body !== body) creationKey.current = { body, key: crypto.randomUUID() };
-      const next = await localApi<MatchDetails>("matches", {
+      const next = await api<MatchDetails>("matches", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": creationKey.current.key },
         body,
@@ -147,7 +157,7 @@ export function ConnectedMatches() {
       setCompletedCreations((count) => count + 1);
       setNotice("Partida criada.");
       await reloadAfterWrite(async () => {
-        setPage(await mine("organizer"));
+        setPage(await mine(api, "organizer"));
         setRole("organizer");
       });
     });
@@ -155,8 +165,8 @@ export function ConnectedMatches() {
 
   function refresh(id: string) {
     return run(async () => {
-      select(await localApi<MatchDetails>(detailPath(id)));
-      setPage(await mine(role));
+      select(await api<MatchDetails>(detailPath(id)));
+      setPage(await mine(api, role));
       setNotice("Partida atualizada.");
     });
   }
@@ -164,56 +174,64 @@ export function ConnectedMatches() {
   function changeRegistration(id: string, withdraw: boolean) {
     void run(async () => {
       const path = detailPath(id) + "/registrations";
-      const outcome = await localApi<MatchDetails["myRegistration"]>(withdraw ? path + "/me" : path, { method: withdraw ? "DELETE" : "POST" });
+      const outcome = await api<MatchDetails["myRegistration"]>(withdraw ? path + "/me" : path, { method: withdraw ? "DELETE" : "POST" });
       setNotice(withdraw ? "Inscrição retirada." : outcome?.status === "waitlisted" ? "Você entrou na lista de espera." : "Sua vaga está confirmada.");
       await reloadAfterWrite(async () => {
-        select(await localApi<MatchDetails>(detailPath(id)));
-        setPage(await mine(role));
+        select(await api<MatchDetails>(detailPath(id)));
+        setPage(await mine(api, role));
       });
     });
   }
 
   function save(current: MatchDetails, fields: MatchEdit) {
     void run(async () => {
-      const next = await localApi<MatchDetails>(detailPath(current.id), {
+      const next = await api<MatchDetails>(detailPath(current.id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "If-Match": `"${current.version}"` },
         body: JSON.stringify(fields),
       });
       select(next);
       setNotice("Alterações salvas.");
-      await reloadAfterWrite(async () => setPage(await mine(role)));
+      await reloadAfterWrite(async () => setPage(await mine(api, role)));
     });
   }
 
   function cancel(id: string) {
     void run(async () => {
-      select(await localApi<MatchDetails>(detailPath(id) + "/cancellation", { method: "POST" }));
+      select(await api<MatchDetails>(detailPath(id) + "/cancellation", { method: "POST" }));
       setNotice("Partida cancelada.");
-      await reloadAfterWrite(async () => setPage(await mine(role)));
+      await reloadAfterWrite(async () => setPage(await mine(api, role)));
     });
   }
 
   function listParticipants(id: string, cursor?: string) {
     return run(async () => {
       const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-      const next = await localApi<Page<Participant>>(detailPath(id) + "/registrations" + query);
+      const next = await api<Page<Participant>>(detailPath(id) + "/registrations" + query);
       setParticipants((current) => cursor && current
         ? { items: [...current.items, ...next.items], nextCursor: next.nextCursor } : next);
     });
   }
 
   if (phase !== "signed-in") {
+    const loginQuery = new URLSearchParams({ returnTo: loginReturnTo });
+    if (requestedId) loginQuery.set("partida", requestedId);
     return (
       <section className="surface-card connected-card" aria-labelledby="conexao">
         <h2 id="conexao">{phase === "disabled" ? "Integração local desativada" : "Conta de teste"}</h2>
         {phase === "checking" && <p role="status">Verificando a sessão…</p>}
         {phase === "disabled" && <p>Para abrir as partidas reais do ambiente de desenvolvimento, inicie a web com a integração local habilitada.</p>}
-        {phase === "signed-out" && (
-          <form action={`/api/local/login${requestedId ? `?partida=${requestedId}` : ""}`} method="post">
+        {phase === "signed-out" && apiMode === "local" && (
+          <form action={`/api/local/login?${loginQuery}`} method="post">
             <p>Entre pelo Keycloak local para organizar partidas e ocupar vagas no banco de teste.</p>
             <button className="button button-primary" type="submit">Entrar com conta de teste</button>
           </form>
+        )}
+        {phase === "signed-out" && apiMode === "backend" && (
+          <div>
+            <p>Sua sessão expirou. Entre novamente para continuar.</p>
+            <Link className="button button-primary" href="/login">Entrar com minha conta</Link>
+          </div>
         )}
         {phase === "error" && <button className="button button-primary" onClick={() => window.location.reload()} type="button">Tentar novamente</button>}
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
@@ -227,12 +245,14 @@ export function ConnectedMatches() {
 
   return (
     <>
-      <div className="connected-session">
-        <span className="quiet-label"><span className="status-dot" /> Sessão de teste ativa</span>
-        <form action="/api/local/logout" method="post">
-          <button className="button button-secondary" type="submit">Sair da sessão</button>
-        </form>
-      </div>
+      {apiMode === "local" && (
+        <div className="connected-session">
+          <span className="quiet-label"><span className="status-dot" /> Sessão de teste ativa</span>
+          <form action="/api/local/logout" method="post">
+            <button className="button button-secondary" type="submit">Sair da sessão</button>
+          </form>
+        </div>
+      )}
       <div className="connected-feedback">
         <p role="status">{busy ? "Aguarde…" : notice}</p>
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
@@ -300,7 +320,7 @@ export function ConnectedMatches() {
           <div aria-label="Filtrar minhas partidas" className="connected-actions" role="group">
             {roles.map((option) => (
               <button aria-pressed={role === option} className={`button button-${role === option ? "primary" : "secondary"}`} disabled={busy} key={option}
-                onClick={() => void run(async () => { setPage(await mine(option)); setRole(option); })} type="button">{roleLabel[option]}</button>
+                onClick={() => void run(async () => { setPage(await mine(api, option)); setRole(option); })} type="button">{roleLabel[option]}</button>
             ))}
           </div>
           {page.items.length ? (
@@ -316,7 +336,7 @@ export function ConnectedMatches() {
             </ul>
           ) : <p>{role === "organizer" ? "Você ainda não organizou partidas." : "Suas inscrições ativas aparecem aqui."}</p>}
           {page.nextCursor && <button className="button button-secondary" disabled={busy} onClick={() => void run(async () => {
-            const next = await mine(role, page.nextCursor ?? undefined);
+            const next = await mine(api, role, page.nextCursor ?? undefined);
             setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
           })} type="button">Mais partidas</button>}
         </section>

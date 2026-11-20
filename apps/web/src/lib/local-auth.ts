@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { matchIdPattern } from "./api-routes";
 
 export const webOrigin = "http://localhost:3000";
 export const apiOrigin = "http://localhost:5080";
@@ -23,10 +24,13 @@ type Store = { logins: Map<string, Login>; sessions: Map<string, Session> };
 const local = globalThis as typeof globalThis & { appladaLocalAuth?: Store };
 const store = local.appladaLocalAuth ??= { logins: new Map(), sessions: new Map() };
 
-export function localIntegrationEnabled(request: NextRequest) {
+export function localIntegrationConfigured() {
   return process.env.NODE_ENV === "development"
-    && process.env.APPLADA_LOCAL_INTEGRATION === "1"
-    && request.headers.get("host") === "localhost:3000";
+    && process.env.APPLADA_LOCAL_INTEGRATION === "1";
+}
+
+export function localIntegrationEnabled(request: NextRequest) {
+  return localIntegrationConfigured() && request.headers.get("host") === "localhost:3000";
 }
 
 export function secureResponse(response: NextResponse) {
@@ -70,15 +74,17 @@ function remember<T extends Expiring>(entries: Map<string, T>, id: string, entry
   return true;
 }
 
-export const matchIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-
 export function beginLogin(request: NextRequest) {
   const id = opaqueId();
   const verifier = opaqueId();
   const state = opaqueId();
+  const requestedReturnTo = request.nextUrl.searchParams.get("returnTo");
+  const returnPath = requestedReturnTo === "/peladas" || requestedReturnTo === "/eventos/novo"
+    ? requestedReturnTo
+    : connectedPage;
   const matchId = request.nextUrl.searchParams.get("partida");
   const returnTo = matchId && matchIdPattern.test(matchId)
-    ? `${connectedPage}?partida=${matchId}` : connectedPage;
+    ? `${returnPath}?partida=${matchId}` : returnPath;
 
   store.logins.delete(request.cookies.get(flowCookie)?.value ?? "");
   if (!remember(store.logins, id, { verifier, state, returnTo, expires: Date.now() + flowSeconds * 1000 })) {
