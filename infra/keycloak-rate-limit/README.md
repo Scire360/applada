@@ -17,6 +17,22 @@ O código não altera nem instala automaticamente o Keycloak em execução. O pr
 precisa ser implantado e ativado no fluxo Browser de cada realm. Até essa ativação,
 o endpoint não está protegido por esta implementação.
 
+## Ambiente local automatizado
+
+Na raiz do repositório:
+
+```powershell
+docker compose -f infra\compose\keycloak-rate-limit.yml up -d
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\keycloak\configure-rate-limit.ps1
+.\infra\keycloak-rate-limit\scripts\verify-keycloak-rate-limit.ps1 `
+  -KeycloakBaseUrl "http://localhost:8080" `
+  -Realm "applada"
+```
+
+O Compose inicia Keycloak em `http://localhost:8080`, Redis em `127.0.0.1:6380` e
+importa o realm descartável `applada`. A chave local fica em
+`infra/compose/.env`, que é ignorado pelo Git.
+
 ## Requisitos
 
 - Keycloak 26.8.2 e Java 21.
