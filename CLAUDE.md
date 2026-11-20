@@ -25,23 +25,80 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-O backend agora contém a solution .NET 10 e uma API mínima com probes de disponibilidade
-do PostgreSQL. O schema de negócio, migrations e endpoints de domínio ainda não foram
-implementados. O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
+O backend tem solution, módulos Identity, Profiles e Matches, testes e pipeline
+(`.github/workflows/backend.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
-- Ambiente local web: `cd apps\web` e `npm run dev`
-- Build web: `npm run build`
-- Lint web: `npm run lint`
-- Type-check web: `npm run typecheck`
-- Testes web: ainda não configurados.
-- Build backend: `cd backend` e `dotnet build Applada.slnx`
-- Executar API: `cd backend` e `dotnet run --project src\Applada.Api`
-- Readiness do PostgreSQL: `GET /health/ready` (requer `ConnectionStrings:Applada`)
-- Liveness da API: `GET /health/live`
+- Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
+- Verificações web: `npm run lint`, `npm run typecheck` e `npm run build`.
+- Responsividade web: `npm run test:layout` em `apps/web`, com Chrome e a prévia em `http://localhost:3000`.
+- E2E da partida de uma vaga: `npm run test:e2e` em `apps/web`, com Chrome e a integração local ativa.
+  A preparação das três contas de teste está em [`apps/web/README.md`](apps/web/README.md#e2e-de-partida-com-uma-vaga).
 
-Configure a conexão local com `dotnet user-secrets` no projeto da API; em implantação,
-use o secret manager do ambiente. Nunca versione connection strings. Migrations devem
-continuar pertencendo a cada módulo.
+Mantenha aqui os comandos reais de build, teste, lint e ambiente local.
+
+Backend (.NET 10, SDK fixado em `backend/global.json`). O runner de testes é o
+Microsoft.Testing.Platform (xunit v3), lido do `global.json` mais próximo do diretório
+corrente: rode os testes a partir de `backend/`. Os testes de integração usam Testcontainers
+(PostgreSQL/PostGIS e RabbitMQ), então exigem Docker em execução.
+
+```powershell
+dotnet build backend/Applada.slnx -warnaserror
+dotnet format backend/Applada.slnx --verify-no-changes
+cd backend; dotnet test --solution Applada.slnx                                  # todos
+cd backend; dotnet test --solution Applada.slnx --filter-class "*HealthTests"    # por classe
+cd backend; dotnet test --solution Applada.slnx --filter-method "*Development_serves_openapi_document"   # por método
+cd backend; dotnet test --solution Applada.slnx --filter-namespace "Applada.Modules.Matches.Domain.Tests" # por namespace
+```
+
+Com filtro, o projeto de teste que não casa nenhum teste termina com "Zero testes executados" e o
+comando sai com **código 8** mesmo com tudo verde (Microsoft.Testing.Platform). Isso é esperado em
+execução filtrada; só o resumo (`falhou: 0`) importa. Sem filtro o código de saída é 0.
+
+Contrato HTTP: o documento OpenAPI gerado em Development é versionado em `docs/api/openapi-v1.json` e
+comparado por `OpenApiContractTests`. Mudou rota, schema ou resposta: o teste falha; regrave o arquivo,
+revise o diff e inclua no commit. Servidores e a URL do provedor OIDC são normalizados (`{authority}`).
+
+```powershell
+cd backend; $env:UPDATE_OPENAPI='1'; dotnet test --solution Applada.slnx --filter-class "*OpenApiContractTests"; Remove-Item Env:UPDATE_OPENAPI
+```
+
+Migrations (EF Core): `dotnet-ef` é ferramenta local (`backend/.config/dotnet-tools.json`), então
+rode a partir de `backend/`. O startup é a API; cada `DbContext` tem uma factory de design-time, sem
+banco nem configuração. Pasta `Migrations` é marcada como código gerado (`backend/src/.editorconfig`).
+
+```powershell
+cd backend; dotnet tool restore
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext --output-dir Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
+```
+
+`dotnet ef migrations remove` precisa de conexão com o banco; sem ele, apague os dois arquivos da migration
+(`<timestamp>_<Nome>.cs` e `.Designer.cs`) e confira que o `*ModelSnapshot.cs` voltou ao estado anterior.
+
+Com `Database:ApplyMigrationsOnStartup=true` (dev e testes) cada módulo aplica as próprias migrations
+na subida; em produção a flag fica `false`.
+
+Ambiente local (Aspire, só dev; exige Docker): PostgreSQL/PostGIS (`17-3.5`), RabbitMQ
+(`4.4.0-management`), Keycloak genérico `26.8.2` (realm `infra/keycloak/applada-dev-realm.json`) e a API em
+Development, com migrations aplicadas na subida. Dashboard em `http://localhost:15180` (o link com token
+sai no console), API em `http://localhost:5080`, Scalar em `http://localhost:5080/scalar/v1`, OpenAPI em
+`http://localhost:5080/openapi/v1.json`, Keycloak em `http://localhost:8080`; todas escutam só em loopback.
+A senha do admin do Keycloak é parâmetro secreto do AppHost: sem ela o dashboard pede o valor ao subir
+(detalhes em `infra/keycloak/README.md`).
+
+```powershell
+dotnet user-secrets set "Parameters:keycloak-admin-password" "<senha-local>" --project backend/src/Applada.AppHost   # uma vez
+dotnet run --project backend/src/Applada.AppHost
+curl.exe http://localhost:5080/health/live    # API no ar (200 Healthy); /health/ready também confere banco e broker
+```
+
+Ao encerrar o processo do AppHost, os containers de PostgreSQL, RabbitMQ e Keycloak somem e as portas são liberadas (verificado). O volume de dados do PostgreSQL
+persiste entre subidas; para recomeçar do zero, apague o volume `applada.apphost-*-postgres-data`
+(`docker volume ls`, `docker volume rm`).
 
 ## 4. Arquitetura — regras invioláveis
 

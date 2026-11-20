@@ -2,9 +2,47 @@
 
 Plataforma de organização de futebol amador e rede social esportiva.
 
-> Estado: o frontend Next.js em `apps/web` cobre as 43 vistas identificadas no sistema
-> anterior. As páginas usam dados demonstrativos e ainda não estão conectadas à API.
-> A arquitetura de referência está em `docs/` (Especificação de Arquitetura v1.0).
+> Estado: o backend (.NET 10) tem a fundação e a primeira fatia de negócio. Existem os módulos
+> Identity (usuário interno por `(issuer, subject)`), Profiles (nome de exibição) e Matches (criar partida,
+> inscrição e lista de espera com promoção automática). As rotas de `/api/v1` estão no
+> [contrato OpenAPI](docs/api/openapi-v1.json). A publicação usa outbox transacional com RabbitMQ,
+> e o ambiente local usa Aspire com Keycloak. A web reúne as telas
+> de demonstração e o fluxo local de Partidas conectadas. Os demais módulos, os consumidores de eventos e `apps/mobile`
+> ainda não têm código.
+> A arquitetura de referência está em `docs/` (Especificação de Arquitetura v1.0) e as decisões em
+> [`docs/adr`](docs/adr/README.md).
+
+## Executar o backend
+
+Pré-requisitos: SDK .NET indicado em `backend/global.json` e Docker em execução (o ambiente local e os
+testes de integração sobem PostgreSQL/PostGIS e RabbitMQ em containers).
+
+```powershell
+# build, formatação e testes (os testes rodam a partir de backend/)
+dotnet build backend/Applada.slnx -warnaserror
+dotnet format backend/Applada.slnx --verify-no-changes
+cd backend; dotnet test --solution Applada.slnx; cd ..
+
+# ambiente local: PostgreSQL, RabbitMQ, Keycloak e a API (uma vez: senha do admin do Keycloak)
+dotnet user-secrets set "Parameters:keycloak-admin-password" "<senha-local>" --project backend/src/Applada.AppHost
+dotnet run --project backend/src/Applada.AppHost
+```
+
+Com o AppHost no ar: API em `http://localhost:5080` (`/health/live`, `/health/ready`), Scalar em
+`http://localhost:5080/scalar/v1` (login pelo Keycloak com os usuários de teste de
+[`infra/keycloak`](infra/keycloak/README.md)) e dashboard do Aspire em `http://localhost:15180`. OpenAPI,
+Scalar e Keycloak existem só em desenvolvimento. Comandos de migrations, filtros de teste e a
+regeneração do contrato OpenAPI estão em [`CLAUDE.md`](CLAUDE.md) (seção 3).
+
+## Executar o frontend web
+
+```powershell
+cd apps\web
+npm ci
+npm run dev
+```
+
+Consulte [apps/web/README.md](apps/web/README.md) para habilitar o login de teste e conectar a agenda ao backend local.
 
 ## Estrutura
 
@@ -50,45 +88,3 @@ docs/             ADRs, contratos de API, threat model, runbooks
 - As regras são verificadas automaticamente em `backend/tests/Architecture`.
 
 Decisões arquiteturais ficam registradas em [`docs/adr`](docs/adr/README.md).
-
-## Executar o frontend web
-
-```powershell
-cd apps\web
-npm install
-npm run dev
-```
-
-O frontend usa Next.js, React e TypeScript estrito. Consulte [`apps/web/README.md`](apps/web/README.md)
-para comandos de build, lint e verificação de tipos.
-
-## Executar a API .NET
-
-Configure a conexão Supabase como User Secret local no formato de parâmetros do Npgsql
-(`Host=...;Port=...;Database=...;Username=...;Password=...`).
-O URI `postgresql://...` exibido pelo painel não deve ser copiado diretamente para o Npgsql.
-Em redes IPv4, selecione `Session pooler` em Connect e use os parâmetros apresentados pelo
-Supabase:
-
-```powershell
-cd backend
-$secure = Read-Host "Npgsql connection string" -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-try {
-    $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-    $output = & dotnet user-secrets set "ConnectionStrings:Applada" $plain --project src\Applada.Api 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to save the connection string in User Secrets."
-    }
-    Write-Output "Connection string saved in User Secrets."
-}
-finally {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-    Remove-Variable secure, plain, ptr, output -ErrorAction SilentlyContinue
-}
-dotnet run --project src\Applada.Api
-```
-
-O endpoint `GET /health/ready` valida a conexão PostgreSQL; `GET /health/live` valida apenas
-que a API está em execução. Não envie credenciais pelo chat, não as coloque no frontend e não
-as versione. As tabelas de domínio e migrations ainda serão definidas no workshop do schema.

@@ -6,6 +6,7 @@ import { signOutOfApplada } from "@/app/actions/auth";
 import { Icon } from "@/components/icon";
 import { hasAdminRole, isAdminPath } from "@/lib/authorization";
 import type { ScreenGroup } from "@/lib/screens";
+import { HeaderAccountButton, SidebarAccountButton } from "./account-dialog";
 
 type NavigationItem = {
   href: string;
@@ -26,7 +27,7 @@ const primaryNavigation: NavigationItem[] = [
 
 const navigationSections: { title: string; links: NavigationItem[] }[] = [
   {
-    title: "DENTRO DE CAMPO",
+    title: "Dentro de campo",
     links: [
       { href: "/eventos/novo", label: "Organizar pelada", icon: "plus", key: "events-new" },
       { href: "/peladas/abertas", label: "Peladas abertas", icon: "search", key: "open-matches" },
@@ -37,7 +38,7 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "COMUNIDADE",
+    title: "Comunidade",
     links: [
       { href: "/galeria", label: "Galeria", icon: "image", key: "gallery-center" },
       { href: "/aniversarios", label: "Aniversários", icon: "calendar", key: "birthdays-center" },
@@ -47,7 +48,7 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "ACOMPANHAMENTO",
+    title: "Acompanhamento",
     links: [
       { href: "/financeiro/lancamentos", label: "Lançamentos", icon: "wallet", key: "finance-entries" },
       { href: "/financeiro/cobrancas", label: "Contribuições", icon: "wallet", key: "finance-collections" },
@@ -57,12 +58,19 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
     ],
   },
   {
-    title: "ESPAÇO DO GRUPO",
+    title: "Espaço do grupo",
     links: [
       { href: "/administracao", label: "Administração", icon: "settings", key: "admin-center" },
       { href: "/administracao/usuarios", label: "Pessoas e acessos", icon: "people", key: "users-list" },
       { href: "/administracao/organizacoes", label: "Espaços e grupos", icon: "shield", key: "organizations-center" },
       { href: "/administracao/configuracoes", label: "Configurações", icon: "settings", key: "settings-center" },
+    ],
+  },
+  {
+    title: "Ferramentas",
+    links: [
+      { href: "/buscar", label: "Buscar no Applada", icon: "search", key: "search" },
+      { href: "/modulos", label: "Mapa de funcionalidades", icon: "file", key: "catalog" },
     ],
   },
 ];
@@ -71,8 +79,18 @@ type AppShellProps = {
   active: "overview" | ScreenGroup;
   activePath?: string;
   title?: string;
+  variant?: "local";
   children: ReactNode;
 };
+
+function NavigationSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="nav-section">
+      <summary className="nav-heading"><span>{title}</span><Icon name="chevron-down" /></summary>
+      <div className="nav-section-links">{children}</div>
+    </details>
+  );
+}
 
 const titlesByNavigation: Record<AppShellProps["active"], string> = {
   overview: "Visão geral",
@@ -84,10 +102,10 @@ const titlesByNavigation: Record<AppShellProps["active"], string> = {
   admin: "Administração",
 };
 
-export function AppShell({ active, activePath, title, children }: AppShellProps) {
+export function AppShell({ active, activePath, title, variant, children }: AppShellProps) {
   return (
     <Suspense fallback={<div className="auth-loading" role="status">Carregando seu espaço…</div>}>
-      <AuthenticatedAppShell active={active} activePath={activePath} title={title}>
+      <AuthenticatedAppShell active={active} activePath={activePath} title={title} variant={variant}>
         {children}
       </AuthenticatedAppShell>
     </Suspense>
@@ -98,11 +116,12 @@ async function AuthenticatedAppShell({
   active,
   activePath,
   title,
+  variant,
   children,
 }: AppShellProps) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  const hasAdminAccess = hasAdminRole(session.user.roles);
+  const session = variant === "local" ? null : await auth();
+  if (variant !== "local" && !session?.user) redirect("/login");
+  const hasAdminAccess = hasAdminRole(session?.user?.roles ?? []);
   if (
     (active === "admin" || isAdminPath(activePath ?? "")) &&
     !hasAdminAccess
@@ -111,7 +130,26 @@ async function AuthenticatedAppShell({
   }
 
   const currentTitle = title ?? titlesByNavigation[active];
-  const profileName = session.user.name?.trim() || session.user.email || "Sua conta";
+  const profileName = session?.user?.name?.trim() || session?.user?.email || "Sua conta";
+  const primaryLinks = primaryNavigation.map((item) => {
+    const isActive = item.href === "/"
+      ? active === "overview"
+      : item.key === active || activePath === item.href;
+    return (
+      <Link
+        aria-current={(activePath ? activePath === item.href : isActive) ? "page" : undefined}
+        aria-label={item.label}
+        className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
+        href={item.href}
+        key={item.key}
+        title={item.label}
+      >
+        <Icon name={item.icon} />
+        <span>{item.label}</span>
+        {item.count ? <span aria-hidden="true" className="nav-count">{item.count}</span> : null}
+      </Link>
+    );
+  });
   const profileInitials = profileName
     .split(/\s+/)
     .slice(0, 2)
@@ -121,6 +159,7 @@ async function AuthenticatedAppShell({
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
       <aside className="sidebar">
         <Link aria-label="Applada — início" className="brand" href="/">
           <span className="brand-mark">
@@ -130,47 +169,22 @@ async function AuthenticatedAppShell({
         </Link>
 
         <div className="workspace-switcher">
-          <span className="workspace-avatar">SC</span>
+          <span aria-hidden="true" className="workspace-avatar">{variant === "local" ? "AP" : "SC"}</span>
           <span className="workspace-copy">
             <span className="eyebrow">SEU ESPAÇO</span>
-            <span className="workspace-name">Santa Cecília FC</span>
+            <span className="workspace-name">{variant === "local" ? "Testes do Applada" : "Santa Cecília FC"}</span>
           </span>
-          <Icon className="workspace-chevron" name="chevron-down" />
         </div>
 
         <nav aria-label="Navegação principal" className="primary-nav">
-          <p className="nav-heading">MENU</p>
-          {primaryNavigation.map((item) => {
-            const isActive = item.href === "/"
-              ? active === "overview"
-              : item.key === active || activePath === item.href;
-            return (
-              <Link
-                aria-current={item.href === "/"
-                  ? active === "overview" ? "page" : undefined
-                  : activePath === item.href ? "page" : undefined}
-                className={`nav-link nav-link-primary${isActive ? " is-active" : ""}`}
-                href={item.href}
-                key={item.key}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-                {item.count ? <span className="nav-count">{item.count}</span> : null}
-              </Link>
-            );
-          })}
+          <NavigationSection title="Menu">{primaryLinks}</NavigationSection>
           {navigationSections
             .filter(
               (section) =>
-                section.title !== "ESPAÇO DO GRUPO" || hasAdminAccess,
+                section.title !== "Espaço do grupo" || hasAdminAccess,
             )
             .map((section) => (
-              <details
-                className="nav-section"
-                key={section.title}
-                open={section.links.some((item) => activePath === item.href)}
-              >
-                <summary className="nav-heading">{section.title}</summary>
+              <NavigationSection title={section.title} key={section.title}>
                 {section.links.map((item) => (
                   <Link
                     aria-current={activePath === item.href ? "page" : undefined}
@@ -182,22 +196,9 @@ async function AuthenticatedAppShell({
                     <span>{item.label}</span>
                   </Link>
                 ))}
-              </details>
+              </NavigationSection>
             ))}
-          <details
-            className="nav-section nav-tools"
-            open={activePath === "/buscar" || activePath === "/modulos"}
-          >
-            <summary className="nav-heading">FERRAMENTAS</summary>
-            <Link aria-current={activePath === "/buscar" ? "page" : undefined} className={`nav-link nav-link-secondary${activePath === "/buscar" ? " is-active" : ""}`} href="/buscar">
-              <Icon name="search" />
-              <span>Buscar no Applada</span>
-            </Link>
-            <Link aria-current={activePath === "/modulos" ? "page" : undefined} className={`nav-link nav-link-secondary${activePath === "/modulos" ? " is-active" : ""}`} href="/modulos">
-              <Icon name="file" />
-              <span>Mapa de funcionalidades</span>
-            </Link>
-          </details>
+          <div className="compact-primary-nav">{primaryLinks}</div>
         </nav>
 
         <div className="sidebar-bottom">
@@ -211,18 +212,24 @@ async function AuthenticatedAppShell({
             </span>
           </div>
           <div className="sidebar-profile">
-            <Link aria-label="Abrir perfil do jogador" className="sidebar-profile-link" href="/jogadores/perfil">
-              <span className="avatar avatar-dark">{profileInitials || "AP"}</span>
-              <span className="profile-copy">
-                <strong>{profileName}</strong>
-                <span>Conta Applada</span>
-              </span>
-            </Link>
-            <form action={signOutOfApplada} className="sidebar-logout-form">
-              <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
-                Sair
-              </button>
-            </form>
+            {variant === "local" ? (
+              <SidebarAccountButton />
+            ) : (
+              <>
+                <Link aria-label="Abrir perfil do jogador" className="sidebar-profile-link" href="/jogadores/perfil">
+                  <span className="avatar avatar-dark">{profileInitials || "AP"}</span>
+                  <span className="profile-copy">
+                    <strong>{profileName}</strong>
+                    <span>Conta Applada</span>
+                  </span>
+                </Link>
+                <form action={signOutOfApplada} className="sidebar-logout-form">
+                  <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
+                    Sair
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </div>
       </aside>
@@ -230,21 +237,28 @@ async function AuthenticatedAppShell({
       <div className="main-column">
         <header className="topbar">
           <div aria-label={`Você está em ${currentTitle}`} className="breadcrumbs">
-            <span>Santa Cecília FC</span>
+            <span>{variant === "local" ? "Applada" : "Santa Cecília FC"}</span>
             <span className="breadcrumb-divider">/</span>
             <strong>{currentTitle}</strong>
           </div>
           <div className="topbar-meta">
+            <Link aria-current={activePath === "/modulos" ? "page" : undefined} aria-label="Mapa de funcionalidades" className="compact-catalog-link" href="/modulos" title="Mapa de funcionalidades">
+              <Icon name="file" />
+            </Link>
             <span className="preview-status">
               <span className="status-dot" />
-              Prévia · dados ilustrativos
+              {variant === "local" ? "Ambiente local" : "Prévia · dados ilustrativos"}
             </span>
-            <span aria-label={`Usuário ${profileName}`} className="avatar avatar-light">
-              {profileInitials || "AP"}
-            </span>
+            {variant === "local" ? (
+              <HeaderAccountButton />
+            ) : (
+              <span aria-label={`Usuário ${profileName}`} className="avatar avatar-light">
+                {profileInitials || "AP"}
+              </span>
+            )}
           </div>
         </header>
-        <main className="page-content">{children}</main>
+        <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>
       </div>
     </div>
   );

@@ -1,0 +1,58 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # O runner de testes (Microsoft.Testing.Platform) é lido do global.json mais
+    # próximo do diretório corrente, por isso os comandos rodam a partir de backend/.
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: backend/global.json
+
+      - name: Restore
+        run: dotnet restore Applada.slnx
+
+      - name: Format
+        run: dotnet format Applada.slnx --verify-no-changes
+
+      - name: Build
+        run: dotnet build Applada.slnx -c Release -warnaserror --no-restore
+
+      - name: Test
+        run: dotnet test --solution Applada.slnx -c Release --no-build
+
+      - name: Pacotes vulneráveis
+        # shell: bash explícito roda com -eo pipefail: sem ele, uma falha do dotnet list
+        # seria mascarada pelo tee e o passo passaria em silêncio.
+        shell: bash
+        run: |
+          dotnet list Applada.slnx package --vulnerable --include-transitive 2>&1 | tee vulnerable.log
+          if grep -q "has the following vulnerable packages" vulnerable.log; then
+            echo "::error::Pacotes vulneráveis encontrados"
+            exit 1
+          fi

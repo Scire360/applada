@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "node --test tests/e2e/partida-uma-vaga.test.mjs",
+    "test:layout": "node --test tests/e2e/layout-responsivo.test.mjs",
+    "test:auth-theme": "node --test tests/e2e/tema-login.test.mjs"
   },
   "dependencies": {
     "next": "16.4.6",
@@ -21,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.6",
+    "playwright": "1.64.0",
     "typescript": "^5"
   },
   "overrides": {

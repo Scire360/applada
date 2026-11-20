@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\Applada.Modules.Matches.Application\Applada.Modules.Matches.Application.csproj" />
+    <ProjectReference Include="..\Applada.Modules.Matches.Infrastructure\Applada.Modules.Matches.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
