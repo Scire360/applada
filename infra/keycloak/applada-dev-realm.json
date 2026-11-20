@@ -3,7 +3,7 @@
   "displayName": "Applada (dev)",
   "loginTheme": "applada",
   "internationalizationEnabled": true,
-  "supportedLocales": ["pt-BR"],
+  "supportedLocales": ["pt-BR", "en"],
   "defaultLocale": "pt-BR",
   "enabled": true,
   "sslRequired": "external",

@@ -127,6 +127,14 @@ body#keycloak-bg {
   white-space: pre-line;
 }
 
+html:lang(en) #kc-header::before {
+  content: "AMATEUR FOOTBALL, YOUR WAY";
+}
+
+html:lang(en) #kc-header::after {
+  content: "The game is better\A when we play together.";
+}
+
 .pf-v5-c-login__main {
   display: flex;
   width: auto;

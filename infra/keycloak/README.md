@@ -16,7 +16,8 @@ dev") fica em `attributes` do realm e do client, não na raiz.
 
 - Realm `applada`; issuer `http://localhost:8080/realms/applada`.
 - Tema `themes/applada`, montado somente leitura no AppHost. O tema aplica a identidade visual
-  e o português do Brasil aos formulários nativos de entrada e atualização de senha.
+  aos formulários nativos de entrada e atualização de senha. O idioma padrão é `pt-BR`,
+  com inglês (`en`) disponível pelo seletor do Keycloak.
 - Client público `applada-dev-scalar` (Scalar da API local): só Authorization Code com PKCE `S256`;
   implicit, direct access grants (senha), service account e device flow desligados. Redirect e
   web origin restritos a `http://localhost:5080` (`/scalar` e `/scalar/*`).

@@ -13,6 +13,13 @@ npm run dev
 
 O servidor local fica disponível em `http://localhost:3000`.
 
+## Tipografia
+
+Os títulos esportivos usam a família Oswald, empacotada localmente por
+`@fontsource-variable/oswald` sob a SIL Open Font License 1.1. A licença está
+incluída em [public/licenses/Oswald-OFL.txt](./public/licenses/Oswald-OFL.txt).
+É uma alternativa aberta; não é a fonte proprietária da Adidas.
+
 ## Autenticação web
 
 A web usa Auth.js como BFF com OIDC/PKCE e Keycloak. A senha é digitada somente
@@ -42,11 +49,12 @@ valida seus próprios tokens Bearer e aplica autorização no servidor.
    produção, cadastre somente as URLs HTTPS exatas da aplicação e callback.
    Restrinja as origens e redirects ao domínio da aplicação.
 5. Copie `keycloak-theme/applada` para `<KC_HOME>/themes/applada`, selecione
-   `applada` como tema de login do realm e defina o idioma padrão como `pt-BR`.
+   `applada` como tema de login do realm, habilite `pt-BR` e `en` e defina
+   o idioma padrão como `pt-BR`.
    O tema preserva os templates padrão do Keycloak e aplica a paleta, tipografia
-   e composição editorial do Applada. As ações de entrar, cadastrar e recuperar
-   senha iniciam o Keycloak em português do Brasil; o seletor de idioma mantém
-   inglês como alternativa.
+   e composição editorial do Applada. Os formulários e a composição editorial
+   aparecem em português ou inglês pelo seletor de idioma. As ações de entrar,
+   cadastrar e recuperar senha iniciam em português do Brasil.
 6. Reinicie `npm run dev`. Sem as variáveis necessárias, a tela informa que o
    acesso não está configurado.
 

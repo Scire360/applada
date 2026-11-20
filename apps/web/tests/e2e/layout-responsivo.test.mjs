@@ -151,3 +151,128 @@ test("seções do sidebar começam fechadas e os atalhos compactos ficam acessí
     await browser.close();
   }
 });
+
+test("indicadores do menu ficam à direita e legíveis no hover", async () => {
+  const stylesheet = await readFile(new URL("../../src/app/globals.css", import.meta.url), "utf8");
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.setContent(`
+      <div class="app-shell">
+        <aside class="sidebar">
+          <nav class="primary-nav">
+            <details class="nav-section">
+              <summary class="nav-heading">
+                <span>Dentro de campo</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
+              </summary>
+            </details>
+          </nav>
+        </aside>
+      </div>
+    `);
+    await page.addStyleTag({ content: stylesheet });
+    const heading = page.locator(".nav-heading");
+    const alignment = await heading.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const arrow = element.querySelector("svg").getBoundingClientRect();
+      return {
+        arrowCenter: arrow.left + arrow.width / 2,
+        headingLeft: bounds.left,
+        headingWidth: bounds.width,
+      };
+    });
+    assert.ok(alignment.arrowCenter > alignment.headingLeft + alignment.headingWidth * 0.75);
+
+    await heading.hover();
+    const hoverStyles = await heading.evaluate((element) => ({
+      text: getComputedStyle(element).color,
+      arrow: getComputedStyle(element.querySelector("svg")).color,
+      indicator: getComputedStyle(element, "::after").color,
+    }));
+    assert.deepEqual(hoverStyles, {
+      text: "rgb(200, 243, 29)",
+      arrow: "rgb(200, 243, 29)",
+      indicator: "rgb(200, 243, 29)",
+    });
+  } finally {
+    await browser.close();
+  }
+});
+
+test("placar usa tipografia esportiva e contraste de estádio", async () => {
+  const stylesheet = await readFile(new URL("../../src/app/globals.css", import.meta.url), "utf8");
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    await page.setContent(`
+      <main class="dashboard-page">
+        <section class="page-heading"><h1>O futebol acontece</h1></section>
+        <section class="game-scoreboard">
+          <div class="game-score-team"><span>TIME VERDE</span><strong>2</strong></div>
+          <span class="game-score-divider">×</span>
+          <div class="game-score-team"><span>TIME AZUL</span><strong>1</strong></div>
+        </section>
+      </main>
+    `);
+    await page.addStyleTag({ content: stylesheet });
+    const visualStyles = await page.evaluate(() => {
+      const board = document.querySelector(".game-scoreboard");
+      const score = board.querySelector(".game-score-team strong");
+      const heading = document.querySelector(".page-heading h1");
+      return {
+        boardColor: getComputedStyle(board).backgroundColor,
+        boardTopBorder: getComputedStyle(board).borderTopColor,
+        scoreColor: getComputedStyle(score).color,
+        scoreFont: getComputedStyle(score).fontFamily,
+        headingTransform: getComputedStyle(heading).textTransform,
+        fitsViewport: board.scrollWidth <= board.clientWidth,
+      };
+    });
+    assert.equal(visualStyles.boardColor, "rgb(16, 42, 32)");
+    assert.equal(visualStyles.boardTopBorder, "rgb(200, 243, 29)");
+    assert.equal(visualStyles.scoreColor, "rgb(200, 243, 29)");
+    assert.match(visualStyles.scoreFont, /Oswald/);
+    assert.equal(visualStyles.headingTransform, "uppercase");
+    assert.equal(visualStyles.fitsViewport, true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("tela de login compartilha a tipografia esportiva sem overflow", async () => {
+  const stylesheet = await readFile(new URL("../../src/app/globals.css", import.meta.url), "utf8");
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    await page.setContent(`
+      <main class="login-page">
+        <div class="login-card">
+          <section class="login-story">
+            <div class="login-story-copy">
+              <h1>O jogo fica melhor<br /><em>quando é junto.</em></h1>
+            </div>
+          </section>
+          <section class="login-panel"><h2>Entre no seu espaço.</h2></section>
+        </div>
+      </main>
+    `);
+    await page.addStyleTag({ content: stylesheet });
+    const styles = await page.evaluate(() => ({
+      storyFont: getComputedStyle(document.querySelector(".login-story h1")).fontFamily,
+      storyTransform: getComputedStyle(document.querySelector(".login-story h1")).textTransform,
+      emphasisStyle: getComputedStyle(document.querySelector(".login-story h1 em")).fontStyle,
+      panelFont: getComputedStyle(document.querySelector(".login-panel h2")).fontFamily,
+      topBorder: getComputedStyle(document.querySelector(".login-card")).borderTopColor,
+      fitsViewport: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    }));
+    assert.match(styles.storyFont, /Oswald/);
+    assert.equal(styles.storyTransform, "uppercase");
+    assert.equal(styles.emphasisStyle, "normal");
+    assert.match(styles.panelFont, /Oswald/);
+    assert.equal(styles.topBorder, "rgb(200, 243, 29)");
+    assert.equal(styles.fitsViewport, true);
+  } finally {
+    await browser.close();
+  }
+});

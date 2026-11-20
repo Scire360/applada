@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { MatchDemoProvider } from "@/components/match-demo-provider";
 import { AccountProvider } from "@/components/account-provider";
 import { AccountDialog } from "@/components/account-dialog";
+import "@fontsource-variable/oswald";
 import "./globals.css";
 
 export const metadata: Metadata = {

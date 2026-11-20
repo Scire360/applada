@@ -32,9 +32,16 @@ async function checkLayout(page, form, submit) {
   }
 }
 
-test("login e troca de senha do Applada em português e responsivos no Brave", { timeout: 60_000 }, async (t) => {
+test("login do Applada em português e inglês e formulários responsivos no Brave", { timeout: 60_000 }, async (t) => {
   const realm = JSON.parse(await readFile(new URL("../../../../infra/keycloak/applada-dev-realm.json", import.meta.url), "utf8"));
+  const productionRealm = JSON.parse(await readFile(new URL("../../../../infra/keycloak/applada-realm.json", import.meta.url), "utf8"));
   const organizer = realm.users.find((user) => user.username === "organizador.dev");
+  for (const configuredRealm of [realm, productionRealm]) {
+    assert.equal(configuredRealm.internationalizationEnabled, true);
+    assert.ok(configuredRealm.supportedLocales.includes("en"));
+    assert.equal(configuredRealm.defaultLocale, "pt-BR");
+  }
+
   const authorize = new URL("/realms/applada/protocol/openid-connect/auth", keycloak);
   const verifier = randomBytes(32).toString("base64url");
   authorize.search = new URLSearchParams({
@@ -49,13 +56,31 @@ test("login e troca de senha do Applada em português e responsivos no Brave", {
 
   const browser = await chromium.launch({ executablePath: brave, headless: true });
   try {
-    const page = await browser.newPage({ locale: "en-US", colorScheme: "dark", viewport: viewports[0] });
+    const page = await browser.newPage({ locale: "es-ES", colorScheme: "dark", viewport: viewports[0] });
     assert.equal((await page.goto(authorize.href))?.status(), 200);
     assert.equal(await page.locator("html").getAttribute("lang"), "pt-BR");
     await page.getByRole("heading", { name: "Entrar na sua conta", exact: true }).waitFor();
+    const localeSelect = page.locator("#login-select-toggle");
+    assert.equal(await localeSelect.isVisible(), true);
+    const localeValues = await localeSelect.locator("option").evaluateAll((options) => options.map((option) => option.value));
+    assert.ok(localeValues.some((value) => value.includes("kc_locale=en")));
     const themeStyle = page.locator('link[rel="stylesheet"][href$="/login/applada/css/applada.css"]');
     const cssUrl = await themeStyle.getAttribute("href");
     assert.ok(cssUrl && (await page.request.get(new URL(cssUrl, keycloak).href)).ok());
+
+    const englishAuthorize = new URL(authorize.href);
+    englishAuthorize.searchParams.set("kc_locale", "en");
+    const englishPage = await browser.newPage({ locale: "en-US", colorScheme: "dark", viewport: viewports[0] });
+    assert.equal((await englishPage.goto(englishAuthorize.href))?.status(), 200);
+    assert.match(await englishPage.locator("html").getAttribute("lang"), /^en(?:-|$)/);
+    await englishPage.getByRole("heading", { name: "Sign in to your account", exact: true }).waitFor();
+    const englishBrand = await englishPage.locator("#kc-header").evaluate((element) => ({
+      overline: getComputedStyle(element, "::before").content,
+      pitch: getComputedStyle(element, "::after").content,
+    }));
+    assert.match(englishBrand.overline, /AMATEUR FOOTBALL/i);
+    assert.match(englishBrand.pitch, /The game is better/i);
+
     const login = page.locator("#kc-form-login");
     await checkLayout(page, login, login.getByRole("button", { name: "Entrar", exact: true }));
 
@@ -77,7 +102,7 @@ test("login e troca de senha do Applada em português e responsivos no Brave", {
     assert.equal(await page.locator("#password-new").getAttribute("type"), "text");
     await update.getByRole("button", { name: "Ocultar senha", exact: true }).click();
     assert.equal(await page.locator("#password-new").getAttribute("type"), "password");
-    t.diagnostic(viewports.length + " tamanhos por formulário, erro de credenciais e controle de visibilidade");
+    t.diagnostic(viewports.length + " tamanhos por formulário, traduções pt-BR/en, erro de credenciais e controle de visibilidade");
   } finally {
     await browser.close();
   }

@@ -3865,6 +3865,7 @@ svg {
   --font-system: "Aptos", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-editorial: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-scoreboard: "Oswald Variable", "Oswald", "Arial Narrow", "Roboto Condensed", Impact, var(--font-system);
 }
 
 body {
@@ -5271,14 +5272,26 @@ body {
 }
 
 .nav-section > .nav-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px 10px;
   min-height: 28px;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 6px;
   margin: 0;
   padding: 0 10px;
   cursor: pointer;
   list-style: none;
+}
+
+.nav-section > .nav-heading > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-section > .nav-heading svg {
+  justify-self: center;
 }
 
 .nav-section > .nav-heading::-webkit-details-marker {
@@ -5286,14 +5299,32 @@ body {
 }
 
 .nav-section > .nav-heading::after {
+  width: 10px;
   content: "+";
   color: rgb(246 239 228 / 48%);
   font-family: var(--font-system);
   font-size: 13px;
+  text-align: center;
 }
 
 .nav-section[open] > .nav-heading::after {
   content: "−";
+}
+
+.sidebar .nav-section > .nav-heading:hover,
+.sidebar .nav-section[open] > .nav-heading,
+.sidebar .nav-section > .nav-heading:focus-visible {
+  background: rgb(246 239 228 / 8%);
+  color: var(--lime);
+}
+
+.sidebar .nav-section > .nav-heading:hover svg,
+.sidebar .nav-section[open] > .nav-heading svg,
+.sidebar .nav-section > .nav-heading:focus-visible svg,
+.sidebar .nav-section > .nav-heading:hover::after,
+.sidebar .nav-section[open] > .nav-heading::after,
+.sidebar .nav-section > .nav-heading:focus-visible::after {
+  color: var(--lime);
 }
 
 .nav-section:not([open]) > .nav-link {
@@ -5962,5 +5993,270 @@ body {
 @media (max-width: 760px) {
   .connected-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Original football-first display styling using a locally bundled open font. */
+.page-heading h1,
+.match-card-title h2,
+.match-hero-copy h2,
+.section-title-row h2,
+.surface-card h2,
+.community-callout h2,
+.community-invite h2 {
+  font-family: var(--font-scoreboard);
+  font-stretch: condensed;
+  text-transform: uppercase;
+}
+
+.page-heading h1 {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.94;
+}
+
+.page-heading h1 em {
+  color: var(--green);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.match-hero-copy h2 {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 0.98;
+}
+
+.section-title-row h2,
+.surface-card h2,
+.community-invite h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-page .page-eyebrow {
+  border-left: 3px solid var(--lime);
+  padding-left: 10px;
+}
+
+.dashboard-page .editorial-stat-grid {
+  gap: 12px;
+}
+
+.dashboard-page .editorial-stat-card {
+  border: 1px solid rgb(246 239 228 / 16%);
+  border-top: 3px solid var(--lime);
+  border-radius: 3px;
+  background:
+    linear-gradient(135deg, rgb(200 243 29 / 7%), transparent 58%),
+    var(--ink);
+  padding: 14px;
+}
+
+.dashboard-page .editorial-stat-card .stat-overline {
+  color: rgb(246 239 228 / 64%);
+  font-family: var(--font-mono);
+}
+
+.dashboard-page .editorial-stat-card .stat-value {
+  color: var(--lime);
+  font-family: var(--font-scoreboard);
+  font-size: clamp(29px, 2.5vw, 40px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+
+.dashboard-page .editorial-stat-card .stat-value > span {
+  color: var(--surface);
+}
+
+.dashboard-page .editorial-stat-card .stat-caption {
+  color: rgb(246 239 228 / 72%);
+}
+
+.dashboard-page .editorial-stat-card .positive {
+  color: var(--lime);
+}
+
+.dashboard-page .next-match-card {
+  border: 1px solid rgb(200 243 29 / 28%);
+  box-shadow: inset 0 0 0 1px rgb(246 239 228 / 4%);
+}
+
+.dashboard-page .match-card-title h2 {
+  color: var(--surface);
+  font-size: clamp(30px, 3.2vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 0.98;
+}
+
+.dashboard-page .match-card-title .eyebrow,
+.dashboard-page .match-card-footer .text-link {
+  color: var(--lime);
+}
+
+.dashboard-page .match-date,
+.dashboard-page .match-status,
+.dashboard-page .capacity-label > span:last-child {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.dashboard-page .capacity-label {
+  color: rgb(246 239 228 / 76%);
+}
+
+.dashboard-page .capacity-label strong {
+  color: var(--lime);
+  font-family: var(--font-scoreboard);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.dashboard-page .capacity-track {
+  background: rgb(246 239 228 / 18%);
+}
+
+.dashboard-page .capacity-track > span {
+  background: var(--lime);
+}
+
+.dashboard-page .section-title-row h2,
+.dashboard-page .surface-card h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-page .date-tile > strong,
+.dashboard-page .week-game > strong {
+  font-family: var(--font-scoreboard);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.dashboard-page .community-callout {
+  border: 1px solid rgb(200 243 29 / 22%);
+  border-left: 4px solid var(--lime);
+  background: linear-gradient(135deg, #163d2d, #102a20);
+}
+
+.dashboard-page .community-callout .eyebrow,
+.dashboard-page .community-callout .callout-link {
+  color: var(--lime);
+}
+
+.dashboard-page .community-callout h2 {
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.dashboard-page .community-callout > p:not(.eyebrow) {
+  color: rgb(246 239 228 / 76%);
+}
+
+.game-scoreboard {
+  position: relative;
+  min-height: 164px;
+  overflow: hidden;
+  border: 1px solid rgb(200 243 29 / 28%);
+  border-top: 3px solid var(--lime);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgb(200 243 29 / 16%) 50%, transparent calc(50% + 1px)),
+    repeating-linear-gradient(0deg, rgb(246 239 228 / 4%) 0 1px, transparent 1px 42px),
+    var(--green-dark);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 18%);
+  padding: 22px;
+}
+
+.game-score-team > span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.game-score-green > span {
+  color: #d6ef9b;
+}
+
+.game-score-blue > span {
+  color: #9dcaff;
+}
+
+.game-score-team > strong {
+  color: var(--lime);
+  font-family: var(--font-scoreboard);
+  font-size: clamp(48px, 8vw, 72px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 18px rgb(200 243 29 / 18%);
+}
+
+.game-score-divider {
+  color: rgb(246 239 228 / 64%);
+  font-family: var(--font-scoreboard);
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.schedule-info > strong {
+  font-family: var(--font-scoreboard);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 640px) {
+  .page-heading h1 {
+    font-size: clamp(34px, 10vw, 44px);
+    letter-spacing: -0.025em;
+  }
+
+  .game-scoreboard {
+    min-height: 144px;
+    padding: 16px 12px;
+  }
+}
+
+.login-card {
+  border-top: 3px solid var(--lime);
+}
+
+.login-story h1,
+.login-panel h2 {
+  font-family: var(--font-scoreboard);
+  font-stretch: condensed;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.login-story h1 {
+  font-size: clamp(36px, 4.7vw, 56px);
+  line-height: 0.94;
+}
+
+.login-story h1 em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.login-panel h2 {
+  font-size: clamp(30px, 3.8vw, 40px);
+  line-height: 0.98;
+}
+
+@media (max-width: 760px) {
+  .login-story h1 {
+    font-size: clamp(30px, 8vw, 44px);
+  }
+
+  .login-panel h2 {
+    font-size: clamp(29px, 7vw, 36px);
   }
 }
