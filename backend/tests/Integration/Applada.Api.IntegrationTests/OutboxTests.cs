@@ -463,15 +463,33 @@ public class OutboxTests(ApiFactory factory)
             factory.Services.GetRequiredService<OutboxMetrics>(),
             NullLogger<OutboxProcessor<TContext>>.Instance);
 
-    /// <summary>Publica tudo o que está pendente e vencido (inclusive sobras de outras classes de teste da coleção).</summary>
+    /// <summary>
+    /// Publica tudo o que está pendente (inclusive sobras de outras classes de teste da coleção).
+    /// Logo depois de um teste que derruba a conexão do broker, a primeira publicação falha por desenho (o publicador
+    /// só percebe a queda ao tentar) e a mensagem ganha backoff; sem nova rodada, essa sobra furaria a fila do teste
+    /// seguinte. Por isso, enquanto restar mensagem que falhou, antecipa a próxima tentativa e drena de novo.
+    /// </summary>
     private Task DrainAsync() => DrainAsync<IdentityDbContext>();
 
     private async Task DrainAsync<TContext>()
         where TContext : DbContext, IHasOutbox
     {
         var processor = CreateProcessor<TContext>(factory.Services.GetRequiredService<IIntegrationEventPublisher>());
-        while (await processor.ProcessBatchAsync(Ct) > 0)
+        for (var round = 0; round < 3; round++)
         {
+            while (await processor.ProcessBatchAsync(Ct) > 0)
+            {
+            }
+
+            var now = factory.Clock.GetUtcNow();
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<TContext>();
+            var postponed = await db.OutboxMessages.Where(m => m.PublishedAt == null && m.NextAttemptAt > now)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.NextAttemptAt, now), Ct);
+            if (postponed == 0)
+            {
+                return;
+            }
         }
     }
 
