@@ -43,16 +43,35 @@ function formatLocalDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function MatchDemoMetrics({ mode }: { mode: "attendance" | "game" }) {
+export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "game" }) {
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
+  if (!match) return null;
+
   const score = `${goals.filter((goal) => goal.side === "green").length} × ${goals.filter((goal) => goal.side === "blue").length}`;
+  const pendingCheckIns = Math.max(0, attendees.length - checkedIn.length);
+  const checkInsNeededToStart = Math.max(0, 2 - checkedIn.length);
 
   const metrics = mode === "game"
     ? [
       [match ? score : "—", "placar da prévia", "Central da partida"],
       [status === "live" ? "Ao vivo" : status === "completed" ? "Encerrada" : String(checkedIn.length), status === "scheduled" ? "com check-in" : "estado da partida", "Elenco desta sessão"],
     ]
-    : [
+    : mode === "checkin"
+      ? [
+        [
+          attendees.length ? `${checkedIn.length} / ${attendees.length}` : "—",
+          "check-ins feitos",
+          "Progresso da chegada",
+        ],
+        [
+          attendees.length ? String(pendingCheckIns) : "—",
+          attendees.length
+            ? pendingCheckIns === 1 ? "check-in pendente" : "check-ins pendentes"
+            : "jogadores confirmados",
+          attendees.length ? "Pessoas confirmadas" : "Aguardando confirmações",
+        ],
+      ]
+      : [
       [`${attendees.length} / ${match?.capacity ?? "—"}`, "vagas confirmadas", "Pelada desta sessão"],
       [String(waitlist.length), "na lista de espera", "Promoção demonstrativa"],
     ];
@@ -70,8 +89,22 @@ export function MatchDemoMetrics({ mode }: { mode: "attendance" | "game" }) {
         <strong>{metrics[1][1]}</strong>
       </article>
       <article className="screen-metric-card screen-metric-note">
-        <span className="eyebrow">DESTAQUE</span>
-        <strong>{playerOfTheMatch ?? (match ? metrics[1][2] : "Crie uma pelada para começar.")}</strong>
+        <span className="eyebrow">{mode === "checkin" ? "ETAPA" : "DESTAQUE"}</span>
+        <strong>{mode === "checkin"
+          ? !match
+            ? "Crie uma pelada para começar."
+            : status === "live"
+              ? "Partida em andamento"
+              : status === "completed"
+                ? "Partida encerrada"
+            : attendees.length
+              ? checkedIn.length >= 2
+                ? "Elenco pronto para começar"
+                : pendingCheckIns
+                  ? "Check-in em andamento"
+                  : `Mais ${checkInsNeededToStart} ${checkInsNeededToStart === 1 ? "check-in" : "check-ins"} para iniciar`
+              : "Aguardando confirmações"
+          : playerOfTheMatch ?? (match ? metrics[1][2] : "Crie uma pelada para começar.")}</strong>
         <span>Prévia local; nada é salvo nem enviado.</span>
       </article>
     </section>
@@ -82,12 +115,35 @@ export function MatchCreationForm() {
   const { createMatch } = useMatchDemo();
   const router = useRouter();
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<"title" | "date" | "time" | "location" | "capacity" | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const capacityInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (dateInputRef.current) dateInputRef.current.min = formatLocalDate(new Date());
   }, []);
+
+  function showFieldError(message: string, field: NonNullable<typeof errorField>) {
+    setError(message);
+    setErrorField(field);
+    const inputRefs = {
+      title: titleInputRef,
+      date: dateInputRef,
+      time: timeInputRef,
+      location: locationInputRef,
+      capacity: capacityInputRef,
+    };
+    inputRefs[field].current?.focus();
+  }
+
+  function clearFieldError(field: NonNullable<typeof errorField>) {
+    if (errorField !== field && !(field === "date" && errorField === "time")) return;
+    setError("");
+    setErrorField(null);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,44 +158,59 @@ export function MatchCreationForm() {
     };
 
     if (!draft.title || !draft.date || !draft.time || !draft.location) {
-      setError("Preencha os campos obrigatórios e informe pelo menos uma vaga.");
+      const field = !draft.title ? "title" : !draft.date ? "date" : !draft.time ? "time" : "location";
+      showFieldError("Preencha os campos obrigatórios e informe pelo menos uma vaga.", field);
       return;
     }
     if (!Number.isSafeInteger(draft.capacity) || draft.capacity < 1) {
-      setError("Informe uma quantidade inteira de vagas igual ou maior que 1.");
+      showFieldError("Informe uma quantidade inteira de vagas igual ou maior que 1.", "capacity");
       return;
     }
 
     const now = new Date();
     const today = formatLocalDate(now);
     if (draft.date < today) {
-      setError("Escolha uma data de hoje ou posterior.");
+      showFieldError("Escolha uma data de hoje ou posterior.", "date");
       return;
     }
     if (draft.date === today && new Date(`${draft.date}T${draft.time}:00`) <= now) {
-      setError("Escolha um horário futuro para a partida de hoje.");
+      showFieldError("Escolha um horário futuro para a partida de hoje.", "time");
       return;
     }
 
     setError("");
+    setErrorField(null);
     createMatch(draft);
     router.push("/peladas");
   }
 
   return (
-    <form className="preview-form" onSubmit={handleSubmit}>
+    <form className="preview-form match-creation-form" onSubmit={handleSubmit}>
       <div className="preview-form-grid">
         <label className="preview-field preview-field-wide" htmlFor="match-title">
           <span>Nome do encontro<span aria-hidden="true"> *</span></span>
-          <input autoComplete="off" id="match-title" name="match-title" placeholder="Ex.: Quinta de futebol" required />
+          <input
+            aria-describedby={errorField === "title" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "title" || undefined}
+            autoComplete="off"
+            id="match-title"
+            name="match-title"
+            onChange={() => clearFieldError("title")}
+            placeholder="Ex.: Quinta de futebol"
+            ref={titleInputRef}
+            required
+          />
         </label>
         <label className="preview-field" htmlFor="match-date">
           <span>Data<span aria-hidden="true"> *</span></span>
           <input
+            aria-describedby={errorField === "date" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "date" || undefined}
             id="match-date"
             name="match-date"
             onChange={(event) => {
               const now = new Date();
+              clearFieldError("date");
               if (timeInputRef.current) {
                 if (event.currentTarget.value === formatLocalDate(now)) {
                   now.setSeconds(0, 0);
@@ -157,15 +228,46 @@ export function MatchCreationForm() {
         </label>
         <label className="preview-field" htmlFor="match-time">
           <span>Horário<span aria-hidden="true"> *</span></span>
-          <input id="match-time" name="match-time" ref={timeInputRef} required type="time" />
+          <input
+            aria-describedby={errorField === "time" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "time" || undefined}
+            id="match-time"
+            name="match-time"
+            onChange={() => clearFieldError("time")}
+            ref={timeInputRef}
+            required
+            type="time"
+          />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-location">
           <span>Local e campo<span aria-hidden="true"> *</span></span>
-          <input autoComplete="off" id="match-location" name="match-location" placeholder="Arena, endereço ou ponto de encontro" required />
+          <input
+            aria-describedby={errorField === "location" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "location" || undefined}
+            autoComplete="off"
+            id="match-location"
+            name="match-location"
+            onChange={() => clearFieldError("location")}
+            placeholder="Arena, endereço ou ponto de encontro"
+            ref={locationInputRef}
+            required
+          />
         </label>
         <label className="preview-field" htmlFor="match-capacity">
           <span>Número de vagas<span aria-hidden="true"> *</span></span>
-          <input id="match-capacity" min="1" name="match-capacity" placeholder="18" required step="1" type="number" />
+          <input
+            aria-describedby={errorField === "capacity" ? "match-creation-error" : undefined}
+            aria-invalid={errorField === "capacity" || undefined}
+            id="match-capacity"
+            min="1"
+            name="match-capacity"
+            onChange={() => clearFieldError("capacity")}
+            placeholder="18"
+            ref={capacityInputRef}
+            required
+            step="1"
+            type="number"
+          />
         </label>
         <label className="preview-field preview-field-wide" htmlFor="match-notes">
           <span>Detalhes para o time</span>
@@ -176,7 +278,7 @@ export function MatchCreationForm() {
         <button className="button button-primary" type="submit">Criar prévia da pelada</button>
         <span className="form-disclaimer">Demonstração local: os dados não serão enviados nem salvos.</span>
       </div>
-      {error ? <p className="form-feedback form-feedback-error" role="alert">{error}</p> : null}
+      {error ? <p className="form-feedback form-feedback-error" id="match-creation-error" role="alert">{error}</p> : null}
     </form>
   );
 }
@@ -237,9 +339,25 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
   const [notice, setNotice] = useState("");
 
   if (!match) {
+    const emptyState = mode === "open"
+      ? {
+        eyebrow: "ENCONTROS COM VAGAS",
+        message: "As partidas abertas aparecem aqui quando o grupo organiza um jogo.",
+      }
+      : mode === "checkin"
+        ? {
+          eyebrow: "CHECK-IN AGUARDANDO",
+          message: "Crie uma pelada e confirme o elenco para registrar a chegada no dia do jogo.",
+        }
+        : {
+          eyebrow: "PRESENÇA DO ELENCO",
+          message: "As confirmações ficam disponíveis quando uma pelada entrar na agenda.",
+        };
+
     return (
       <div className="match-demo-empty">
-        <p>Nenhuma pelada foi criada nesta sessão de demonstração.</p>
+        <span className="eyebrow">{emptyState.eyebrow}</span>
+        <p>{emptyState.message}</p>
         <Link className="button button-primary" href="/eventos/novo">Organizar uma pelada</Link>
       </div>
     );
@@ -251,6 +369,16 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
     : mode === "open" ? [demoPlayers[0]] : demoPlayers;
   const isFull = attendees.length >= match.capacity;
   const remainingSlots = Math.max(0, match.capacity - attendees.length);
+  const progressValue = isCheckIn ? checkedIn.length : attendees.length;
+  const progressMax = isCheckIn ? attendees.length : match.capacity;
+  const progressPercent = progressMax
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0;
+  const progressDescription = isCheckIn
+    ? attendees.length
+      ? `${checkedIn.length} de ${attendees.length} jogadores confirmados fizeram check-in`
+      : "Nenhum jogador confirmou presença ainda"
+    : `${attendees.length} confirmadas, ${remainingSlots} disponíveis e ${waitlist.length} na lista de espera`;
   const rosterIsLocked = status !== "scheduled";
 
   function handleAttendance(name: string) {
@@ -259,7 +387,7 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
     const messages = {
       confirmed: `${name} confirmado nesta prévia.`,
       cancelled: `${name} removido da lista de presença desta prévia.`,
-      promoted: `${name} saiu da lista e ${nextInLine} assumiu a vaga.`,
+      promoted: `${name} cancelou a presença e ${nextInLine} assumiu a vaga.`,
       waitlisted: `${name} entrou na lista de espera, na posição ${waitlist.length + 1}.`,
       "left-waitlist": `${name} saiu da lista de espera.`,
       "match-started": "As confirmações estão bloqueadas porque a partida já começou.",
@@ -291,17 +419,27 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           <p>{match.location}</p>
           {match.notes ? <p>{match.notes}</p> : null}
         </div>
-        <div aria-label={`${attendees.length} de ${match.capacity} vagas confirmadas`}
-          aria-valuemax={match.capacity}
+        <div
+          aria-label={isCheckIn ? "Progresso dos check-ins" : `${attendees.length} de ${match.capacity} vagas confirmadas`}
+          aria-valuemax={progressMax || undefined}
           aria-valuemin={0}
-          aria-valuenow={attendees.length}
-          aria-valuetext={`${attendees.length} confirmadas, ${remainingSlots} disponíveis e ${waitlist.length} na lista de espera`}
+          aria-valuenow={progressMax ? progressValue : undefined}
+          aria-valuetext={progressDescription}
           className="demo-capacity"
-          role="progressbar"
+          role={progressMax ? "progressbar" : "status"}
         >
-          <strong>{attendees.length} / {match.capacity}</strong>
+          <strong>{isCheckIn ? `${checkedIn.length} / ${attendees.length}` : `${attendees.length} / ${match.capacity}`}</strong>
+          {progressMax ? (
+            <div aria-hidden="true" className="demo-capacity-track">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+          ) : null}
           <span>
-            {isFull
+            {isCheckIn
+              ? attendees.length
+                ? `${attendees.length - checkedIn.length} ${attendees.length - checkedIn.length === 1 ? "check-in pendente" : "check-ins pendentes"}`
+                : "Aguardando confirmações"
+              : isFull
               ? `Vagas esgotadas · ${waitlist.length ? `${waitlist.length} ${waitlist.length === 1 ? "pessoa" : "pessoas"} na espera` : "fila vazia"}`
               : `${remainingSlots} ${remainingSlots === 1 ? "vaga disponível" : "vagas disponíveis"}`}
           </span>
@@ -318,10 +456,17 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
                   ? "Presença confirmada"
                   : waitlist.includes(demoPlayers[0])
                     ? `Na lista de espera · posição ${waitlist.indexOf(demoPlayers[0]) + 1}`
+                    : isFull
+                      ? "Vagas esgotadas · entre na lista de espera"
                     : "Organizador do grupo"}
               </span>
             </div>
             <button
+              aria-label={`${attendees.includes(demoPlayers[0])
+                ? "Cancelar presença"
+                : waitlist.includes(demoPlayers[0])
+                  ? "Sair da espera"
+                  : isFull ? "Entrar na espera" : "Confirmar presença"} para ${demoPlayers[0]}`}
               aria-pressed={attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0])}
               className={`button ${attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0]) ? "button-secondary" : "button-primary"}`}
               disabled={rosterIsLocked}
@@ -339,6 +484,9 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
           const confirmed = attendees.includes(player);
           const waiting = waitlist.includes(player);
           const arrived = checkedIn.includes(player);
+          const actionLabel = isCheckIn
+            ? arrived ? "Desfazer check-in" : "Registrar check-in"
+            : confirmed ? "Remover presença" : waiting ? "Sair da espera" : isFull ? "Entrar na espera" : "Confirmar presença";
 
           return (
             <div className="match-demo-action" key={player}>
@@ -353,35 +501,45 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
               </div>
               {isCheckIn ? (
                 <button
+                  aria-label={`${actionLabel} para ${player}`}
                   aria-pressed={arrived}
                   className={`button ${arrived ? "button-secondary" : "button-primary"}`}
                   disabled={rosterIsLocked}
                   onClick={() => handleCheckIn(player)}
                   type="button"
                 >
-                  {arrived ? "Desfazer check-in" : "Registrar check-in"}
+                  {actionLabel}
                 </button>
               ) : (
                 <button
+                  aria-label={`${actionLabel} para ${player}`}
                   aria-pressed={confirmed || waiting}
                   className={`button ${confirmed || waiting ? "button-secondary" : "button-primary"}`}
                   disabled={rosterIsLocked}
                   onClick={() => handleAttendance(player)}
                   type="button"
                 >
-                  {confirmed ? "Remover presença" : waiting ? "Sair da espera" : isFull ? "Entrar na espera" : "Confirmar presença"}
+                  {actionLabel}
                 </button>
               )}
             </div>
           );
         }) : (
-          <p className="directory-empty">Confirme a presença de jogadores antes de fazer o check-in.</p>
+          <div className="match-demo-empty">
+            <p>Confirme a presença de jogadores antes de fazer o check-in.</p>
+            <Link className="button button-secondary" href="/presenca">Gerenciar confirmações</Link>
+          </div>
         )}
       </div>
 
       {notice ? <p aria-live="polite" className="form-feedback" role="status">{notice}</p> : null}
       <div className="match-demo-links">
-        {mode !== "presence" ? <Link href="/presenca">Gerenciar confirmações</Link> : null}
+        {isCheckIn && status === "scheduled" && checkedIn.length >= 2 ? (
+          <Link className="button button-primary" href="/partidas/ao-vivo">Ir para central da partida</Link>
+        ) : null}
+        {mode !== "presence" && !(isCheckIn && candidates.length === 0)
+          ? <Link href="/presenca">Gerenciar confirmações</Link>
+          : null}
         {mode !== "checkin" ? <Link href="/presenca/check-in">Ir para check-in</Link> : null}
         <span>Estado somente nesta sessão; recarregar a página reinicia a prévia.</span>
       </div>

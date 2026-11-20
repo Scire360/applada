@@ -218,16 +218,29 @@ async function LegacyScreenContent({
   const isGameDemo = screen.legacyView === "match-center" || screen.legacyView === "highlight-vote";
   const gameDemoMode = screen.legacyView === "highlight-vote" ? "highlights" : "live";
   const isMatchFlow = isMatchCreation || hasMatchDemo || isGameDemo;
+  const matchMetricsMode = isGameDemo
+    ? "game"
+    : screen.legacyView === "checkin-center" ? "checkin" : "attendance";
   const primaryTitle = isMatchCreation
     ? "Detalhes da pelada"
     : hasMatchDemo
-      ? "Organização da partida"
+      ? screen.legacyView === "open-matches"
+        ? "Encontros com vagas"
+        : screen.legacyView === "checkin-center"
+          ? "Receber o elenco"
+          : "Presença e confirmações"
       : isGameDemo
         ? gameDemoMode === "live" ? "Placar e lances" : "Destaque da partida"
         : form ? "Informações do grupo" : isModuleCatalog ? "Todas as áreas" : "Movimento recente";
   const primaryLabel = isMatchCreation
     ? "Crie e continue a demonstração"
-    : isMatchFlow ? "Etapa demonstrativa"
+    : hasMatchDemo
+      ? screen.legacyView === "open-matches"
+        ? "DESCUBRA UM JOGO"
+        : screen.legacyView === "checkin-center" ? "DIA DA PARTIDA" : "ELENCO DO GRUPO"
+      : isGameDemo
+        ? gameDemoMode === "live" ? "DIA DO JOGO" : "PÓS-JOGO"
+        : isMatchFlow ? "Etapa demonstrativa"
       : form ? "Preencha para visualizar" : isModuleCatalog ? "Vistas do produto" : "Conteúdo ilustrativo";
 
   return (
@@ -247,8 +260,8 @@ async function LegacyScreenContent({
           ) : null}
         </section>
 
-        {isMatchFlow ? (
-          <MatchDemoMetrics mode={isGameDemo ? "game" : "attendance"} />
+        {isMatchCreation || isModuleCatalog ? null : isMatchFlow ? (
+          <MatchDemoMetrics mode={matchMetricsMode} />
         ) : (
           <section aria-label={`Resumo: ${screen.title}`} className="screen-metric-grid">
             <article className="screen-metric-card">
@@ -270,13 +283,13 @@ async function LegacyScreenContent({
         )}
 
         <section className="screen-workspace">
-          <article className="surface-card screen-primary-card" id={form ? "formulario" : undefined}>
+          <article className={`surface-card screen-primary-card${isMatchCreation ? " match-creation-card" : ""}`} id={form ? "formulario" : undefined}>
             <div className="section-title-row">
               <div>
-                <p className="eyebrow">{isMatchFlow ? "DEMONSTRAÇÃO DA JORNADA" : form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
+                <p className="eyebrow">{isMatchCreation ? "DETALHES DO ENCONTRO" : isMatchFlow ? "DEMONSTRAÇÃO DA JORNADA" : form ? "ETAPA DEMONSTRATIVA" : "VISÃO DO ESPAÇO"}</p>
                 <h2>{primaryTitle}</h2>
               </div>
-              <span className="quiet-label">{primaryLabel}</span>
+              {isMatchCreation ? null : <span className="quiet-label">{primaryLabel}</span>}
             </div>
             {isMatchCreation ? (
               <MatchCreationForm />

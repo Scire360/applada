@@ -13,6 +13,66 @@ npm run dev
 
 O servidor local fica disponível em `http://localhost:3000`.
 
+## Autenticação web
+
+A web usa Auth.js como BFF com OIDC/PKCE e Keycloak. A senha é digitada somente
+na página hospedada pelo Keycloak; a aplicação mantém apenas a sessão protegida
+por cookie HttpOnly. As rotas do produto exigem sessão. A tela do Applada
+permite entrar e recuperar senha, mas não exibe uma opção de
+cadastro. Isso não desativa o autocadastro do Keycloak: se ele estiver habilitado
+no realm, a própria tela do provedor ainda poderá oferecê-lo. Para recuperar a
+senha, use o link de recuperação na página do Keycloak.
+
+As rotas `/administracao/*` exigem a role de cliente `applada-admin` no cliente
+OIDC `applada-web`; contas sem essa role são redirecionadas para `/acesso-negado`.
+O cookie Auth.js protege a sessão web, mas não é credencial da API .NET. A API
+valida seus próprios tokens Bearer e aplica autorização no servidor.
+
+1. Copie `.env.example` para `.env.local`.
+2. Gere `AUTH_SECRET` com `npx auth secret` e configure-o somente em `.env.local`
+   (em produção, use o secret manager).
+   Em produção, use pelo menos 32 bytes aleatórios e configure `AUTH_URL` com a
+   origem HTTPS pública exata da aplicação.
+3. Configure `AUTH_KEYCLOAK_ISSUER` com a URL do issuer do realm e preencha
+   `AUTH_KEYCLOAK_ID` e `AUTH_KEYCLOAK_SECRET` do cliente OIDC confidencial.
+4. No Keycloak, habilite o fluxo padrão, PKCE S256 e recuperação de senha.
+   Habilite o registro no realm somente se o autocadastro for desejado. Cadastre
+   `http://localhost:3000/api/auth/callback/keycloak` como redirect URI e
+   `http://localhost:3000/login` como post-logout redirect URI válido. Em
+   produção, cadastre somente as URLs HTTPS exatas da aplicação e callback.
+   Restrinja as origens e redirects ao domínio da aplicação.
+5. Copie `keycloak-theme/applada` para `<KC_HOME>/themes/applada`, selecione
+   `applada` como tema de login do realm e defina o idioma padrão como `pt-BR`.
+   O tema preserva os templates padrão do Keycloak e aplica a paleta, tipografia
+   e composição editorial do Applada. As ações de entrar, cadastrar e recuperar
+   senha iniciam o Keycloak em português do Brasil; o seletor de idioma mantém
+   inglês como alternativa.
+6. Reinicie `npm run dev`. Sem as variáveis necessárias, a tela informa que o
+   acesso não está configurado.
+
+`AUTH_TRUST_HOST=true` é adequado para desenvolvimento local. Em produção,
+configure-o somente atrás de um proxy confiável, junto do host público correto.
+O logout encerra a sessão local e também encerra a sessão SSO do Keycloak por
+requisição server-to-server com `id_token_hint`. Os ID e access tokens ficam
+somente no JWT Auth.js criptografado e protegido pelo cookie HttpOnly, nunca no
+objeto `session` enviado ao frontend nem em URL. A sessão local Auth.js expira
+após uma hora de inatividade. Cada verificação autenticada valida o access token
+e atualiza os papéis disponíveis no UserInfo do Keycloak, permitindo revogar
+cópias do cookie quando a sessão SSO é encerrada e refletir mudanças de papel
+publicadas nesse endpoint. Isso adiciona uma chamada ao Keycloak por verificação;
+a sessão também deixa de valer quando o access token expira, exigindo novo login.
+Configure no cliente Keycloak a post-logout redirect URI exata
+`http://localhost:3000/login` (e a URL HTTPS equivalente em produção).
+
+O limite de tentativas de senha por IP precisa ser instalado e ativado no Keycloak.
+Consulte [`infra/keycloak-rate-limit/README.md`](../../infra/keycloak-rate-limit/README.md)
+para build, Redis, fluxo Browser e configuração de proxy confiável. Sem essa ativação
+no realm, o código OIDC da web não limita tentativas de senha.
+
+Este fluxo autentica a aplicação web. A API .NET mantém autenticação e autorização
+independentes: endpoints de domínio com dados de usuário precisam validar tokens
+Bearer e autorizar a operação no servidor; a sessão web não substitui isso.
+
 ## Testar a integração local
 
 1. Na raiz deste checkout, suba o AppHost com Docker aberto seguindo [o README do repositório](../../README.md#executar-o-backend). Confirme que `http://localhost:5080/health/ready` responde `Healthy`.

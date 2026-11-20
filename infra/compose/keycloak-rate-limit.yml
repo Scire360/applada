@@ -1,0 +1,53 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - applada-auth
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8080
+      - --hostname=http://localhost:8080
+      - --proxy-headers=xforwarded
+      - --proxy-trusted-addresses=172.30.0.1/32
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+      APPLADA_AUTH_RATE_LIMIT_REDIS_URL: redis://redis:6379/0
+      APPLADA_AUTH_RATE_LIMIT_HMAC_KEY: ${APPLADA_AUTH_RATE_LIMIT_HMAC_KEY:?Defina APPLADA_AUTH_RATE_LIMIT_HMAC_KEY}
+    volumes:
+      - ../keycloak/applada-realm.json:/opt/keycloak/data/import/applada-realm.json:ro
+      - ../keycloak-rate-limit/target/applada-keycloak-ip-rate-limit.jar:/opt/keycloak/providers/applada-keycloak-ip-rate-limit.jar:ro
+      - ../../apps/web/keycloak-theme/applada:/opt/keycloak/themes/applada:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - applada-auth
+
+networks:
+  applada-auth:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1

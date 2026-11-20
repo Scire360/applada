@@ -1,35 +1,56 @@
 # ADR-0004: Autenticação OIDC/OAuth2 com PKCE
 
-- **Status:** proposto (2026-11-15) — aguarda aprovação do responsável técnico
+- **Status:** aceito para web; mobile e política operacional de produção pendentes (2026-11-19)
 - **Decisores:** responsável técnico do Applada
 
 ## Contexto
 
-A API valida JWT de um provedor OIDC; a identidade interna é desacoplada do provedor (ADR-0007) e o
-Keycloak é usado só em desenvolvimento. Falta fixar o protocolo para clientes e o armazenamento de
-tokens. A escolha do provedor de produção segue em aberto.
+A API valida tokens OIDC e mantém a identidade interna desacoplada do provedor
+(ADR-0007). A aplicação web precisa autenticar sem receber senhas e sem expor
+tokens ao navegador. A implementação web usa Keycloak e Auth.js; as políticas
+operacionais do realm de produção e a implementação mobile ainda precisam ser
+definidas antes do respectivo lançamento.
 
 ## Decisão
 
-- **OIDC/OAuth2 Authorization Code com PKCE** para web e mobile; nada de fluxo implícito nem de senha
-  tratada pelo Applada.
-- Access token curto; refresh token rotativo e revogável.
-- **Mobile:** tokens no `expo-secure-store`, nunca em `AsyncStorage`.
-- **Web:** padrão BFF; o servidor Next.js guarda os tokens e o navegador recebe só cookie
-  `HttpOnly`/`Secure`/`SameSite`, com proteção CSRF. Nada em `localStorage`/`sessionStorage`.
-- MFA obrigatório para administradores.
-- A API só valida o JWT (issuer, audience, assinatura); o vínculo com o usuário interno segue o ADR-0007.
+- Usar OIDC/OAuth2 Authorization Code com PKCE; não usar fluxo implícito nem
+  tratar senhas no Applada.
+- **Web:** usar Keycloak como provedor OIDC atual e Auth.js no servidor Next.js
+  como BFF. O navegador recebe somente cookie de sessão `HttpOnly`,
+  `Secure` em produção e `SameSite`; tokens não são expostos à camada cliente
+  nem armazenados em `localStorage`/`sessionStorage`.
+- Manter `AUTH_SECRET` forte e exclusivo por ambiente; em produção exigir HTTPS
+  e configurar somente a origem pública confiável.
+- A sessão web dura no máximo uma hora. Nas verificações autenticadas, validar o
+  access token e atualizar os papéis pelo UserInfo do Keycloak. Ao sair, encerrar
+  a sessão local e a sessão SSO com `id_token_hint`. Tokens JWT já emitidos
+  ainda podem ser aceitos por validadores offline até expirarem.
+- Proteger rotas administrativas com a role de cliente `applada-admin` e validar
+  também a sessão no servidor. MFA é obrigatório para administradores e deve ser
+  aplicado na configuração de cada realm antes de produção.
+- **API:** validar independentemente JWT Bearer (issuer, audience e assinatura)
+  e autorizar cada operação no servidor. A sessão web não autoriza chamadas à
+  API; o vínculo com o usuário interno segue o ADR-0007.
+- **Mobile:** quando implementado, usar Authorization Code com PKCE e guardar
+  tokens exclusivamente em `expo-secure-store`, nunca em `AsyncStorage`.
+- Configurar tokens de curta duração e rotação/revogação de refresh tokens nos
+  ambientes aplicáveis. A política definitiva de produção depende de validação
+  operacional e de segurança.
 
 ## Alternativas consideradas
 
 | Abordagem | Trade-off |
 |---|---|
-| **OIDC + PKCE com provedor consolidado (escolhida)** | Padrão, seguro, sem guardar senha. Dependência de um provedor. |
+| **OIDC + PKCE com provedor consolidado** | Padrão, sem guardar senhas; exige operar ou contratar provedor. |
 | Auth próprio (senha no Applada) | Controle total, mas risco alto de segurança e LGPD. Descartado. |
 | Token em storage do navegador | Simples, mas exposto a XSS. Descartado. |
 
 ## Consequências
 
-- Positivas: segurança padrão de mercado, troca de provedor sem mexer no domínio.
-- Negativas: BFF adiciona uma peça na web; provedor de produção ainda a decidir (ADR futuro);
-  Identity exige varredura `claude-security` a cada mudança (CLAUDE.md seção 7).
+- A implementação web depende de um realm Keycloak por ambiente e de configuração
+  segura de callbacks, logout, roles, MFA e proxy confiável.
+- O UserInfo em cada verificação autenticada acrescenta uma chamada ao Keycloak;
+  sessões também deixam de funcionar quando o access token expira.
+- O limite de tentativas de senha por IP no fluxo Browser é definido no ADR-0008.
+- A integração de Identity exige a revisão de segurança aprofundada antes de
+  release, conforme `CLAUDE.md` seção 7.

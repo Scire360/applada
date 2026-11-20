@@ -1,15 +1,16 @@
-# ADR-0007: Identidade interna desacoplada do provedor + Keycloak só em desenvolvimento
+# ADR-0007: Identidade interna desacoplada do provedor + Keycloak local para a API
 
 - **Status:** aceito (2026-11-13; revisado em 2026-11-15 com o ambiente local implementado)
 - **Decisores:** responsável técnico do Applada
-- **Relacionado:** ADR-0004 (autenticação OIDC/OAuth2 com PKCE), que continua **pendente**.
+- **Relacionado:** ADR-0004 (OIDC/PKCE aceito para web; política operacional de produção pendente).
 
 ## Contexto
 
-O provedor de identidade de produção ainda não foi escolhido (ADR-0004 em aberto). A API precisa autenticar
-desde já, e o restante do sistema não pode ficar amarrado a identificadores de um provedor específico, que
-podem mudar se o provedor mudar. A spec também lista como anti-objetivo qualquer caminho de código que
-autentique sem validar token, e a fatia não guarda PII: nenhum nome, e-mail ou telefone.
+A API precisa autenticar e o restante do sistema não pode ficar amarrado a identificadores de um provedor
+específico, que podem mudar se o provedor mudar. A web usa Keycloak conforme ADR-0004; esta decisão mantém
+o ambiente Aspire da API isolado para desenvolvimento local. A spec também lista como anti-objetivo
+qualquer caminho de código que autentique sem validar token, e a fatia não guarda PII: nenhum nome,
+e-mail ou telefone.
 
 ## Decisão
 
@@ -29,7 +30,7 @@ gravado. Quem cria grava `identity.user-registered.v1` no outbox (ADR-0005) na m
 integração, a validação do JwtBearer é reconfigurada com chave de assinatura gerada no próprio teste; o
 código de produção não muda.
 
-**4. Keycloak apenas em desenvolvimento.** O AppHost (Aspire, `backend/src/Applada.AppHost`) sobe, só para
+**4. Keycloak local para a API.** O AppHost (Aspire, `backend/src/Applada.AppHost`) sobe, só para
 uso local e com Docker:
 - PostgreSQL/PostGIS (`postgis/postgis:17-3.5`) e RabbitMQ (`rabbitmq:4.4.0-management`);
 - **Keycloak 26.8.2 como container genérico** (`quay.io/keycloak/keycloak`, `start-dev --import-realm`),
@@ -67,7 +68,7 @@ client acima. O documento é versionado em `docs/api/openapi-v1.json`.
 
 | | Abordagem | Trade-off |
 |---|---|---|
-| **A (escolhida)** | Keycloak como container no Aspire, só em dev; API valida JWT OIDC padrão | Mesmo caminho de código que produção; não decide o ADR-0004. Custo: container pesado e realm versionado. |
+| **A (escolhida)** | Keycloak como container no Aspire para a API local; API valida JWT OIDC padrão | Mesmo caminho de código que produção; a web usa o provedor definido no ADR-0004. Custo: container pesado e realm versionado. |
 | B | Handler de autenticação por header em dev | Leve, mas cria bypass de autenticação no código; um erro de configuração vira impersonação em produção. Descartada. |
 | (descartada) | Usar o `subject` do provedor como identificador em todo o sistema | amarra todos os módulos ao provedor atual e ao formato dos seus identificadores |
 | (descartada) | Escolher já o provedor de produção | decisão de custo, operação e LGPD que pertence ao ADR-0004 |
@@ -80,8 +81,8 @@ client acima. O documento é versionado em `docs/api/openapi-v1.json`.
 - Criação do usuário sem corrida e com evento atômico.
 
 **Negativas e limites conhecidos**
-- **ADR-0004 segue em aberto:** provedor de produção, fluxo web (BFF) e mobile, e como unificar usuários se
-  `issuer` mudar (migração de `(issuer, subject)`) estão a decidir.
+- O ADR-0004 define o fluxo web. A operação do provedor em produção, a implementação mobile e como unificar
+  usuários se `issuer` mudar (migração de `(issuer, subject)`) ainda precisam de decisão.
 - Toda requisição autenticada depois da primeira do usuário executa 2 consultas (o `INSERT ... ON CONFLICT`,
   que não retorna linha, e o `SELECT`) dentro de uma transação (BEGIN/COMMIT); sem cache nesta fatia
   (`UserProvisioner.cs`).
