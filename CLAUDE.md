@@ -25,8 +25,8 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-O backend tem solution, módulos Identity, Profiles e Matches, testes e pipeline
-(`.github/workflows/backend.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
+O backend tem solution, módulos Identity, Profiles, Communities e Matches, testes e pipelines
+(`.github/workflows/backend.yml` e `.github/workflows/web.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
 - Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
 - Verificações web: `npm run lint`, `npm run typecheck` e `npm run build`.
@@ -72,6 +72,8 @@ cd backend; dotnet ef migrations add <Nome> --project src/Modules/Identity/Appla
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext --output-dir Infrastructure/Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext --output-dir Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
 ```
