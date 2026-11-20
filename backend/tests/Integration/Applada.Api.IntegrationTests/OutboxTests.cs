@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
@@ -461,7 +461,28 @@ public class OutboxTests(ApiFactory factory)
             factory.Clock,
             Options.Create(options ?? new OutboxOptions()),
             factory.Services.GetRequiredService<OutboxMetrics>(),
-            NullLogger<OutboxProcessor<TContext>>.Instance);
+            new TestOutputLogger<OutboxProcessor<TContext>>());
+
+    /// <summary>
+    /// Escreve avisos e erros do processador na saída do teste (o xUnit mostra junto da falha). Falha intermitente
+    /// de publicação, sem isso, só deixa "esperado 1, obtido 0" e nenhuma pista da causa.
+    /// </summary>
+    private sealed class TestOutputLogger<T> : ILogger<T>
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                TestContext.Current.TestOutputHelper?.WriteLine(
+                    $"[{logLevel}] {formatter(state, exception)} {exception?.GetType().Name}: {exception?.Message}");
+            }
+        }
+    }
 
     /// <summary>
     /// Publica tudo o que está pendente (inclusive sobras de outras classes de teste da coleção).
