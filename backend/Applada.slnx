@@ -1,15 +1,35 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Applada.Api/Applada.Api.csproj" />
+    <Project Path="src/Applada.AppHost/Applada.AppHost.csproj" />
+    <Project Path="src/Applada.ServiceDefaults/Applada.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Contracts/Applada.BuildingBlocks.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Domain/Applada.BuildingBlocks.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Messaging/Applada.BuildingBlocks.Messaging.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
   </Folder>
-  <Folder Name="/tests/" />
-  <Folder Name="/tests/Architecture/">
-    <Project Path="tests/Architecture/Applada.Architecture.Tests.csproj" />
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/Applada.Modules.Identity/Applada.Modules.Identity.csproj" />
+    <Project Path="src/Modules/Identity/Applada.Modules.Identity.Contracts/Applada.Modules.Identity.Contracts.csproj" />
   </Folder>
-  <Folder Name="/tests/Integration/">
-    <Project Path="tests/Integration/Applada.Integration.Tests.csproj" />
+  <Folder Name="/src/Modules/Matches/">
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Api/Applada.Modules.Matches.Api.csproj" />
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Application/Applada.Modules.Matches.Application.csproj" />
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Contracts/Applada.Modules.Matches.Contracts.csproj" />
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Domain/Applada.Modules.Matches.Domain.csproj" />
+    <Project Path="src/Modules/Matches/Applada.Modules.Matches.Infrastructure/Applada.Modules.Matches.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Profiles/">
+    <Project Path="src/Modules/Profiles/Applada.Modules.Profiles/Applada.Modules.Profiles.csproj" />
+    <Project Path="src/Modules/Profiles/Applada.Modules.Profiles.Contracts/Applada.Modules.Profiles.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Architecture/Applada.Architecture.Tests/Applada.Architecture.Tests.csproj" />
+    <Project Path="tests/Contract/Applada.Contracts.Tests/Applada.Contracts.Tests.csproj" />
+    <Project Path="tests/Unit/Applada.BuildingBlocks.Persistence.Tests/Applada.BuildingBlocks.Persistence.Tests.csproj" />
+    <Project Path="tests/Unit/Applada.Modules.Matches.Domain.Tests/Applada.Modules.Matches.Domain.Tests.csproj" />
+    <Project Path="tests/Integration/Applada.Api.IntegrationTests/Applada.Api.IntegrationTests.csproj" />
   </Folder>
 </Solution>

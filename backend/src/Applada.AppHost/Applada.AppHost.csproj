@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+
+  <!-- Só ambiente local de desenvolvimento. Nenhum projeto de produção referencia o AppHost. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Segredos do AppHost (senha do admin do Keycloak, senhas geradas pelo Aspire) ficam em user-secrets. -->
+    <UserSecretsId>a20443e1-23f0-4820-b09b-4c4b3b5ab091</UserSecretsId>
+    <!-- ASPIRE010: dashboard e DCP vêm dos pacotes NuGet do SDK (padrão), sem exigir a Aspire CLI instalada. -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Applada.Api\Applada.Api.csproj" />
+  </ItemGroup>
+
+</Project>

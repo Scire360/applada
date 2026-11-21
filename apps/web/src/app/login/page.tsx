@@ -1,70 +1,113 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { LoginForm } from "./login-form";
-import { getSupabaseAuthConfig } from "@/lib/auth/config";
-import { safeReturnPath } from "@/lib/auth/return-path.mjs";
+import { Icon } from "@/components/icon";
+import {
+  recoverKeycloakPassword,
+  signInWithKeycloak,
+} from "@/app/actions/auth";
+import { isAuthConfigured } from "@/auth";
 
 type LoginPageProps = {
-  searchParams: Promise<{ next?: string; status?: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
 };
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
-    <Suspense fallback={<main className="auth-page"><p className="screen-loading" role="status">Carregando acesso…</p></main>}>
+    <Suspense fallback={<main className="login-page" aria-busy="true" />}>
       <LoginContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
 async function LoginContent({ searchParams }: LoginPageProps) {
-  const params = await searchParams;
-  const isConfigured = getSupabaseAuthConfig() !== null;
-  const statusMessage = params.status === "configuration"
-    ? "O acesso ainda precisa ser configurado pelo responsável do sistema."
-    : params.status === "unavailable"
-      ? "Não foi possível validar sua sessão agora. Tente novamente em instantes."
-      : null;
+  const { error } = await searchParams;
 
   return (
-    <main className="auth-page">
-      <div className="auth-layout">
-        <section aria-label="Applada" className="auth-story">
-          <Link aria-label="Applada" className="auth-brand" href="/login">
-            <span aria-hidden="true" className="auth-brand-mark">a</span>
-            <span>applada</span>
-          </Link>
-          <div className="auth-story-copy">
-            <p className="eyebrow">SEU FUTEBOL, MAIS PERTO</p>
-            <h1>O jogo começa quando a gente se reúne.</h1>
-            <p>Entre para organizar as partidas, encontrar seu time e viver cada momento dentro e fora de campo.</p>
+    <main className="login-page">
+      <div className="login-card">
+        <section aria-label="Applada" className="login-story">
+          <div className="login-brand">
+            <span className="brand-mark">
+              <Icon name="football" />
+            </span>
+            <span className="brand-wordmark">applada</span>
           </div>
-          <p className="auth-story-footer">Feito para quem vive o futebol amador.</p>
+
+          <div className="login-story-copy">
+            <p className="login-overline">FUTEBOL AMADOR, DO SEU JEITO</p>
+            <h1>
+              O jogo fica melhor
+              <br />
+              <em>quando é junto.</em>
+            </h1>
+            <p>
+              Seu time, suas partidas e tudo o que acontece entre um jogo e
+              outro — em um só lugar.
+            </p>
+          </div>
+
+          <p className="login-story-footer">
+            Jogue junto. O próximo encontro começa aqui.
+          </p>
         </section>
 
-        <section aria-labelledby="login-title" className="auth-panel">
-          <div className="auth-card">
-            <p className="eyebrow auth-eyebrow">ACESSO DE MEMBROS</p>
-            <h2 id="login-title">Que bom ter você de volta.</h2>
-            <p className="auth-description">Entre com o e-mail e a senha da sua conta Applada.</p>
+        <section aria-labelledby="login-title" className="login-panel">
+          <div className="login-panel-content">
+            <p className="login-overline">BEM-VINDO AO TIME</p>
+            <h2 id="login-title">Entre no seu espaço.</h2>
+            <p className="login-description">
+              Acesse com segurança pela sua conta Applada.
+            </p>
 
-            {statusMessage ? (
-              <p className="auth-notice" role="status">{statusMessage}</p>
-            ) : null}
-            {!isConfigured ? (
-              <p className="auth-notice" role="status">
-                O login ainda não está configurado neste ambiente. Defina as variáveis do Supabase no servidor.
+            {error ? (
+              <p className="login-alert" role="alert">
+                Não foi possível concluir o acesso. Tente novamente ou procure
+                o administrador do seu espaço.
               </p>
             ) : null}
 
-            {isConfigured ? <LoginForm nextPath={safeReturnPath(params.next)} /> : null}
+            {isAuthConfigured() ? (
+              <>
+                <form action={signInWithKeycloak}>
+                  <button className="login-submit" type="submit">
+                    Entrar com minha conta
+                    <Icon name="arrow-right" />
+                  </button>
+                </form>
 
-            <p className="auth-help">
-              Precisa de acesso? Fale com a organização do seu grupo.
-            </p>
+                <div className="login-account-actions">
+                  <form action={recoverKeycloakPassword}>
+                    <button className="login-text-action" type="submit">
+                      Esqueci minha senha
+                    </button>
+                  </form>
+                </div>
+
+                <p className="login-provider-note">
+                  A autenticação acontece em uma página segura do Keycloak. O
+                  Applada nunca recebe nem armazena sua senha.
+                </p>
+                <p className="login-recovery-note">
+                  Para recuperar a senha, selecione essa opção também na tela
+                  segura do Keycloak.
+                </p>
+              </>
+            ) : (
+              <p className="login-alert" role="status">
+                O acesso ainda não está configurado neste ambiente. Defina
+                AUTH_SECRET e as variáveis AUTH_KEYCLOAK_* no arquivo local de
+                ambiente seguindo o README.
+              </p>
+            )}
           </div>
-          <p className="auth-legal">Acesse com segurança a conta do seu grupo no Applada.</p>
+
+          <p className="login-panel-footer">
+            <Icon name="shield" />
+            Acesso protegido por OpenID Connect
+          </p>
         </section>
       </div>
+
+      <p className="login-legal">© 2026 Applada · Futebol que aproxima.</p>
     </main>
   );
 }

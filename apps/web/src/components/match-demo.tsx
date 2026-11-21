@@ -45,6 +45,8 @@ function formatLocalDate(date: Date) {
 
 export function MatchDemoMetrics({ mode }: { mode: "attendance" | "checkin" | "game" }) {
   const { match, status, attendees, waitlist, checkedIn, goals, playerOfTheMatch } = useMatchDemo();
+  if (!match) return null;
+
   const score = `${goals.filter((goal) => goal.side === "green").length} × ${goals.filter((goal) => goal.side === "blue").length}`;
   const pendingCheckIns = Math.max(0, attendees.length - checkedIn.length);
   const checkInsNeededToStart = Math.max(0, 2 - checkedIn.length);
@@ -183,7 +185,7 @@ export function MatchCreationForm() {
   }
 
   return (
-    <form className="preview-form" onSubmit={handleSubmit}>
+    <form className="preview-form match-creation-form" onSubmit={handleSubmit}>
       <div className="preview-form-grid">
         <label className="preview-field preview-field-wide" htmlFor="match-title">
           <span>Nome do encontro<span aria-hidden="true"> *</span></span>
@@ -337,9 +339,25 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
   const [notice, setNotice] = useState("");
 
   if (!match) {
+    const emptyState = mode === "open"
+      ? {
+        eyebrow: "ENCONTROS COM VAGAS",
+        message: "As partidas abertas aparecem aqui quando o grupo organiza um jogo.",
+      }
+      : mode === "checkin"
+        ? {
+          eyebrow: "CHECK-IN AGUARDANDO",
+          message: "Crie uma pelada e confirme o elenco para registrar a chegada no dia do jogo.",
+        }
+        : {
+          eyebrow: "PRESENÇA DO ELENCO",
+          message: "As confirmações ficam disponíveis quando uma pelada entrar na agenda.",
+        };
+
     return (
       <div className="match-demo-empty">
-        <p>Nenhuma pelada foi criada nesta sessão de demonstração.</p>
+        <span className="eyebrow">{emptyState.eyebrow}</span>
+        <p>{emptyState.message}</p>
         <Link className="button button-primary" href="/eventos/novo">Organizar uma pelada</Link>
       </div>
     );

@@ -57,6 +57,7 @@ Thumbs.db
 
 # ---- Infra local ----
 infra/compose/data/
+infra/keycloak-rate-limit/target/
 *.log
 
 # ---- Claude Code (overrides pessoais) ----

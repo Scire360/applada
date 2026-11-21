@@ -14,37 +14,34 @@ export default function Home() {
       <div className="dashboard-page">
         <section className="page-heading">
           <div>
-            <p className="eyebrow page-eyebrow">SEXTA-FEIRA · SANTA CECÍLIA FC</p>
-            <h1>O jogo começa por aqui.</h1>
-            <p className="page-subtitle">Tudo em dia para reunir o time e fazer a bola rolar.</p>
+            <p className="eyebrow page-eyebrow">SANTA CECÍLIA FC / RODADA DA SEMANA</p>
+            <h1>O futebol acontece<br /> <em>quando a gente se encontra.</em></h1>
+            <p className="page-subtitle">A próxima partida, o time e tudo o que acontece entre um jogo e outro.</p>
           </div>
           <Link className="button button-primary" href="/peladas">
             <Icon name="plus" />
-            Organizar pelada
+            Criar partida
           </Link>
         </section>
 
-        <section aria-label="Resumo do seu espaço" className="stat-grid">
-          <article className="stat-card">
+        <section aria-label="Resumo do seu espaço" className="stat-grid editorial-stat-grid">
+          <article className="stat-card editorial-stat-card">
             <div className="stat-card-top">
-              <span className="stat-icon stat-icon-green"><Icon name="calendar" /></span>
-              <span className="stat-overline">PRÓXIMA PELADA</span>
+              <span className="stat-overline">PRÓXIMO ENCONTRO</span>
             </div>
             <p className="stat-value">Qui, 19h30</p>
             <p className="stat-caption">Arena Santa Cecília · Campo 2</p>
           </article>
-          <article className="stat-card">
+          <article className="stat-card editorial-stat-card">
             <div className="stat-card-top">
-              <span className="stat-icon stat-icon-blue"><Icon name="people" /></span>
-              <span className="stat-overline">TIME CONFIRMADO</span>
+              <span className="stat-overline">TIME ESPERADO</span>
             </div>
             <p className="stat-value">14 <span>de 18</span></p>
             <p className="stat-caption">4 vagas abertas para o próximo jogo</p>
           </article>
-          <article className="stat-card">
+          <article className="stat-card editorial-stat-card">
             <div className="stat-card-top">
-              <span className="stat-icon stat-icon-yellow"><Icon name="chart" /></span>
-              <span className="stat-overline">PRESENÇA DO MÊS</span>
+              <span className="stat-overline">PRESENÇA EM CAMPO</span>
             </div>
             <p className="stat-value">87<span>%</span></p>
             <p className="stat-caption"><span className="positive">+6%</span> em relação ao mês passado</p>
@@ -156,8 +153,8 @@ export default function Home() {
 
           <article className="community-callout">
             <span className="callout-decoration" aria-hidden="true"><Icon name="sparkles" /></span>
-            <p className="eyebrow">MAIS QUE FUTEBOL</p>
-            <h2>A resenha também faz parte do jogo.</h2>
+            <p className="eyebrow">DEPOIS DO APITO</p>
+            <h2>O jogo termina. A resenha não.</h2>
             <p>Fotos, histórias e aquele pós-jogo que merece ser lembrado.</p>
             <Link className="callout-link" href="/comunidade">Ir para a comunidade <Icon name="arrow-right" /></Link>
           </article>

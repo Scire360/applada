@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Todo projeto de src, menos o AppHost. Novo projeto de src: referenciar aqui (o teste Every_src_project_is_covered... falha se faltar). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Applada.Api\Applada.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\Applada.ServiceDefaults\Applada.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Domain\Applada.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Messaging\Applada.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity\Applada.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Identity\Applada.Modules.Identity.Contracts\Applada.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Api\Applada.Modules.Matches.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Application\Applada.Modules.Matches.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Contracts\Applada.Modules.Matches.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Domain\Applada.Modules.Matches.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Matches\Applada.Modules.Matches.Infrastructure\Applada.Modules.Matches.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Profiles\Applada.Modules.Profiles\Applada.Modules.Profiles.csproj" />
+    <ProjectReference Include="..\..\..\src\Modules\Profiles\Applada.Modules.Profiles.Contracts\Applada.Modules.Profiles.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

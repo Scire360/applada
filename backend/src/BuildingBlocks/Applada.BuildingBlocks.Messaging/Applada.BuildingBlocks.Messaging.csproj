@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="RabbitMQ.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Applada.Api.IntegrationTests" />
+    <InternalsVisibleTo Include="Applada.Contracts.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>
