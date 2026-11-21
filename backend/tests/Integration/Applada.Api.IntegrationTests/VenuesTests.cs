@@ -80,6 +80,38 @@ public class VenuesTests(ApiFactory factory)
     }
 
     [Theory]
+    [InlineData("{")]
+    [InlineData("null")]
+    public async Task Create_with_invalid_json_body_returns_400(string json)
+    {
+        using var client = NewClient();
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync(Venues, content, Ct);
+        using var problem = await MatchesApi.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("body", out _));
+    }
+
+    [Fact]
+    public async Task Create_with_non_json_content_type_returns_415()
+    {
+        using var client = NewClient();
+        using var content = new StringContent(ValidBody().ToJsonString(), Encoding.UTF8, "text/plain");
+        using var response = await client.PostAsync(Venues, content, Ct);
+        using var problem = await MatchesApi.AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
+    }
+
+    [Fact]
+    public async Task Create_reads_json_with_declared_utf16_encoding()
+    {
+        using var client = NewClient();
+        using var content = new StringContent("""{"name":"Praça","latitude":0,"longitude":0}""", Encoding.Unicode, "application/json");
+        using var response = await client.PostAsync(Venues, content, Ct);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var venue = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("Praça", venue.GetProperty("name").GetString());
+    }
+
+    [Theory]
     [InlineData("name", "ab")]
     [InlineData("name", null)]
     [InlineData("name", "Arena\tcentral")]
