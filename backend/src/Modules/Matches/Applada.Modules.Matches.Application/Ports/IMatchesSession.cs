@@ -25,7 +25,7 @@ public interface IMatchesSession
 
     /// <summary>Preserva a data original se o status for repetido e devolve o instante efetivamente persistido.</summary>
     Task<(DateTimeOffset RecordedAt, bool Changed)> UpsertAttendanceAsync(
-        Guid matchId, Guid userId, string status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct);
+        Guid matchId, Guid userId, AttendanceStatus status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct);
 
     Task<Registration?> FindRegistrationAsync(Guid matchId, Guid userId, CancellationToken ct);
 

@@ -1,5 +1,6 @@
 using Applada.Modules.Discovery.Api;
 using Applada.Modules.Matches.Api;
+using Applada.Modules.Matches.Domain;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 
@@ -22,7 +23,7 @@ internal static class DevelopmentContractTransformers
         if ((type == typeof(RecordAttendanceRequest) || type == typeof(AttendanceResponse) || type == typeof(AttendanceEntryResponse))
             && schema.Properties?.TryGetValue("status", out var property) == true && property is OpenApiSchema status)
         {
-            status.Enum = ["present", "absent"];
+            status.Enum = [AttendanceStatusText.Present, AttendanceStatusText.Absent];
             if (type == typeof(AttendanceEntryResponse))
             {
                 status.Enum.Add(null!); // Vale JSON null enquanto o organizador não marcar a presença.

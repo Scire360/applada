@@ -5,6 +5,15 @@ namespace Applada.Modules.Matches.Domain.Tests;
 
 public sealed class AttendanceTests
 {
+    [Theory]
+    [InlineData("present", AttendanceStatus.Present)]
+    [InlineData("absent", AttendanceStatus.Absent)]
+    public void Attendance_status_round_trips_its_contract_text(string text, AttendanceStatus status)
+    {
+        Assert.Equal(status, AttendanceStatusText.Parse(text));
+        Assert.Equal(text, status.ToContractText());
+    }
+
     [Fact]
     public void Organizer_can_record_at_exact_start()
     {

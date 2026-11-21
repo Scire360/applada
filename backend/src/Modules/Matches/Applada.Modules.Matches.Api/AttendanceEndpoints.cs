@@ -1,6 +1,7 @@
 using Applada.BuildingBlocks.Contracts;
 using Applada.Modules.Matches.Application.Queries;
 using Applada.Modules.Matches.Application.RecordAttendance;
+using Applada.Modules.Matches.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -40,7 +41,7 @@ internal static class AttendanceEndpoints
         }
 
         var recorded = result.Value;
-        return ListingResults.PrivateJson(new AttendanceResponse(recorded.UserId, recorded.Status, recorded.RecordedAt));
+        return ListingResults.PrivateJson(new AttendanceResponse(recorded.UserId, recorded.Status.ToContractText(), recorded.RecordedAt));
     }
 
     private static async Task<IResult> ListAsync(Guid id, string? cursor, string? limit, ICurrentUser currentUser,

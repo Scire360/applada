@@ -5,13 +5,13 @@ using Applada.Modules.Matches.Domain;
 
 namespace Applada.Modules.Matches.Application.RecordAttendance;
 
-public sealed record RecordedAttendance(Guid UserId, string Status, DateTimeOffset RecordedAt);
+public sealed record RecordedAttendance(Guid UserId, AttendanceStatus Status, DateTimeOffset RecordedAt);
 
 public sealed class RecordAttendanceHandler(IMatchesUnitOfWork unitOfWork, TimeProvider clock)
 {
     public async Task<Result<RecordedAttendance>> HandleAsync(Guid matchId, Guid actorId, Guid userId, string status, CancellationToken ct)
     {
-        if (status is not ("present" or "absent"))
+        if (AttendanceStatusText.Parse(status) is not { } attendance)
         {
             return MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
             {
@@ -28,7 +28,7 @@ public sealed class RecordAttendanceHandler(IMatchesUnitOfWork unitOfWork, TimeP
                 return allowed.Error;
             }
 
-            var (recordedAt, changed) = await session.UpsertAttendanceAsync(matchId, userId, status, actorId, now, token);
+            var (recordedAt, changed) = await session.UpsertAttendanceAsync(matchId, userId, attendance, actorId, now, token);
             if (changed)
             {
                 // No primeiro INSERT, a FK espera por saídas/cancelamentos iniciados antes da abertura.
@@ -40,10 +40,10 @@ public sealed class RecordAttendanceHandler(IMatchesUnitOfWork unitOfWork, TimeP
                     return allowed.Error;
                 }
 
-                session.Publish(new AttendanceRecordedV1(matchId, userId, status, recordedAt));
+                session.Publish(new AttendanceRecordedV1(matchId, userId, attendance.ToContractText(), recordedAt));
             }
 
-            return new RecordedAttendance(userId, status, recordedAt);
+            return new RecordedAttendance(userId, attendance, recordedAt);
         }, ct);
     }
 

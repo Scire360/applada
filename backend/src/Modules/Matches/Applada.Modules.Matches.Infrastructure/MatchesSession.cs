@@ -31,11 +31,11 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
             .SingleOrDefaultAsync(ct);
 
     public async Task<(DateTimeOffset RecordedAt, bool Changed)> UpsertAttendanceAsync(
-        Guid matchId, Guid userId, string status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct)
+        Guid matchId, Guid userId, AttendanceStatus status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct)
     {
         var changed = await db.Database.SqlQuery<DateTimeOffset>($"""
             INSERT INTO matches.attendance (match_id, user_id, status, recorded_by, recorded_at)
-            VALUES ({matchId}, {userId}, {status}, {recordedBy}, {recordedAt})
+            VALUES ({matchId}, {userId}, {status.ToContractText()}, {recordedBy}, {recordedAt})
             ON CONFLICT (match_id, user_id) DO UPDATE
             SET status = excluded.status, recorded_by = excluded.recorded_by, recorded_at = excluded.recorded_at
             WHERE matches.attendance.status <> excluded.status
