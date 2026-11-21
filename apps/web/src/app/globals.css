@@ -5872,6 +5872,16 @@ body {
   gap: 8px;
 }
 
+.attendance-link-feedback:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
 .connected-feedback:has(p:empty):not(:has([role="alert"])) {
   position: absolute;
 }

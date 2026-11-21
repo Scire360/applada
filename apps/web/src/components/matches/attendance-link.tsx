@@ -44,12 +44,16 @@ export function AttendanceLink({ match, userId, knownOrganizer = false }: {
     return () => window.removeEventListener("online", retry);
   }, [action]);
 
-  if (action === "retry") {
-    return <>
-      <span>Não foi possível verificar a chamada.</span>
-      <button className="button button-secondary" type="button" aria-label={`Tentar de novo a consulta da chamada de ${match.title}`}
-        onClick={() => setAttempt(value => value + 1)}>Tentar de novo</button>
-    </>;
+  if (action === "load" || action === "retry") {
+    return (
+      <div className="attendance-link-feedback form-feedback-error" role="status">
+        {action === "retry" && <>
+          <span>Não foi possível verificar a chamada.</span>
+          <button className="button button-secondary" type="button" aria-label={`Tentar de novo a consulta da chamada de ${match.title}`}
+            onClick={() => setAttempt(value => value + 1)}>Tentar de novo</button>
+        </>}
+      </div>
+    );
   }
   if (action !== "link") return null;
   return <Link className="button button-secondary" href={`/peladas/${match.id}/presenca`}>Fazer chamada</Link>;

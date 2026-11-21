@@ -28,6 +28,56 @@ async function appRoutes() {
 
 const adminOnlyRoute = /^\/(administracao|modulos)(\/|$)/;
 
+async function assertAttendanceFeedback(page, title) {
+  const row = page.getByRole("listitem").filter({ hasText: title });
+  const text = "Não foi possível verificar a chamada.";
+  const message = row.getByText(text, { exact: true });
+  await message.waitFor();
+  const status = row.getByRole("status").filter({ hasText: text });
+  assert.equal(await status.count(), 1, "A mensagem da chamada deve estar na região de status");
+  const button = status.getByRole("button", { name: "Tentar de novo a consulta da chamada de " + title });
+  assert.equal(await button.isVisible(), true);
+  const textBox = await message.boundingBox();
+  const buttonBox = await button.boundingBox();
+  const rowBox = await row.boundingBox();
+  assert.ok(buttonBox.y > textBox.y + textBox.height, "O botão deve quebrar para a linha seguinte com espaço");
+  for (const box of [textBox, buttonBox]) {
+    assert.ok(box.x >= Math.max(0, rowBox.x) && box.x + box.width <= Math.min(rowBox.x + rowBox.width, 320));
+  }
+}
+
+test("falha da consulta da chamada agrupa mensagem e nova tentativa em 320 px", async () => {
+  const browser = await launchChrome();
+  try {
+    const { page } = await signIn(browser, "jogador1.dev", requirePassword());
+    await page.setViewportSize({ width: 320, height: 568 });
+    const match = {
+      id: "f0cf5702-1234-4321-a987-27aa3a0a88ab", title: "Pelada de sábado",
+      startsAt: new Date(Date.now() - 60_000).toISOString(), durationMinutes: 90,
+      status: "scheduled", confirmedCount: 1, capacity: 10, myStatus: "confirmed",
+    };
+    await page.route("**/api/app/me/matches?role=participant", route =>
+      route.fulfill({ json: { items: [match], nextCursor: null } }));
+    await page.route("**/api/app/matches/" + match.id, route => route.fulfill({ status: 503, json: {} }));
+    await page.goto("/peladas/conectadas");
+    await page.getByRole("button", { name: "Participo", exact: true }).click();
+
+    await assertAttendanceFeedback(page, match.title);
+
+    const groupId = "78a3fc46-ad31-4c34-90f0-1f13be632570";
+    await page.route("**/api/app/groups/" + groupId, route =>
+      route.fulfill({ json: { id: groupId, name: "Grupo de sábado", myRole: "member", memberCount: 1 } }));
+    await page.route(`**/api/app/groups/${groupId}/members`, route =>
+      route.fulfill({ json: { items: [], nextCursor: null } }));
+    await page.route(`**/api/app/groups/${groupId}/matches`, route =>
+      route.fulfill({ json: { items: [match], nextCursor: null } }));
+    await page.goto("/grupos/" + groupId);
+    await assertAttendanceFeedback(page, match.title);
+  } finally {
+    await browser.close();
+  }
+});
+
 async function measureLayout() {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const shell = Array.from(document.querySelectorAll(".app-shell"))
