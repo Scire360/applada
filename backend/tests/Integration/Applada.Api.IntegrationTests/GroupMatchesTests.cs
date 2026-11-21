@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -130,10 +131,18 @@ public class GroupMatchesTests(ApiFactory factory)
     {
         using var owner = await NewUserAsync(factory, "gm");
         var groupId = await CreateGroupAsync(owner.Client);
-        var cursor = CursorSamples.WithInvalidUtf8Key("group-matches");
+        string[] cursors =
+        [
+            CursorSamples.WithInvalidUtf8Key("group-matches"),
+            Base64Url.EncodeToString("""{"k":"group-matches","v":["\ud800","00000000-0000-0000-0000-000000000001"]}"""u8),
+            Base64Url.EncodeToString("""{"k":"group-matches","v":["2026-01-01T00:00:00+00:00","\ud800"]}"""u8),
+        ];
 
-        using var response = await owner.Client.GetAsync(new Uri($"{GroupsPath}/{groupId}/matches?cursor={cursor}", UriKind.Relative), Ct);
-        using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
+        foreach (var cursor in cursors)
+        {
+            using var response = await owner.Client.GetAsync(new Uri($"{GroupsPath}/{groupId}/matches?cursor={cursor}", UriKind.Relative), Ct);
+            using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
+        }
     }
 
     [Fact]

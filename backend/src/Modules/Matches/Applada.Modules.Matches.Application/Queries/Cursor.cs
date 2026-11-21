@@ -125,7 +125,8 @@ public static class Cursor
             {
                 if (value.ValueKind == JsonValueKind.String)
                 {
-                    // JsonDocument valida o texto UTF-8 e os escapes Unicode ao materializar a string.
+                    // Mantenha o GetString() mesmo com o retorno descartado: é aqui que o
+                    // JsonDocument desfaz os escapes e valida o texto Unicode antes de devolver as chaves.
                     _ = value.GetString();
                 }
                 else if (value.ValueKind != JsonValueKind.Number)

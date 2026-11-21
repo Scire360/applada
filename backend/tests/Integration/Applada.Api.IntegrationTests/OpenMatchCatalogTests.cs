@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Data;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Matches.Application.Queries;
@@ -88,6 +89,8 @@ public class OpenMatchCatalogTests(ApiFactory factory)
         [
             "???",
             CursorSamples.WithInvalidUtf8Key(Cursor.OpenMatchesKind),
+            Base64Url.EncodeToString("""{"k":"\ud800","v":["2026-01-01T00:00:00+00:00","00000000-0000-0000-0000-000000000001"]}"""u8),
+            Base64Url.EncodeToString("""{"k":"open-matches","v":["2026-01-01T00:00:00+00:00","\ud800"]}"""u8),
             Cursor.Encode(Cursor.GroupMatchesKind, now, Guid.NewGuid()),
             Cursor.Encode(Cursor.OpenMatchesKind, now),
             Cursor.Encode(Cursor.OpenMatchesKind, 1, Guid.NewGuid()),

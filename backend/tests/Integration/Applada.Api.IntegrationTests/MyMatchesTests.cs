@@ -216,6 +216,8 @@ public class MyMatchesTests(ApiFactory factory)
             "%%%",
             participantsCursor,
             CursorSamples.WithInvalidUtf8Key("my-matches"),
+            Base64Url("""{"k":"my-matches","v":["\ud800","00000000-0000-0000-0000-000000000001"]}"""),
+            Base64Url("""{"k":"my-matches","v":["2026-01-01T00:00:00+00:00","\ud800"]}"""),
             Base64Url("{}"),
             Base64Url("""{"k":"my-matches","v":[]}"""),
             Base64Url("""{"k":"my-matches","v":["2026-01-01T00:00:00+00:00"]}"""),
@@ -230,9 +232,7 @@ public class MyMatchesTests(ApiFactory factory)
             foreach (var role in new[] { "organizer", "participant" })
             {
                 using var response = await organizer.Client.GetAsync(new Uri($"{MyMatchesPath}?role={role}&cursor={Uri.EscapeDataString(cursor)}", UriKind.Relative), Ct);
-                var raw = await response.Content.ReadAsStringAsync(Ct);
-                Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {(int)response.StatusCode} {raw}");
-                Assert.Contains("urn:applada:problem:invalid-cursor", raw, StringComparison.Ordinal);
+                using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
             }
         }
 
