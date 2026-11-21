@@ -18,9 +18,13 @@ namespace Applada.Modules.Matches.Application.CreateMatch;
 /// (<see cref="IdempotencyConflictException"/>) e releem a resposta gravada uma vez, numa transação nova.
 /// Essa espera conta no <c>lock_timeout</c>: se a primeira segurar a transação por mais que ele, a segunda recebe
 /// <c>lock-timeout</c> (503 com <c>Retry-After</c>) e o cliente repete. Aceitável: a repetição devolve a resposta gravada.
+/// <para>Antes de consultar Communities ou Discovery, o handler procura a resposta gravada para o usuário e a chave.
+/// Um replay independe desses módulos. A criação confere a chave novamente dentro da transação.</para>
 /// <para>Partida de grupo: o organizador precisa ser owner ou admin do grupo (contrato <see cref="IGroupMembership"/> do
 /// Communities). A consulta acontece antes da transação, em outro módulo: perder o papel entre a consulta e o commit é
 /// uma janela aceita (a partida fica no grupo e o organizador continua dono dela).</para>
+/// <para>Se houver local, a consulta a <see cref="IVenueDirectory"/> também ocorre fora da transação de Matches,
+/// com a mesma janela entre consulta e commit. Hoje não existe exclusão de local.</para>
 /// </remarks>
 public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider, IGroupMembership groups, IVenueDirectory venues)
 {
@@ -42,25 +46,24 @@ public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvid
         ArgumentException.ThrowIfNullOrEmpty(requestHash);
         ArgumentNullException.ThrowIfNull(render);
 
+        if (data.GroupId.HasValue || data.VenueId.HasValue)
+        {
+            var previous = await unitOfWork.FindActiveIdempotencyAsync(userId, idempotencyKey, ct);
+            if (previous is not null)
+            {
+                return Replay(previous, requestHash);
+            }
+        }
+
         if (data.GroupId is { } groupId
             && await groups.GetRoleAsync(groupId, userId, ct) is not (GroupRole.Owner or GroupRole.Admin))
         {
             return MatchErrors.GroupNotAllowed;
         }
 
-        if (data.VenueId is { } venueId)
+        if (data.VenueId is { } venueId && !await venues.ExistsAsync(venueId, ct))
         {
-            // O replay independe de Discovery. A criação confere a chave novamente dentro da transação.
-            var previous = await unitOfWork.FindActiveIdempotencyAsync(userId, idempotencyKey, ct);
-            if (previous is not null)
-            {
-                return Replay(previous, requestHash);
-            }
-
-            if (!await venues.ExistsAsync(venueId, ct))
-            {
-                return UnknownVenue;
-            }
+            return UnknownVenue;
         }
 
         try

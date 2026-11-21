@@ -342,6 +342,32 @@ public class CommunitiesTests(ApiFactory factory)
         }
     }
 
+    [Fact]
+    public async Task Create_group_match_replays_recorded_response_after_admin_is_demoted()
+    {
+        using var owner = await NewUserAsync(factory, "grp");
+        using var admin = await NewUserAsync(factory, "grp");
+        var groupId = await CreateGroupAsync(owner.Client);
+        await JoinAsync(owner.Client, admin.Client, groupId);
+        var memberPath = $"{GroupsPath}/{groupId}/members/{admin.Id}";
+        using var promoted = await owner.Client.PatchAsJsonAsync(memberPath, new { role = "admin" }, Ct);
+        Assert.Equal(HttpStatusCode.OK, promoted.StatusCode);
+
+        var key = $"key-{Guid.NewGuid():N}";
+        var startsAt = factory.Clock.GetUtcNow().AddDays(3);
+        using var created = await CreateGroupMatchAsync(admin.Client, groupId, key, startsAt);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        using var demoted = await owner.Client.PatchAsJsonAsync(memberPath, new { role = "member" }, Ct);
+        Assert.Equal(HttpStatusCode.OK, demoted.StatusCode);
+        using var replay = await CreateGroupMatchAsync(admin.Client, groupId, key, startsAt);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.Equal(await created.Content.ReadAsStringAsync(Ct), await replay.Content.ReadAsStringAsync(Ct));
+
+        using var fresh = await CreateGroupMatchAsync(admin.Client, groupId, startsAt: startsAt);
+        using var problem = await AssertProblemAsync(fresh, HttpStatusCode.UnprocessableEntity, "group-not-allowed");
+    }
+
     private static async Task<Guid> CreateGroupAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync(GroupsPath, new { name = "Grupo de teste" }, Ct);
@@ -370,18 +396,18 @@ public class CommunitiesTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    private static Task<HttpResponseMessage> CreateGroupMatchAsync(HttpClient client, Guid groupId)
+    private static async Task<HttpResponseMessage> CreateGroupMatchAsync(HttpClient client, Guid groupId, string? key = null, DateTimeOffset? startsAt = null)
     {
-        var start = DateTimeOffset.UtcNow.AddDays(3).ToString("O", CultureInfo.InvariantCulture);
-        var request = new HttpRequestMessage(HttpMethod.Post, MatchesPath)
+        var start = (startsAt ?? DateTimeOffset.UtcNow.AddDays(3)).ToString("O", CultureInfo.InvariantCulture);
+        using var request = new HttpRequestMessage(HttpMethod.Post, MatchesPath)
         {
             Content = new StringContent(
                 $$"""{"title":"Pelada do grupo","startsAt":"{{start}}","timeZone":"America/Sao_Paulo","durationMinutes":60,"capacity":10,"visibility":"public","groupId":"{{groupId}}"}""",
                 Encoding.UTF8,
                 "application/json"),
         };
-        request.Headers.Add("Idempotency-Key", $"key-{Guid.NewGuid():N}");
-        return client.SendAsync(request, Ct);
+        request.Headers.Add("Idempotency-Key", key ?? $"key-{Guid.NewGuid():N}");
+        return await client.SendAsync(request, Ct);
     }
 
     private async Task<IReadOnlyList<JsonElement>> OutboxAsync(Guid groupId)
