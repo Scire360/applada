@@ -9,6 +9,7 @@
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Domain/Applada.BuildingBlocks.Domain.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Messaging/Applada.BuildingBlocks.Messaging.csproj" />
     <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Persistence/Applada.BuildingBlocks.Persistence.csproj" />
+    <Project Path="src/BuildingBlocks/Applada.BuildingBlocks.Web/Applada.BuildingBlocks.Web.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Communities/">
     <Project Path="src/Modules/Communities/Applada.Modules.Communities/Applada.Modules.Communities.csproj" />
@@ -37,6 +38,7 @@
     <Project Path="tests/Architecture/Applada.Architecture.Tests/Applada.Architecture.Tests.csproj" />
     <Project Path="tests/Contract/Applada.Contracts.Tests/Applada.Contracts.Tests.csproj" />
     <Project Path="tests/Unit/Applada.BuildingBlocks.Persistence.Tests/Applada.BuildingBlocks.Persistence.Tests.csproj" />
+    <Project Path="tests/Unit/Applada.BuildingBlocks.Web.Tests/Applada.BuildingBlocks.Web.Tests.csproj" />
     <Project Path="tests/Unit/Applada.Modules.Discovery.Tests/Applada.Modules.Discovery.Tests.csproj" />
     <Project Path="tests/Unit/Applada.Modules.Matches.Domain.Tests/Applada.Modules.Matches.Domain.Tests.csproj" />
     <Project Path="tests/Integration/Applada.Api.IntegrationTests/Applada.Api.IntegrationTests.csproj" />

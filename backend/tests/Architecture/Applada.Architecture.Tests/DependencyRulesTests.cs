@@ -40,6 +40,7 @@ public class DependencyRulesTests
             .NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleApplication)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleInfrastructure)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleApi)
+            .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(@"^Applada\.BuildingBlocks\.Web(\.|$)")
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(EfCore)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(AspNetCore);
 
