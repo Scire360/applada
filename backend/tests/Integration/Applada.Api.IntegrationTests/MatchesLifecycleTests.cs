@@ -223,6 +223,20 @@ public class MatchesLifecycleTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Create_with_unknown_charset_returns_415()
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        using var request = new HttpRequestMessage(HttpMethod.Post, MatchesPath)
+        {
+            Content = new StringContent(ValidBody(), Encoding.UTF8, "application/json"),
+        };
+        request.Content.Headers.ContentType!.CharSet = "unknown-charset";
+        request.Headers.Add("Idempotency-Key", NewKey());
+        using var response = await client.SendAsync(request, Ct);
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
+    }
+
+    [Fact]
     public async Task Create_with_malformed_json_returns_400_problem()
     {
         using var client = factory.CreateClientFor(NewSubject());

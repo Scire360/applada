@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Applada.BuildingBlocks.Contracts;
 using Applada.BuildingBlocks.Domain;
+using Applada.BuildingBlocks.Web;
 using Applada.Modules.Matches.Application.CancelMatch;
 using Applada.Modules.Matches.Application.CreateMatch;
 using Applada.Modules.Matches.Application.Queries;
@@ -12,7 +13,6 @@ using Applada.Modules.Matches.Application.UpdateMatch;
 using Applada.Modules.Matches.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
@@ -91,7 +91,7 @@ internal static partial class MatchEndpoints
         }
 
         var json = jsonOptions.Value.SerializerOptions;
-        var body = await ReadJsonAsync<CreateMatchRequest>(request, json, ct);
+        var body = await JsonBodyReader.ReadJsonBodyAsync<CreateMatchRequest>(request, MaxBodyBytes, json, ct);
         if (body.Failure is { } failure)
         {
             return failure;
@@ -140,7 +140,7 @@ internal static partial class MatchEndpoints
             return ProblemResults.From(MatchErrors.VersionMismatch);
         }
 
-        var body = await ReadJsonAsync<UpdateMatchRequest>(request, jsonOptions.Value.SerializerOptions, ct);
+        var body = await JsonBodyReader.ReadJsonBodyAsync<UpdateMatchRequest>(request, MaxBodyBytes, jsonOptions.Value.SerializerOptions, ct);
         if (body.Failure is { } failure)
         {
             return failure;
@@ -212,103 +212,8 @@ internal static partial class MatchEndpoints
             && int.TryParse(tag[1..^1], NumberStyles.None, CultureInfo.InvariantCulture, out version);
     }
 
-    /// <summary>
-    /// Lê o corpo JSON sem deixar erro de formato virar 500: JSON malformado, tipo errado ou texto inválido (como um
-    /// surrogate isolado) vira 400 <c>validation</c>, com a chave do campo quando o erro aponta um campo conhecido.
-    /// Corpo acima de <see cref="MaxBodyBytes"/> vira 413, com ou sem <c>Content-Length</c>: nunca se lê além do limite.
-    /// </summary>
-    private static async Task<JsonBody<T>> ReadJsonAsync<T>(HttpRequest request, JsonSerializerOptions options, CancellationToken ct)
-        where T : class
-    {
-        if (!request.HasJsonContentType())
-        {
-            return new JsonBody<T>(null, TypedResults.Problem(
-                statusCode: StatusCodes.Status415UnsupportedMediaType,
-                title: "O corpo deve ser application/json."));
-        }
-
-        if (request.ContentLength > MaxBodyBytes)
-        {
-            return new JsonBody<T>(null, PayloadTooLarge());
-        }
-
-        // Lê no máximo MaxBodyBytes + 1: o byte a mais só serve para saber que passou do limite.
-        var buffer = new byte[MaxBodyBytes + 1];
-        var length = 0;
-        while (length < buffer.Length)
-        {
-            var read = await request.Body.ReadAsync(buffer.AsMemory(length), ct);
-            if (read == 0)
-            {
-                break;
-            }
-
-            length += read;
-        }
-
-        if (length > MaxBodyBytes)
-        {
-            return new JsonBody<T>(null, PayloadTooLarge());
-        }
-
-        try
-        {
-            var value = JsonSerializer.Deserialize<T>(buffer.AsSpan(0, length), options);
-            return value is null
-                ? new JsonBody<T>(null, InvalidBody("body"))
-                : new JsonBody<T>(value, null);
-        }
-        catch (JsonException ex)
-        {
-            return new JsonBody<T>(null, InvalidBody(FieldFromPath<T>(ex.Path, options)));
-        }
-    }
-
-    private static ProblemHttpResult PayloadTooLarge() =>
-        TypedResults.Problem(
-            statusCode: StatusCodes.Status413PayloadTooLarge,
-            title: $"O corpo pode ter no máximo {MaxBodyBytes / 1024} KB.",
-            type: "urn:applada:problem:payload-too-large");
-
-    private static IResult InvalidBody(string field) =>
-        ProblemResults.From(MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            [field] = ["Valor ausente, malformado ou de tipo inválido."],
-        }));
-
-    /// <summary>
-    /// Campo de primeiro nível do caminho do erro (<c>$.capacity</c> → <c>capacity</c>), só se for uma propriedade do
-    /// DTO: o nome nunca ecoa texto arbitrário do cliente. Fora disso, <c>body</c>.
-    /// </summary>
-    private static string FieldFromPath<T>(string? path, JsonSerializerOptions options)
-    {
-        if (path is null || !path.StartsWith("$.", StringComparison.Ordinal))
-        {
-            return "body";
-        }
-
-        var segment = path.AsSpan(2);
-        var end = segment.IndexOfAny('.', '[');
-        if (end >= 0)
-        {
-            segment = segment[..end];
-        }
-
-        foreach (var property in options.GetTypeInfo(typeof(T)).Properties)
-        {
-            if (segment.Equals(property.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                return property.Name;
-            }
-        }
-
-        return "body";
-    }
-
     [LoggerMessage(Level = LogLevel.Error, Message = "Contadores da partida {MatchId} divergem das inscrições; edição abortada.")]
     private static partial void LogStateDivergence(ILogger logger, Guid matchId, Exception exception);
-
-    private sealed record JsonBody<T>(T? Value, IResult? Failure);
 
     /// <summary>
     /// <see cref="MatchResponse"/> com <c>ETag: W/"version"</c> (versão dos dados editáveis, não do corpo) e
