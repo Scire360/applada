@@ -44,6 +44,7 @@ public class ProfilesTests(ApiFactory factory)
         using var response = await client.PutAsJsonAsync(ProfilePath, new { displayName }, Ct);
 
         using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        Assert.Equal("Dados inválidos.", problem.RootElement.GetProperty("title").GetString());
         Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("displayName", out _));
         Assert.Null(await ReadNameAsync(await client.GetAsync(ProfilePath, Ct)));
     }

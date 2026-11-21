@@ -74,5 +74,5 @@ internal static class ProfileEndpoints
         TypedResults.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["displayName"] = [$"Informe um nome de exibição de 1 a {DisplayNameRules.MaxLength} caracteres, sem caracteres de controle."],
-        }, type: "urn:applada:problem:validation");
+        }, title: "Dados inválidos.", type: "urn:applada:problem:validation");
 }
