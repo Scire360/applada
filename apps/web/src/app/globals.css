@@ -5878,6 +5878,11 @@ body {
   border: 0;
 }
 
+.connected-page button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .attendance-link-feedback button[aria-disabled="true"] {
   opacity: 0.55;
   cursor: progress;

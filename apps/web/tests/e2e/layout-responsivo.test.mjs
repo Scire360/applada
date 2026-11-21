@@ -75,6 +75,33 @@ async function assertAttendanceRetryFocus(page, match, userId) {
   }
 }
 
+test("botões da descoberta mostram a operação em andamento", async (t) => {
+  const browser = await launchChrome();
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.setContent(`
+    <main class="connected-page">
+      <button class="button button-primary" aria-disabled="true">Entrar</button>
+      <button class="button button-primary" aria-disabled="true" type="submit">Salvar local</button>
+      <div class="attendance-link-feedback"><button aria-disabled="true">Verificando…</button></div>
+    </main>
+  `);
+  await page.addStyleTag({ content: await readFile(new URL("../../src/app/globals.css", import.meta.url), "utf8") });
+  const styles = await page.getByRole("button").evaluateAll(buttons => buttons.map(button => {
+    const { opacity, cursor } = getComputedStyle(button);
+    return { label: button.textContent, opacity, cursor };
+  }));
+  assert.deepEqual(styles, [
+    { label: "Entrar", opacity: "0.55", cursor: "wait" },
+    { label: "Salvar local", opacity: "0.55", cursor: "wait" },
+    { label: "Verificando…", opacity: "0.55", cursor: "progress" },
+  ]);
+  const join = page.getByRole("button", { name: "Entrar" });
+  await join.evaluate(button => button.setAttribute("aria-disabled", "false"));
+  assert.equal(await join.evaluate(button => getComputedStyle(button).opacity), "1");
+  assert.notEqual(await join.evaluate(button => getComputedStyle(button).cursor), "wait");
+});
+
 test("aviso da chamada em 320 px agrupa os controles e preserva o foco ao tentar de novo", async () => {
   const browser = await launchChrome();
   try {
