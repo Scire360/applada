@@ -79,7 +79,6 @@ type AppShellProps = {
   active: "overview" | ScreenGroup;
   activePath?: string;
   title?: string;
-  variant?: "local";
   children: ReactNode;
 };
 
@@ -102,10 +101,10 @@ const titlesByNavigation: Record<AppShellProps["active"], string> = {
   admin: "Administração",
 };
 
-export function AppShell({ active, activePath, title, variant, children }: AppShellProps) {
+export function AppShell({ active, activePath, title, children }: AppShellProps) {
   return (
     <Suspense fallback={<div className="auth-loading" role="status">Carregando seu espaço…</div>}>
-      <AuthenticatedAppShell active={active} activePath={activePath} title={title} variant={variant}>
+      <AuthenticatedAppShell active={active} activePath={activePath} title={title}>
         {children}
       </AuthenticatedAppShell>
     </Suspense>
@@ -116,11 +115,10 @@ async function AuthenticatedAppShell({
   active,
   activePath,
   title,
-  variant,
   children,
 }: AppShellProps) {
-  const session = variant === "local" ? null : await auth();
-  if (variant !== "local" && !session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user) redirect("/login");
   const hasAdminAccess = hasAdminRole(session?.user?.roles ?? []);
   if (
     (active === "admin" || isAdminPath(activePath ?? "")) &&
@@ -130,7 +128,6 @@ async function AuthenticatedAppShell({
   }
 
   const currentTitle = title ?? titlesByNavigation[active];
-  const profileName = session?.user?.name?.trim() || session?.user?.email || "Sua conta";
   const primaryLinks = primaryNavigation.map((item) => {
     const isActive = item.href === "/"
       ? active === "overview"
@@ -150,12 +147,6 @@ async function AuthenticatedAppShell({
       </Link>
     );
   });
-  const profileInitials = profileName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0] ?? "")
-    .join("")
-    .toLocaleUpperCase("pt-BR");
 
   return (
     <div className="app-shell">
@@ -169,10 +160,10 @@ async function AuthenticatedAppShell({
         </Link>
 
         <div className="workspace-switcher">
-          <span aria-hidden="true" className="workspace-avatar">{variant === "local" ? "AP" : "SC"}</span>
+          <span aria-hidden="true" className="workspace-avatar">SC</span>
           <span className="workspace-copy">
             <span className="eyebrow">SEU ESPAÇO</span>
-            <span className="workspace-name">{variant === "local" ? "Testes do Applada" : "Santa Cecília FC"}</span>
+            <span className="workspace-name">Santa Cecília FC</span>
           </span>
         </div>
 
@@ -212,24 +203,12 @@ async function AuthenticatedAppShell({
             </span>
           </div>
           <div className="sidebar-profile">
-            {variant === "local" ? (
-              <SidebarAccountButton />
-            ) : (
-              <>
-                <Link aria-label="Abrir perfil do jogador" className="sidebar-profile-link" href="/jogadores/perfil">
-                  <span className="avatar avatar-dark">{profileInitials || "AP"}</span>
-                  <span className="profile-copy">
-                    <strong>{profileName}</strong>
-                    <span>Conta Applada</span>
-                  </span>
-                </Link>
-                <form action={signOutOfApplada} className="sidebar-logout-form">
-                  <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
-                    Sair
-                  </button>
-                </form>
-              </>
-            )}
+            <SidebarAccountButton />
+            <form action={signOutOfApplada} className="sidebar-logout-form">
+              <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
+                Sair
+              </button>
+            </form>
           </div>
         </div>
       </aside>
@@ -237,7 +216,7 @@ async function AuthenticatedAppShell({
       <div className="main-column">
         <header className="topbar">
           <div aria-label={`Você está em ${currentTitle}`} className="breadcrumbs">
-            <span>{variant === "local" ? "Applada" : "Santa Cecília FC"}</span>
+            <span>Santa Cecília FC</span>
             <span className="breadcrumb-divider">/</span>
             <strong>{currentTitle}</strong>
           </div>
@@ -247,15 +226,9 @@ async function AuthenticatedAppShell({
             </Link>
             <span className="preview-status">
               <span className="status-dot" />
-              {variant === "local" ? "Ambiente local" : "Prévia · dados ilustrativos"}
+              Prévia · dados ilustrativos
             </span>
-            {variant === "local" ? (
-              <HeaderAccountButton />
-            ) : (
-              <span aria-label={`Usuário ${profileName}`} className="avatar avatar-light">
-                {profileInitials || "AP"}
-              </span>
-            )}
+            <HeaderAccountButton />
           </div>
         </header>
         <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>

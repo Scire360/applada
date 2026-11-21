@@ -4,7 +4,7 @@ import { ConnectedMatches } from "@/components/connected-matches";
 
 export default function ConnectedMatchesPage() {
   return (
-    <AppShell active="matches" activePath="/peladas/conectadas" title="Partidas conectadas" variant="local">
+    <AppShell active="matches" activePath="/peladas/conectadas" title="Partidas conectadas">
       <div className="module-page connected-page">
         <section className="page-heading">
           <div>

@@ -76,21 +76,35 @@ Bearer e autorizar a operação no servidor; a sessão web não substitui isso.
 ## Testar a integração local
 
 1. Na raiz deste checkout, suba o AppHost com Docker aberto seguindo [o README do repositório](../../README.md#executar-o-backend). Confirme que `http://localhost:5080/health/ready` responde `Healthy`.
-2. Em outro terminal, habilite o fluxo e abra a web em loopback.
+2. Em `apps/web`, copie `.env.example` para `.env.local` (ignorado pelo Git), gere `AUTH_SECRET` com
+   `npx auth secret` e copie para `AUTH_KEYCLOAK_SECRET` o segredo de dev do client `applada-web`, que
+   está em `infra/keycloak/applada-dev-realm.json` (valor somente local). `APPLADA_API_URL` aponta para a
+   API do AppHost (`http://localhost:5080`).
+3. Abra a web em loopback:
 
    ```powershell
    cd apps\web
    npm ci
-   $env:APPLADA_LOCAL_INTEGRATION = '1'
    npm run dev -- --hostname localhost --port 3000
    ```
 
    Se a prévia no Brave recarregar repetidamente com o erro `Element type is invalid`
    e o painel indicar Webpack, reinicie o frontend com o comando acima para usar Turbopack.
-3. Abra [Partidas conectadas](http://localhost:3000/peladas/conectadas). Entre como `organizador.dev` com a senha temporária `trocar-no-primeiro-login`. O Keycloak pede uma nova senha no primeiro acesso. Para simular a fila, crie uma partida futura com uma vaga e compartilhe seu link em dois perfis ou janelas isoladas, com contas diferentes como `jogador1.dev` e `jogador2.dev`.
-4. Confirme a primeira conta, inscreva a segunda na espera, retire a primeira e use **Atualizar partida** na segunda. Os dados vêm do PostgreSQL. O organizador pode editar, cancelar e ver os participantes. A API aplica as restrições de cada papel.
+4. Entre pelo login do site como `organizador.dev` com a senha temporária `trocar-no-primeiro-login`.
+   O Keycloak pede uma nova senha no primeiro acesso. Abra [Partidas conectadas](http://localhost:3000/peladas/conectadas).
+   Para simular a fila, crie uma partida futura com uma vaga e compartilhe seu link em dois perfis ou
+   janelas isoladas, com contas diferentes como `jogador1.dev` e `jogador2.dev`.
+5. Confirme a primeira conta, inscreva a segunda na espera, retire a primeira e use **Atualizar partida** na segunda. Os dados vêm do PostgreSQL. O organizador pode editar, cancelar e ver os participantes. A API aplica as restrições de cada papel.
 
-O servidor web usa o client `applada-dev-web` com PKCE e mantém a sessão em memória até o access token expirar ou o servidor reiniciar. O cookie contém um identificador opaco e usa `HttpOnly`, `Secure` e `SameSite=Lax`. O modo exige `npm run dev`, a flag de integração e a origem exata `http://localhost:3000`. Sair encerra a sessão web local. O próximo acesso pede as credenciais novamente no Keycloak.
+As telas conectadas chamam o BFF `/api/app/*` do próprio Next.js. Ele lê o access token do Keycloak
+no JWT criptografado do Auth.js, no servidor, e repassa à API só as operações de uma lista fechada.
+O token nunca chega ao navegador, a URL ou ao log. Escritas exigem `Origin` igual a `AUTH_URL`, corpo
+JSON de até 16 KB e só voltam respostas JSON. Sem sessão, ou com o access token expirado, o BFF
+responde 401 e a tela pede para entrar de novo. Sair usa o logout do Auth.js, que também encerra a
+sessão SSO no Keycloak.
+
+Ao criar uma partida, o seletor opcional **Grupo** lista os grupos em que você é dono ou administrador.
+`/peladas/conectadas?grupo=<id>` abre a criação com o grupo já escolhido.
 
 O contrato de Matches oferece partidas que o usuário organiza ou das quais participa. O fluxo usa links para abrir outras partidas por ID. Check-in, placar e votação seguem na demonstração.
 
@@ -102,8 +116,8 @@ pelo identificador.
 
 O avatar do cabeçalho abre **Sua conta**. Em **Perfil**, edite o nome e, depois de escolher um arquivo,
 revise a miniatura antes de salvar. O arquivo escolhido deve ter até 1 MB (1.000.000 bytes) e ser JPG,
-PNG ou WebP. A aplicação recorta uma miniatura quadrada de 192 × 192. No modo de prévia, o nome e a
-foto ficam no navegador. Na conta conectada, o nome fica no PostgreSQL e a miniatura fica no Storage.
+PNG ou WebP. A aplicação recorta uma miniatura quadrada de 192 × 192. O nome fica no PostgreSQL e a
+miniatura fica no Storage.
 
 Para habilitar a foto da conta conectada, crie no projeto Supabase do Applada um bucket privado
 `applada-avatars`, limitado a 1 MB e ao MIME `image/png`. Mantenha a leitura e a escrita diretas do

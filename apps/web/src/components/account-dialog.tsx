@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { signOutOfApplada } from "@/app/actions/auth";
 import { Icon } from "@/components/icon";
 import { makeAvatarThumbnail, type AvatarThumbnail } from "@/lib/avatar-photo";
 import { useAccount } from "./account-provider";
@@ -54,7 +55,7 @@ export function SidebarAccountButton() {
       <AccountAvatar name={ready ? account.displayName : null} photo={ready ? account.photo : null} />
       <span className="profile-copy">
         <strong>{ready ? account.displayName ?? "Sua conta" : "Sua conta"}</strong>
-        <span>{ready && account.userId ? "Conta conectada" : "Perfil e configurações"}</span>
+        <span>{ready ? "Conta conectada" : "Perfil e configurações"}</span>
       </span>
       <Icon className="profile-chevron" name="chevron-down" />
     </button>
@@ -69,7 +70,7 @@ function PhotoEditor() {
   const [error, setError] = useState("");
 
   if (account.state !== "ready") return null;
-  const { displayName, photo, photoState, userId } = account;
+  const { displayName, photo, photoState } = account;
   const disabled = busy || photoSaving;
 
   async function selectFile(event: ChangeEvent<HTMLInputElement>) {
@@ -110,7 +111,6 @@ function PhotoEditor() {
       <div className="account-photo-info">
         <h3 id="conta-foto">Foto de perfil</h3>
         <p id="conta-foto-formatos">JPG, PNG ou WebP · até 1 MB</p>
-        {!userId && <p>A foto da prévia fica neste navegador.</p>}
         {photoState === "loading" && <p role="status">Carregando foto…</p>}
         {photoState === "unavailable" && <p role="status">O armazenamento de fotos está indisponível neste ambiente.</p>}
         {photoState === "ready" && (
@@ -156,8 +156,6 @@ export function AccountDialog() {
     closeAccount();
   }
 
-  const connected = account.state === "ready" && account.userId !== null;
-
   return (
     <dialog aria-labelledby="conta-titulo" className="account-dialog" id="conta-modal"
       onClick={(event) => { if (event.target === event.currentTarget) close(); }} onClose={onClose} ref={ref}>
@@ -184,7 +182,7 @@ export function AccountDialog() {
               </> : account.state === "signed-out" ? (
                 <div className="account-empty">
                   <p>Entre na sua conta para editar o nome e a foto.</p>
-                  <Link className="button button-primary" href="/peladas/conectadas" onClick={close}>Entrar na conta</Link>
+                  <Link className="button button-primary" href="/login" onClick={close}>Entrar na conta</Link>
                 </div>
               ) : <p role="status">{account.state === "loading" ? "Carregando perfil…" : "Não foi possível carregar o perfil. Atualize a página."}</p>
             ) : (
@@ -194,11 +192,11 @@ export function AccountDialog() {
                 <Link href="/notificacoes" onClick={close}><Icon name="bell" /> Notificações <Icon name="arrow-right" /></Link>
                 <div className="account-session">
                   <h3>Sessão</h3>
-                  {connected ? (
-                    <form action="/api/local/logout" method="post">
+                  {account.state === "signed-out" ? <p>Você ainda não entrou.</p> : (
+                    <form action={signOutOfApplada}>
                       <button className="button button-secondary" type="submit">Sair da sessão</button>
                     </form>
-                  ) : <p>{account.state === "signed-out" ? "Você ainda não entrou." : "Você está na prévia do Applada."}</p>}
+                  )}
                 </div>
               </div>
             )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { MatchCreation, MatchDetails, MatchEdit } from "@/lib/connected-matches";
+import type { GroupSummary, MatchCreation, MatchDetails, MatchEdit } from "@/lib/connected-matches";
 
 function readMatch(form: FormData): MatchEdit {
   return {
@@ -30,7 +30,12 @@ function MatchFields({ match }: { match?: MatchDetails }) {
   );
 }
 
-export function CreateConnectedMatch({ busy, create }: { busy: boolean; create: (fields: MatchCreation) => void }) {
+export function CreateConnectedMatch({ busy, create, groups, initialGroupId }: {
+  busy: boolean;
+  create: (fields: MatchCreation) => void;
+  groups: GroupSummary[];
+  initialGroupId: string;
+}) {
   const [error, setError] = useState("");
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -47,8 +52,10 @@ export function CreateConnectedMatch({ busy, create }: { busy: boolean; create: 
       return;
     }
     setError("");
+    const groupId = String(data.get("grupo") ?? "");
     create({
       ...fields,
+      ...(groups.some((group) => group.id === groupId) ? { groupId } : {}),
       startsAt: start.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       durationMinutes: Number(data.get("duracao")),
@@ -69,8 +76,17 @@ export function CreateConnectedMatch({ busy, create }: { busy: boolean; create: 
             <span>Início no horário local do seu dispositivo</span>
             <input name="inicio" required type="datetime-local" />
           </label>
+          {groups.length > 0 && (
+            <label className="preview-field preview-field-wide">
+              <span>Grupo <small>(opcional)</small></span>
+              <select defaultValue={initialGroupId} name="grupo">
+                <option value="">Sem grupo</option>
+                {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+              </select>
+            </label>
+          )}
         </div>
-        <p className="connected-hint">Qualquer conta de teste com o link poderá consultar a partida e se inscrever.</p>
+        <p className="connected-hint">Qualquer pessoa com conta no Applada e o link poderá consultar a partida e se inscrever.</p>
         <button className="button button-primary" type="submit">Criar partida</button>
       </fieldset>
       {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}

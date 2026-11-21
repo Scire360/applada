@@ -1,26 +1,43 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { ApiError, appApi } from "@/lib/api-client";
 import {
-  LocalApiError, localApi, matchDate, registrationLabel,
-  type MatchCreation, type MatchDetails, type MatchEdit, type MatchRole, type MatchSummary, type Page, type Participant,
+  matchDate, registrationLabel,
+  type GroupSummary, type MatchCreation, type MatchDetails, type MatchEdit, type MatchRole, type MatchSummary, type Page, type Participant,
 } from "@/lib/connected-matches";
 import { CreateConnectedMatch, EditConnectedMatch } from "./connected-match-forms";
 import { ConnectedProfile } from "./connected-profile";
 import { useAccount } from "./account-provider";
 
 type Session = { userId: string };
-type Phase = "checking" | "disabled" | "signed-out" | "error" | "signed-in";
+type Phase = "checking" | "signed-out" | "error" | "signed-in";
 const blankPage = { items: [], nextCursor: null };
 const roles: MatchRole[] = ["organizer", "participant"];
 const roleLabel = { organizer: "Organizo", participant: "Participo" };
 const connectedPath = "/peladas/conectadas";
-const matchIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const idPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const maxGroupPages = 10;
 
 function mine(role: MatchRole, cursor?: string) {
   const query = new URLSearchParams({ role });
   if (cursor) query.set("cursor", cursor);
-  return localApi<Page<MatchSummary>>(`mine?${query}`);
+  return appApi<Page<MatchSummary>>(`me/matches?${query}`);
+}
+
+// Grupos em que posso criar partida (owner ou admin), para o seletor opcional.
+async function managedGroups(signal: AbortSignal) {
+  const groups: GroupSummary[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < maxGroupPages; page++) {
+    const query: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const next: Page<GroupSummary> = await appApi<Page<GroupSummary>>(`me/groups${query}`, { signal });
+    groups.push(...next.items.filter((group) => group.myRole === "owner" || group.myRole === "admin"));
+    cursor = next.nextCursor;
+    if (!cursor) break;
+  }
+  return groups;
 }
 
 function detailPath(id: string) {
@@ -34,9 +51,10 @@ export function ConnectedMatches() {
   const [role, setRole] = useState<MatchRole>("organizer");
   const [page, setPage] = useState<Page<MatchSummary>>(blankPage);
   const [match, setMatch] = useState<MatchDetails>();
-  const [requestedId, setRequestedId] = useState("");
   const [participants, setParticipants] = useState<Page<Participant>>();
   const [completedCreations, setCompletedCreations] = useState(0);
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [initialGroupId, setInitialGroupId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -48,40 +66,43 @@ export function ConnectedMatches() {
     const controller = new AbortController();
     const url = new URL(window.location.href);
     const rawId = url.searchParams.get("partida") ?? "";
-    const id = matchIdPattern.test(rawId) ? rawId : "";
+    const id = idPattern.test(rawId) ? rawId : "";
+    const rawGroup = url.searchParams.get("grupo") ?? "";
+    const groupId = idPattern.test(rawGroup) ? rawGroup.toLowerCase() : "";
 
     async function load() {
       let authenticated = false;
       try {
-        const identity = await localApi<Session>("session", { signal: controller.signal });
+        const identity = await appApi<Session>("me", { signal: controller.signal });
         if (controller.signal.aborted) return;
         authenticated = true;
         setSession(identity);
-        const [list, selected] = await Promise.allSettled([
+        const [list, selected, managed] = await Promise.allSettled([
           mine("organizer"),
-          id ? localApi<MatchDetails>(detailPath(id), { signal: controller.signal }) : Promise.resolve(undefined),
+          id ? appApi<MatchDetails>(detailPath(id), { signal: controller.signal }) : Promise.resolve(undefined),
+          managedGroups(controller.signal),
         ]);
         if (controller.signal.aborted) return;
         if (list.status === "fulfilled") setPage(list.value);
         if (selected.status === "fulfilled") setMatch(selected.value);
+        if (managed.status === "fulfilled") {
+          setGroups(managed.value);
+          const preselected = managed.value.find((group) => group.id.toLowerCase() === groupId);
+          if (preselected) setInitialGroupId(preselected.id);
+        }
         setNow(Date.now());
         setPhase("signed-in");
-        const failure = [list, selected].find((result) => result.status === "rejected");
+        const failure = [list, selected, managed].find((result) => result.status === "rejected");
         if (failure?.status === "rejected") throw failure.reason;
       } catch (failure) {
         if (controller.signal.aborted) return;
-        const status = failure instanceof LocalApiError ? failure.status : 0;
-        if (status === 401) {
+        if (failure instanceof ApiError && failure.status === 401) {
           setPhase("signed-out");
-          if (url.searchParams.has("login")) setError("O login não foi concluído. Tente novamente.");
-        } else if (status === 404 && !authenticated) {
-          setPhase("disabled");
+          setError(failure.message);
         } else {
           setPhase(authenticated ? "signed-in" : "error");
           setError(failure instanceof Error ? failure.message : "Não foi possível conectar agora.");
         }
-      } finally {
-        if (!controller.signal.aborted) setRequestedId(id);
       }
     }
 
@@ -108,7 +129,7 @@ export function ConnectedMatches() {
     try {
       await action();
     } catch (failure) {
-      if (failure instanceof LocalApiError && failure.status === 401) setPhase("signed-out");
+      if (failure instanceof ApiError && failure.status === 401) setPhase("signed-out");
       setError(failure instanceof Error ? failure.message : "Não foi possível concluir a ação.");
     } finally {
       setBusy(false);
@@ -119,7 +140,6 @@ export function ConnectedMatches() {
   function select(next: MatchDetails) {
     setNow(Date.now());
     setMatch(next);
-    setRequestedId(next.id);
     setParticipants(undefined);
     window.history.replaceState(null, "", `${connectedPath}?partida=${next.id}`);
   }
@@ -128,16 +148,16 @@ export function ConnectedMatches() {
     try {
       await reload();
     } catch (failure) {
-      if (failure instanceof LocalApiError && failure.status === 401) throw failure;
+      if (failure instanceof ApiError && failure.status === 401) throw failure;
       setError("A alteração foi salva. Atualize a página para carregar os dados mais recentes.");
     }
   }
 
   function create(fields: MatchCreation) {
     void run(async () => {
-      const body = JSON.stringify({ ...fields, locationText: fields.locationText || null });
+      const body = JSON.stringify({ ...fields, locationText: fields.locationText || null, groupId: fields.groupId || null });
       if (creationKey.current?.body !== body) creationKey.current = { body, key: crypto.randomUUID() };
-      const next = await localApi<MatchDetails>("matches", {
+      const next = await appApi<MatchDetails>("matches", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": creationKey.current.key },
         body,
@@ -155,7 +175,7 @@ export function ConnectedMatches() {
 
   function refresh(id: string) {
     return run(async () => {
-      select(await localApi<MatchDetails>(detailPath(id)));
+      select(await appApi<MatchDetails>(detailPath(id)));
       setPage(await mine(role));
       setNotice("Partida atualizada.");
     });
@@ -164,10 +184,10 @@ export function ConnectedMatches() {
   function changeRegistration(id: string, withdraw: boolean) {
     void run(async () => {
       const path = detailPath(id) + "/registrations";
-      const outcome = await localApi<MatchDetails["myRegistration"]>(withdraw ? path + "/me" : path, { method: withdraw ? "DELETE" : "POST" });
+      const outcome = await appApi<MatchDetails["myRegistration"]>(withdraw ? path + "/me" : path, { method: withdraw ? "DELETE" : "POST" });
       setNotice(withdraw ? "Inscrição retirada." : outcome?.status === "waitlisted" ? "Você entrou na lista de espera." : "Sua vaga está confirmada.");
       await reloadAfterWrite(async () => {
-        select(await localApi<MatchDetails>(detailPath(id)));
+        select(await appApi<MatchDetails>(detailPath(id)));
         setPage(await mine(role));
       });
     });
@@ -175,7 +195,7 @@ export function ConnectedMatches() {
 
   function save(current: MatchDetails, fields: MatchEdit) {
     void run(async () => {
-      const next = await localApi<MatchDetails>(detailPath(current.id), {
+      const next = await appApi<MatchDetails>(detailPath(current.id), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "If-Match": `"${current.version}"` },
         body: JSON.stringify(fields),
@@ -188,7 +208,7 @@ export function ConnectedMatches() {
 
   function cancel(id: string) {
     void run(async () => {
-      select(await localApi<MatchDetails>(detailPath(id) + "/cancellation", { method: "POST" }));
+      select(await appApi<MatchDetails>(detailPath(id) + "/cancellation", { method: "POST" }));
       setNotice("Partida cancelada.");
       await reloadAfterWrite(async () => setPage(await mine(role)));
     });
@@ -197,7 +217,7 @@ export function ConnectedMatches() {
   function listParticipants(id: string, cursor?: string) {
     return run(async () => {
       const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-      const next = await localApi<Page<Participant>>(detailPath(id) + "/registrations" + query);
+      const next = await appApi<Page<Participant>>(detailPath(id) + "/registrations" + query);
       setParticipants((current) => cursor && current
         ? { items: [...current.items, ...next.items], nextCursor: next.nextCursor } : next);
     });
@@ -206,14 +226,13 @@ export function ConnectedMatches() {
   if (phase !== "signed-in") {
     return (
       <section className="surface-card connected-card" aria-labelledby="conexao">
-        <h2 id="conexao">{phase === "disabled" ? "Integração local desativada" : "Conta de teste"}</h2>
+        <h2 id="conexao">{phase === "signed-out" ? "Entre para continuar" : "Suas partidas"}</h2>
         {phase === "checking" && <p role="status">Verificando a sessão…</p>}
-        {phase === "disabled" && <p>Para abrir as partidas reais do ambiente de desenvolvimento, inicie a web com a integração local habilitada.</p>}
         {phase === "signed-out" && (
-          <form action={`/api/local/login${requestedId ? `?partida=${requestedId}` : ""}`} method="post">
-            <p>Entre pelo Keycloak local para organizar partidas e ocupar vagas no banco de teste.</p>
-            <button className="button button-primary" type="submit">Entrar com conta de teste</button>
-          </form>
+          <>
+            <p>Entre na sua conta do Applada para organizar partidas e confirmar presença.</p>
+            <Link className="button button-primary" href="/login">Entrar</Link>
+          </>
         )}
         {phase === "error" && <button className="button button-primary" onClick={() => window.location.reload()} type="button">Tentar novamente</button>}
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
@@ -227,12 +246,6 @@ export function ConnectedMatches() {
 
   return (
     <>
-      <div className="connected-session">
-        <span className="quiet-label"><span className="status-dot" /> Sessão de teste ativa</span>
-        <form action="/api/local/logout" method="post">
-          <button className="button button-secondary" type="submit">Sair da sessão</button>
-        </form>
-      </div>
       <div className="connected-feedback">
         <p role="status">{busy ? "Aguarde…" : notice}</p>
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
@@ -322,7 +335,7 @@ export function ConnectedMatches() {
         </section>
         <section className="surface-card connected-card" aria-labelledby="criar-partida">
           <h2 id="criar-partida">Organizar partida</h2>
-          <CreateConnectedMatch busy={busy} create={create} key={completedCreations} />
+          <CreateConnectedMatch busy={busy} create={create} groups={groups} initialGroupId={initialGroupId} key={`${completedCreations}-${initialGroupId}`} />
         </section>
       </div>
     </>

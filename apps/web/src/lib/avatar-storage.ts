@@ -3,10 +3,13 @@ import "server-only";
 import { Buffer } from "node:buffer";
 import { deflateSync } from "node:zlib";
 import { NextResponse, type NextRequest } from "next/server";
-import { apiOrigin, localError, matchIdPattern, secureResponse } from "./local-auth";
 import { avatarPixelBytes, avatarSide } from "./avatar-photo";
+import { readBoundedBody } from "./bff/guards";
+import { problem, secureResponse } from "./bff/http";
+import { apiOrigin } from "./bff/session";
 
 const bucket = "applada-avatars";
+const userIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function pngChunk(type: string, payload: Buffer) {
@@ -138,10 +141,10 @@ async function putAvatar(config: StorageConfig, objectPath: string, pixels: Uint
 export async function handleAvatar(
   request: NextRequest,
   accessToken: string,
-  readBody: (request: NextRequest, limit: number) => Promise<Uint8Array<ArrayBuffer> | null>,
+  expectedAccount: string | null,
 ) {
   try {
-    const session = await fetch(new URL("/api/v1/me", apiOrigin), {
+    const session = await fetch(new URL("/api/v1/me", apiOrigin()), {
       headers: { Authorization: "Bearer " + accessToken },
       cache: "no-store",
       redirect: "error",
@@ -149,14 +152,18 @@ export async function handleAvatar(
     });
     if (session.status === 401) {
       await session.body?.cancel();
-      return localError(401, "Entre novamente para acessar sua foto.");
+      return problem(401, "Entre novamente para acessar sua foto.");
     }
     await requireStorageSuccess(session);
     const { userId } = await session.json() as { userId: string };
-    if (!matchIdPattern.test(userId)) throw new Error("Identificador de usuário inválido.");
+    if (!userIdPattern.test(userId)) throw new Error("Identificador de usuário inválido.");
+    // A aba pode ter carregado outra conta antes de um novo login: não grava na conta errada.
+    if (request.method !== "GET" && expectedAccount !== null && expectedAccount.toLowerCase() !== userId.toLowerCase()) {
+      return problem(409, "A conta nesta aba mudou. Atualize a página e tente novamente.");
+    }
 
     const config = getStorageConfig();
-    if (!config) return localError(503, "O armazenamento de fotos ainda não está configurado.");
+    if (!config) return problem(503, "O armazenamento de fotos ainda não está configurado.");
     const filename = userId.toLowerCase() + ".png";
     const objectPath = bucket + "/" + filename;
 
@@ -173,13 +180,13 @@ export async function handleAvatar(
     }
 
     if (request.headers.get("content-type") !== "application/octet-stream") {
-      return localError(415, "Selecione a foto pelas configurações da sua conta.");
+      return problem(415, "Selecione a foto pelas configurações da sua conta.");
     }
-    const pixels = await readBody(request, avatarPixelBytes);
-    if (!pixels) return localError(413, "A prévia da foto excedeu o tamanho permitido.");
-    if (pixels.length !== avatarPixelBytes) return localError(400, "A prévia da foto está incompleta.");
+    const pixels = await readBoundedBody(request.body, avatarPixelBytes);
+    if (!pixels) return problem(413, "A prévia da foto excedeu o tamanho permitido.");
+    if (pixels.length !== avatarPixelBytes) return problem(400, "A prévia da foto está incompleta.");
     return await putAvatar(config, objectPath, pixels);
   } catch {
-    return localError(503, "O armazenamento de fotos está indisponível. Tente novamente.");
+    return problem(503, "O armazenamento de fotos está indisponível. Tente novamente.");
   }
 }
