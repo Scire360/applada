@@ -39,6 +39,12 @@ export function isAuthConfigured() {
   return isKeycloakConfigured() && Boolean(process.env.AUTH_SECRET);
 }
 
+export function isVisualPreview() {
+  return process.env.NODE_ENV === "development"
+    && !isAuthConfigured()
+    && process.env.APPLADA_LOCAL_INTEGRATION !== "1";
+}
+
 function getPublicAppUrl(fallback?: string) {
   const configuredUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
   const appUrl =
@@ -225,6 +231,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       },
       authorized({ auth: session, request }) {
         const { pathname } = request.nextUrl;
+
+        if (isVisualPreview()) {
+          return true;
+        }
 
         if (pathname === "/acesso-negado") {
           return true;
