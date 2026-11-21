@@ -11,7 +11,7 @@ export default function ConnectedMatchesPage() {
             <h1>Partidas conectadas</h1>
             <p className="page-subtitle">Organize a próxima pelada, compartilhe o link e acompanhe as inscrições.</p>
           </div>
-          <Link className="button button-secondary" href="/peladas">Voltar à agenda demonstrativa</Link>
+          <Link className="button button-secondary" href="/peladas">Ver agenda</Link>
         </section>
         <ConnectedMatches />
       </div>

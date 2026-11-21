@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { auth, isVisualPreview } from "@/auth";
 import { signOutOfApplada } from "@/app/actions/auth";
 import { Icon } from "@/components/icon";
 import { hasAdminRole, isAdminPath } from "@/lib/authorization";
@@ -124,9 +124,10 @@ async function AuthenticatedAppShell({
 }: AppShellProps) {
   const demo = dataSource !== "api";
   const workspace = demo ? { initials: "SC", name: "Santa Cecília FC" } : { initials: "AP", name: "Applada" };
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  const hasAdminAccess = hasAdminRole(session?.user?.roles ?? []);
+  const visualPreview = isVisualPreview();
+  const session = visualPreview ? null : await auth();
+  if (!visualPreview && !session?.user) redirect("/login");
+  const hasAdminAccess = visualPreview || hasAdminRole(session?.user?.roles ?? []);
   if (
     (active === "admin" || isAdminPath(activePath ?? "")) &&
     !hasAdminAccess

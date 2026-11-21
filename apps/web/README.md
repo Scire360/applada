@@ -229,6 +229,8 @@ npm run build
 O mapa em `/modulos` reúne as 43 vistas identificadas no frontend legado e permite buscar por
 nome, caminho ou área do produto. Nas telas demonstrativas, formulários e listas simulam a interação em memória no navegador.
 
+O runtime do Next.js 16 exige Node.js 20.9 ou superior.
+
 ## Demonstração da jornada de peladas
 
 Em `/eventos/novo`, crie uma pelada de demonstração com data de hoje ou futura; para hoje, o horário também precisa estar no futuro. Continue pela agenda em `/peladas`.

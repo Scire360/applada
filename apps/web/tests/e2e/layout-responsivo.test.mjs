@@ -143,6 +143,8 @@ async function measureLayout() {
   const content = shell.querySelector(".page-content");
   const breadcrumbs = shell.querySelector(".breadcrumbs");
   const account = shell.querySelector(".topbar .account-trigger");
+  const avatar = shell.querySelector(".topbar .avatar-light");
+  const identity = account ?? avatar;
   const community = shell.querySelector('.compact-primary-nav a[aria-label="Comunidade"]');
   const range = document.createRange();
   range.selectNodeContents(community.querySelector("span"));
@@ -151,7 +153,7 @@ async function measureLayout() {
   const contentStyle = getComputedStyle(content);
   const leftPadding = parseFloat(contentStyle.paddingLeft);
   const rightPadding = parseFloat(contentStyle.paddingRight);
-  const accountRect = account.getBoundingClientRect();
+  const identityRect = identity?.getClientRects().length ? identity.getBoundingClientRect() : null;
   const layoutRect = content.firstElementChild.getBoundingClientRect();
   const communityRect = community.getBoundingClientRect();
   const communityText = Array.from(range.getClientRects());
@@ -163,8 +165,8 @@ async function measureLayout() {
     available: main.clientWidth,
     used: Math.min(layoutRect.width, contentRect.width - leftPadding - rightPadding),
     headerOffset: Math.abs(breadcrumbs.getBoundingClientRect().left - contentRect.left - leftPadding),
-    accountFits: accountRect.left >= 0 && accountRect.right <= viewportWidth
-      && accountRect.width >= 44 && accountRect.height >= 44,
+    accountFits: !identityRect || (identityRect.left >= 0 && identityRect.right <= viewportWidth
+      && (!account || (identityRect.width >= 44 && identityRect.height >= 44))),
     communityFits: communityText.length === 1 && communityText[0].left >= communityRect.left
       && communityText[0].right <= communityRect.right,
     actionsFit: Array.from(content.querySelectorAll(".page-heading-actions > *")).every((action) => {
