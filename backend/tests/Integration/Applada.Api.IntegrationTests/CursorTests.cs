@@ -19,6 +19,7 @@ public class CursorTests
     [Theory]
     [InlineData("""{"\ud800":"sample","v":[1,2]}""")]
     [InlineData("""{"k":"\ud800","v":[1,2]}""")]
+    [InlineData("""{"k":"\ud800\ud800\ud800","v":[1,2]}""")]
     [InlineData("""{"k":"sample","v":["\ud800",2]}""")]
     [InlineData("""{"k":"sample","v":[1,"\ud800"]}""")]
     public void TryDecode_rejects_unpaired_escaped_surrogate(string json)

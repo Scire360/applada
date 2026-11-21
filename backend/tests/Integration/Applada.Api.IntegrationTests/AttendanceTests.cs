@@ -207,6 +207,8 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
             Cursor.Encode("attendance", 0),
             CursorSamples.WithInvalidUtf8Key(Cursor.AttendanceKind),
             Base64Url.EncodeToString("""{"k":"\ud800","v":[1]}"""u8),
+            // Escape mais longo que "attendance": ValueEquals precisa desfazê-lo em vez de recusar pelo tamanho.
+            Base64Url.EncodeToString("""{"k":"\ud800\ud800\ud800","v":[1]}"""u8),
             Cursor.Encode("attendance", 1, 2),
             Cursor.Encode("attendance"),
             // O encoder só emite chaves de tipos suportados. Estes envelopes preservam os tipos JSON adulterados.

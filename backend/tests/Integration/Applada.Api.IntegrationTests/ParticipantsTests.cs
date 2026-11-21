@@ -258,6 +258,8 @@ public class ParticipantsTests(ApiFactory factory)
                 myMatchesCursor,
                 CursorSamples.WithInvalidUtf8Key("participants"),
                 Base64Url("""{"k":"\ud800","v":[0,1]}"""),
+                // Escape mais longo que "participants": ValueEquals precisa desfazê-lo em vez de recusar pelo tamanho.
+                Base64Url("""{"k":"\ud800\ud800\ud800","v":[0,1]}"""),
                 Base64Url("""{"k":"participants","v":[]}"""),
                 Base64Url("""{"k":"participants","v":[0]}"""),
                 Base64Url("""{"k":"participants","v":[0,1,2]}"""),
