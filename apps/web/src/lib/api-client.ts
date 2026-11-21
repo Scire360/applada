@@ -4,9 +4,14 @@
 export const accountHeader = "X-Applada-Account";
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
+    this.status = status;
+    this.code = code;
   }
 }
 
@@ -24,7 +29,7 @@ export async function appApi<T>(path: string, options?: RequestInit): Promise<T>
       await response.body?.cancel();
       throw new ApiError(401, "Sua sessão expirou. Entre novamente.");
     }
-    const problem: { title?: string; errors?: Record<string, string[]> } = await response.json().catch(() => ({}));
+    const problem: { title?: string; code?: string; type?: string; errors?: Record<string, string[]> } = await response.json().catch(() => ({}));
     const detail = problem.errors && Object.values(problem.errors).flat().join(" ");
     const retryAfter = response.headers.get("Retry-After");
     const message = response.status === 412
@@ -32,7 +37,9 @@ export async function appApi<T>(path: string, options?: RequestInit): Promise<T>
       : response.status === 429 && retryAfter
         ? `Aguarde ${retryAfter} s antes de tentar novamente.`
         : detail || problem.title || "A operação falhou. Tente novamente.";
-    throw new ApiError(response.status, message);
+    const prefix = "urn:applada:problem:";
+    const code = problem.code ?? (problem.type?.startsWith(prefix) ? problem.type.slice(prefix.length) : undefined);
+    throw new ApiError(response.status, message, code);
   }
   return response.status === 204 ? undefined as T : response.json();
 }

@@ -6,6 +6,26 @@ const G = "123e4567-e89b-12d3-a456-426614174000";
 const H = "223e4567-e89b-12d3-a456-426614174001";
 const paging = ["cursor", "limit"];
 
+test("chamada: lista por cursor e grava o status em JSON", () => {
+  assert.deepEqual(resolveOperation(["matches", G, "attendance"], "GET"), {
+    path: `/matches/${G}/attendance`, query: paging, body: "none", forward: [],
+  });
+  assert.deepEqual(resolveOperation(["matches", G, "attendance", H], "PUT"), {
+    path: `/matches/${G}/attendance/${H}`, query: [], body: "json", forward: [],
+  });
+});
+
+test("chamada: recusa métodos fora do contrato e IDs inválidos", () => {
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    assert.equal(resolveOperation(["matches", G, "attendance"], method), null);
+  }
+  for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+    assert.equal(resolveOperation(["matches", G, "attendance", H], method), null);
+  }
+  assert.equal(resolveOperation(["matches", "inválido", "attendance"], "GET"), null);
+  assert.equal(resolveOperation(["matches", G, "attendance", "inválido"], "PUT"), null);
+});
+
 test("grupos: partidas do grupo paginadas", () => {
   assert.deepEqual(resolveOperation(["groups", G, "matches"], "GET"), {
     path: `/groups/${G}/matches`, query: paging, body: "none", forward: [],

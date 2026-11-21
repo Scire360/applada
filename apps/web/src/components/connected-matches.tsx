@@ -10,6 +10,7 @@ import {
 import { CreateConnectedMatch, EditConnectedMatch } from "./connected-match-forms";
 import { ConnectedProfile } from "./connected-profile";
 import { useAccount } from "./account-provider";
+import { AttendanceLink } from "./matches/attendance-link";
 
 type Session = { userId: string };
 type Phase = "checking" | "signed-out" | "error" | "signed-in";
@@ -265,6 +266,7 @@ export function ConnectedMatches() {
           <p>{match.confirmedCount} de {match.capacity} vagas ocupadas · {match.waitlistCount} na lista de espera</p>
           {match.myRegistration && <p><strong>{registrationLabel(match.myRegistration.status, match.myRegistration.position)}</strong></p>}
           <div className="connected-actions">
+            {organizer && session && <AttendanceLink match={match} userId={session.userId} />}
             {isOpen && (
               <button className={`button button-${activeRegistration ? "secondary" : "primary"}`} disabled={busy} onClick={() => changeRegistration(match.id, activeRegistration)} type="button">
                 {activeRegistration ? "Retirar inscrição" : match.confirmedCount >= match.capacity ? "Entrar na lista de espera" : "Confirmar presença"}
@@ -324,6 +326,7 @@ export function ConnectedMatches() {
                     <strong>{item.title}</strong>
                     <span>{matchDate(item.startsAt)} · {item.status === "cancelled" ? "Cancelada" : `${item.confirmedCount}/${item.capacity} vagas`}</span>
                   </button>
+                  {session && match?.id !== item.id && <AttendanceLink match={item} userId={session.userId} />}
                 </li>
               ))}
             </ul>

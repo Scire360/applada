@@ -30,6 +30,8 @@ const rules: readonly Rule[] = [
   { pattern: ["matches", "{}", "cancellation"], methods: { POST: none } },
   { pattern: ["matches", "{}", "registrations"], methods: { GET: page, POST: none } },
   { pattern: ["matches", "{}", "registrations", "me"], methods: { DELETE: none } },
+  { pattern: ["matches", "{}", "attendance"], methods: { GET: page } },
+  { pattern: ["matches", "{}", "attendance", "{}"], methods: { PUT: json } },
   { pattern: ["me", "groups"], methods: { GET: page } },
   { pattern: ["groups"], methods: { POST: json } },
   { pattern: ["groups", "{}"], methods: { GET: none } },

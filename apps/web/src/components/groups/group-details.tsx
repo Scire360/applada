@@ -96,7 +96,7 @@ export function GroupDetails({ id }: { id: string }) {
       <div className="connected-grid">
         <GroupMembers groupId={group.id} myRole={group.myRole} myUserId={userId} onChanged={refreshGroup} onLeft={() => router.push("/grupos")} />
         <div className="group-column">
-          <GroupMatches groupId={group.id} myRole={group.myRole} />
+          <GroupMatches groupId={group.id} myRole={group.myRole} myUserId={userId} />
           {canManageInvitations(group.myRole) && <GroupInvitation groupId={group.id} />}
         </div>
       </div>

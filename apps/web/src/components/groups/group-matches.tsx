@@ -7,12 +7,13 @@ import { matchDate, type MatchSummary, type Page } from "@/lib/connected-matches
 import { canManageInvitations, type Role } from "@/lib/groups";
 import { SignInAgain } from "./sign-in-again";
 import { useAction } from "./use-action";
+import { AttendanceLink } from "../matches/attendance-link";
 
 function listPath(groupId: string, cursor?: string | null) {
   return `groups/${groupId}/matches${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`;
 }
 
-export function GroupMatches({ groupId, myRole }: { groupId: string; myRole: Role }) {
+export function GroupMatches({ groupId, myRole, myUserId }: { groupId: string; myRole: Role; myUserId: string }) {
   const [page, setPage] = useState<Page<MatchSummary>>();
   const [loadError, setLoadError] = useState("");
   const { busy, error, signedOut, run, setSignedOut } = useAction();
@@ -52,6 +53,7 @@ export function GroupMatches({ groupId, myRole }: { groupId: string; myRole: Rol
                 <strong>{match.title}</strong>
                 <span>{matchDate(match.startsAt)} · {match.status === "cancelled" ? "Cancelada" : `${match.confirmedCount}/${match.capacity} vagas`}</span>
               </Link>
+              <AttendanceLink match={match} userId={myUserId} />
             </li>
           ))}
         </ul>
