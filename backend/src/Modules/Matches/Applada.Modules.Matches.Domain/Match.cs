@@ -42,6 +42,8 @@ public sealed class Match
 
     public int DurationMinutes { get; private set; }
 
+    public DateTimeOffset AttendanceClosesAt => StartsAt.AddMinutes(DurationMinutes).AddHours(MatchLimits.AttendanceWindowHoursAfterEnd);
+
     public int Capacity { get; private set; }
 
     public MatchVisibility Visibility { get; private set; }
@@ -204,6 +206,36 @@ public sealed class Match
 
         Version++;
         UpdatedAt = now.ToUniversalTime();
+        return Result.Success();
+    }
+
+    public Result CanRecordAttendance(Guid actorId, Registration? registration, DateTimeOffset now)
+    {
+        if (actorId != OrganizerId)
+        {
+            return MatchErrors.NotOrganizer;
+        }
+
+        if (Status == MatchStatus.Cancelled)
+        {
+            return MatchErrors.MatchCancelled;
+        }
+
+        if (now < StartsAt)
+        {
+            return MatchErrors.AttendanceNotOpen;
+        }
+
+        if (now >= AttendanceClosesAt)
+        {
+            return MatchErrors.AttendanceClosed;
+        }
+
+        if (registration is null || registration.MatchId != Id || registration.Status != RegistrationStatus.Confirmed)
+        {
+            return MatchErrors.AttendanceParticipantNotFound;
+        }
+
         return Result.Success();
     }
 

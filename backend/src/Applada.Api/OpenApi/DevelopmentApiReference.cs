@@ -28,6 +28,8 @@ public static class DevelopmentApiReference
 
         builder.Services.AddOpenApi(options =>
         {
+            options.AddSchemaTransformer(DevelopmentContractTransformers.DescribeAttendanceStatusAsync);
+            options.AddSchemaTransformer(DevelopmentContractTransformers.DescribeVenueRequestAsync);
             options.AddOperationTransformer(DevelopmentContractTransformers.TransformOperationAsync);
             options.AddDocumentTransformer(DevelopmentContractTransformers.TransformDocumentAsync);
             options.AddDocumentTransformer((document, context, _) =>

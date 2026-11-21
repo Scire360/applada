@@ -160,7 +160,7 @@ function getScreenCatalogItems(): ScreenCatalogItem[] {
 const screenCatalogItems = getScreenCatalogItems();
 
 export function generateStaticParams() {
-  return screens.map(({ path }) => ({
+  return screens.filter(({ path }) => path !== "/peladas/abertas").map(({ path }) => ({
     segments: path.split("/").filter(Boolean),
   }));
 }
@@ -211,10 +211,8 @@ async function LegacyScreenContent({
   const records = recordsByGroup[screen.group];
   const isModuleCatalog = screen.legacyView === "modules";
   const isMatchCreation = screen.legacyView === "events-new";
-  const matchDemoMode = screen.legacyView === "open-matches"
-    ? "open"
-    : screen.legacyView === "presence-center" ? "presence" : "checkin";
-  const hasMatchDemo = ["open-matches", "presence-center", "checkin-center"].includes(screen.legacyView);
+  const matchDemoMode = screen.legacyView === "presence-center" ? "presence" : "checkin";
+  const hasMatchDemo = screen.legacyView === "presence-center" || screen.legacyView === "checkin-center";
   const isGameDemo = screen.legacyView === "match-center" || screen.legacyView === "highlight-vote";
   const gameDemoMode = screen.legacyView === "highlight-vote" ? "highlights" : "live";
   const isMatchFlow = isMatchCreation || hasMatchDemo || isGameDemo;
@@ -224,20 +222,14 @@ async function LegacyScreenContent({
   const primaryTitle = isMatchCreation
     ? "Detalhes da pelada"
     : hasMatchDemo
-      ? screen.legacyView === "open-matches"
-        ? "Encontros com vagas"
-        : screen.legacyView === "checkin-center"
-          ? "Receber o elenco"
-          : "Presença e confirmações"
+      ? matchDemoMode === "checkin" ? "Receber o elenco" : "Presença e confirmações"
       : isGameDemo
         ? gameDemoMode === "live" ? "Placar e lances" : "Destaque da partida"
         : form ? "Informações do grupo" : isModuleCatalog ? "Todas as áreas" : "Movimento recente";
   const primaryLabel = isMatchCreation
     ? "Crie e continue a demonstração"
     : hasMatchDemo
-      ? screen.legacyView === "open-matches"
-        ? "DESCUBRA UM JOGO"
-        : screen.legacyView === "checkin-center" ? "DIA DA PARTIDA" : "ELENCO DO GRUPO"
+      ? matchDemoMode === "checkin" ? "DIA DA PARTIDA" : "ELENCO DO GRUPO"
       : isGameDemo
         ? gameDemoMode === "live" ? "DIA DO JOGO" : "PÓS-JOGO"
         : isMatchFlow ? "Etapa demonstrativa"

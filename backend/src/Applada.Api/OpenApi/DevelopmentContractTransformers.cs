@@ -1,4 +1,6 @@
+using Applada.Modules.Discovery.Api;
 using Applada.Modules.Matches.Api;
+using Applada.Modules.Matches.Domain;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 
@@ -15,10 +17,63 @@ internal static class DevelopmentContractTransformers
     private const string PrivateNoStore = "private, no-store: a resposta depende de quem pergunta.";
     private const string ETagDescription = "ETag fraco W/\"<version>\" da versão dos dados editáveis (não do corpo); use em If-Match.";
 
+    public static Task DescribeAttendanceStatusAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        var type = context.JsonTypeInfo.Type;
+        if ((type == typeof(RecordAttendanceRequest) || type == typeof(AttendanceResponse) || type == typeof(AttendanceEntryResponse))
+            && schema.Properties?.TryGetValue("status", out var property) == true && property is OpenApiSchema status)
+        {
+            status.Enum = [AttendanceStatusText.Present, AttendanceStatusText.Absent];
+            if (type == typeof(AttendanceEntryResponse))
+            {
+                status.Enum.Add(null!); // Vale JSON null enquanto o organizador não marcar a presença.
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public static Task DescribeVenueRequestAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        if (context.JsonTypeInfo.Type == typeof(CreateVenueRequest) && schema.Properties is { } fields)
+        {
+            schema.Required = new HashSet<string>(["name", "latitude", "longitude"], StringComparer.Ordinal);
+            if (fields["name"] is OpenApiSchema name)
+            {
+                name.Type &= ~JsonSchemaType.Null;
+            }
+
+            if (fields["latitude"] is OpenApiSchema latitude && fields["longitude"] is OpenApiSchema longitude)
+            {
+                latitude.Type &= ~JsonSchemaType.Null;
+                longitude.Type &= ~JsonSchemaType.Null;
+                latitude.Minimum = "-90";
+                latitude.Maximum = "90";
+                longitude.Minimum = "-180";
+                longitude.Maximum = "180";
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public static async Task TransformOperationAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
     {
         switch (operation.OperationId)
         {
+            case "CreateVenue":
+                AddResponseHeader(operation, "201", "Location", "URL do local cadastrado (/api/v1/venues/{id}).");
+                break;
+            case "DiscoverMatches":
+                Describe(operation, "lat", "Latitude entre -90 e 90, arredondada a duas casas na busca.", required: true);
+                Describe(operation, "lon", "Longitude entre -180 e 180, arredondada a duas casas na busca.", required: true);
+                Describe(operation, "radiusKm", "Raio em quilômetros, inteiro de 1 a 50 (padrão 10).");
+                goto case "ListMyVenues";
+            case "ListMyVenues":
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
+                Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
+                Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
+                break;
             case "CreateMatch":
                 AddHeader(operation, "Idempotency-Key", required: true,
                     "Chave de idempotência (1 a 100 caracteres ASCII imprimíveis), por usuário, retida por 24 h. Mesma chave com o mesmo corpo devolve a resposta gravada; com corpo diferente, 422.");
@@ -51,14 +106,16 @@ internal static class DevelopmentContractTransformers
                 break;
             case "ListMyMatches":
                 AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
-                Describe(operation, "role", "Obrigatório: organizer (partidas que organizo) ou participant (inscrição ativa).", required: true, ["organizer", "participant"]);
+                Describe(operation, "role", "Obrigatório: organizer (partidas que organizo, futuras ou com chamada aberta) ou participant (próximas partidas com inscrição ativa).", required: true, ["organizer", "participant"]);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
                 Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
                 break;
+            case "RecordAttendance":
             case "GetMyProfile":
             case "SetMyDisplayName":
                 AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 break;
+            case "ListAttendance":
             case "ListParticipants":
                 AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");

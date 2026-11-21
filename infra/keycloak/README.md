@@ -22,10 +22,12 @@ dev") fica em `attributes` do realm e do client, não na raiz.
   web origin restritos a `http://localhost:5080` (`/scalar` e `/scalar/*`).
 - Mapper de audience: o access token sai com `applada-api` em `aud`, que é o
   `Authentication:Audience` da API. `sub` vem do mapper `oidc-sub-mapper`; `iss` é o issuer do realm.
-- Client público `applada-dev-web` (Next.js local): Authorization Code com PKCE `S256`, redirect
-  exato em `http://localhost:3000/api/local/callback` e a mesma audience. O servidor Next.js faz
-  a troca do código e mantém o access token em memória. O client web fica sem web origins e sem
-  refresh tokens. O AppHost precisa reiniciar para importar a configuração do arquivo.
+- Client confidencial `applada-web` (Auth.js da web local): Authorization Code com PKCE `S256`,
+  redirect exato em `http://localhost:3000/api/auth/callback/keycloak`, post-logout
+  `http://localhost:3000/login` e a mesma audience `applada-api`; os papéis de cliente saem em
+  `resource_access.applada-web.roles`. O segredo no JSON é somente de desenvolvimento local. O Auth.js
+  guarda o access token no JWT criptografado do cookie e o BFF `/api/app` do Next.js o usa no servidor
+  para chamar a API. O AppHost precisa reiniciar para importar a configuração do arquivo.
 - Usuários de teste `organizador.dev`, `jogador1.dev`, `jogador2.dev` e `jogador3.dev`, com a senha
   temporária pública `trocar-no-primeiro-login`: o Keycloak exige a troca no primeiro login. No
   import, `temporary: true` sozinho não força a troca; quem força é `requiredActions: ["UPDATE_PASSWORD"]`.

@@ -5,6 +5,7 @@ using Applada.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 
@@ -255,6 +256,10 @@ public class ParticipantsTests(ApiFactory factory)
                 Base64Url("{}"),
                 Base64Url("""{"k":"x","v":[]}"""),
                 myMatchesCursor,
+                CursorSamples.WithInvalidUtf8Key("participants"),
+                Base64Url("""{"k":"\ud800","v":[0,1]}"""),
+                // Escape mais longo que "participants": ValueEquals precisa desfazê-lo em vez de recusar pelo tamanho.
+                Base64Url("""{"k":"\ud800\ud800\ud800","v":[0,1]}"""),
                 Base64Url("""{"k":"participants","v":[]}"""),
                 Base64Url("""{"k":"participants","v":[0]}"""),
                 Base64Url("""{"k":"participants","v":[0,1,2]}"""),
@@ -278,9 +283,7 @@ public class ParticipantsTests(ApiFactory factory)
             foreach (var cursor in cursors)
             {
                 using var response = await GetAsync(organizer.Client, matchId, $"cursor={Uri.EscapeDataString(cursor)}");
-                var raw = await response.Content.ReadAsStringAsync(Ct);
-                Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {(int)response.StatusCode} {raw}");
-                Assert.Contains("urn:applada:problem:invalid-cursor", raw, StringComparison.Ordinal);
+                using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
             }
 
             // O cursor válido desta listagem continua funcionando.

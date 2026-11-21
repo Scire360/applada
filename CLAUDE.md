@@ -25,13 +25,17 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-O backend tem solution, módulos Identity, Profiles e Matches, testes e pipeline
-(`.github/workflows/backend.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
+O backend tem solution, módulos Identity, Profiles, Communities, Discovery e Matches, testes e pipelines
+(`.github/workflows/backend.yml` e `.github/workflows/web.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
 - Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
-- Verificações web: `npm run lint`, `npm run typecheck` e `npm run build`.
-- Responsividade web: `npm run test:layout` em `apps/web`, com Chrome e a prévia em `http://localhost:3000`.
-- E2E da partida de uma vaga: `npm run test:e2e` em `apps/web`, com Chrome e a integração local ativa.
+- Verificações web: `npm run lint`, `npm run typecheck`, `npm run test:unit` e `npm run build`.
+- A web fala com a API pelo BFF `/api/app/*` (Next.js) e o login é Auth.js + Keycloak; a antiga integração `/api/local` não existe mais.
+- Os testes E2E exigem Chrome, o AppHost rodando (API, Keycloak e PostgreSQL), a web em `http://localhost:3000`
+  e `APPLADA_E2E_TEST_PASSWORD` (senha das contas de teste do realm local, nunca versionada).
+- Responsividade web: `npm run test:layout` em `apps/web`.
+- E2E da partida de uma vaga: `npm run test:e2e`; E2E de grupos e convites: `npm run test:e2e:grupos`.
+  O E2E da descoberta de peladas usa `npm run test:e2e:descoberta`.
   A preparação das três contas de teste está em [`apps/web/README.md`](apps/web/README.md#e2e-de-partida-com-uma-vaga).
 
 Mantenha aqui os comandos reais de build, teste, lint e ambiente local.
@@ -72,6 +76,10 @@ cd backend; dotnet ef migrations add <Nome> --project src/Modules/Identity/Appla
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Identity/Applada.Modules.Identity --startup-project src/Applada.Api --context IdentityDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext --output-dir Infrastructure/Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Discovery/Applada.Modules.Discovery --startup-project src/Applada.Api --context DiscoveryDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Discovery/Applada.Modules.Discovery --startup-project src/Applada.Api --context DiscoveryDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext --output-dir Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
 ```

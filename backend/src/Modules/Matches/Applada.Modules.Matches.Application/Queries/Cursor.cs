@@ -13,7 +13,10 @@ namespace Applada.Modules.Matches.Application.Queries;
 public static class Cursor
 {
     public const string ParticipantsKind = "participants";
+    public const string AttendanceKind = "attendance";
     public const string MyMatchesKind = "my-matches";
+    public const string GroupMatchesKind = "group-matches";
+    public const string OpenMatchesKind = "open-matches";
 
     /// <summary>Um cursor legítimo tem menos de 150 caracteres; acima disso nem é decodificado.</summary>
     private const int MaxLength = 256;
@@ -62,7 +65,8 @@ public static class Cursor
 
     /// <summary>
     /// Decodifica <paramref name="cursor"/> se ele for exatamente um objeto com <c>k</c> igual a
-    /// <paramref name="expectedKind"/> e <c>v</c> array. Nunca lança por causa do conteúdo.
+    /// <paramref name="expectedKind"/> e <c>v</c> um array de números ou textos Unicode válidos.
+    /// Nunca lança por causa do conteúdo.
     /// </summary>
     public static bool TryDecode(string? cursor, string expectedKind, out JsonElement[] keys)
     {
@@ -115,10 +119,32 @@ public static class Cursor
                 return false;
             }
 
-            keys = [.. v.EnumerateArray().Select(e => e.Clone())];
+            var decoded = new JsonElement[v.GetArrayLength()];
+            var index = 0;
+            foreach (var value in v.EnumerateArray())
+            {
+                if (value.ValueKind == JsonValueKind.String)
+                {
+                    // Mantenha o GetString() mesmo com o retorno descartado: é aqui que o
+                    // JsonDocument desfaz os escapes e valida o texto Unicode antes de devolver as chaves.
+                    _ = value.GetString();
+                }
+                else if (value.ValueKind != JsonValueKind.Number)
+                {
+                    return false;
+                }
+
+                decoded[index++] = value.Clone();
+            }
+
+            keys = decoded;
             return true;
         }
         catch (JsonException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }

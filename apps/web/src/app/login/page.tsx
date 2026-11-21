@@ -5,9 +5,10 @@ import {
   signInWithKeycloak,
 } from "@/app/actions/auth";
 import { isAuthConfigured } from "@/auth";
+import { safeCallbackPath } from "@/lib/callback-url";
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; callbackUrl?: string | string[] }>;
 };
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
@@ -19,7 +20,8 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 }
 
 async function LoginContent({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
+  const returnTo = safeCallbackPath(callbackUrl);
 
   return (
     <main className="login-page">
@@ -68,6 +70,7 @@ async function LoginContent({ searchParams }: LoginPageProps) {
             {isAuthConfigured() ? (
               <>
                 <form action={signInWithKeycloak}>
+                  <input name="callbackUrl" type="hidden" value={returnTo} />
                   <button className="login-submit" type="submit">
                     Entrar com minha conta
                     <Icon name="arrow-right" />

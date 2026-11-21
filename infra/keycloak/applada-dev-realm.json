@@ -85,31 +85,40 @@
       ]
     },
     {
-      "clientId": "applada-dev-web",
+      "clientId": "applada-web",
       "name": "Applada Web (dev)",
+      "description": "Client confidencial do Auth.js (BFF Next.js). Segredo somente de desenvolvimento local.",
       "enabled": true,
       "protocol": "openid-connect",
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "applada-web-dev-secret-somente-local",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "consentRequired": false,
       "fullScopeAllowed": false,
-      "redirectUris": ["http://localhost:3000/api/local/callback"],
-      "webOrigins": [],
+      "frontchannelLogout": true,
+      "rootUrl": "http://localhost:3000",
+      "redirectUris": ["http://localhost:3000/api/auth/callback/keycloak"],
+      "webOrigins": ["http://localhost:3000"],
       "attributes": {
+        "_comentario": "Somente desenvolvimento: client do Auth.js da web local.",
         "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/login",
         "oauth2.device.authorization.grant.enabled": "false",
         "oidc.ciba.grant.enabled": "false",
         "use.refresh.tokens": "false"
       },
-      "defaultClientScopes": ["basic"],
+      "defaultClientScopes": ["basic", "web-origins", "acr", "profile", "email"],
       "optionalClientScopes": [],
       "protocolMappers": [
         {
           "name": "audience-applada-api",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
           "config": {
             "included.custom.audience": "applada-api",
             "access.token.claim": "true",
@@ -121,14 +130,38 @@
           "name": "sub",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
           "config": {
             "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "client-roles-resource-access",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "applada-web",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "true",
             "introspection.token.claim": "true"
           }
         }
       ]
     }
   ],
+  "roles": {
+    "client": {
+      "applada-web": [
+        { "name": "applada-admin", "description": "Administrador da plataforma (somente dev; nenhum usuário recebe por padrão)." }
+      ]
+    }
+  },
   "users": [
     {
       "username": "organizador.dev",

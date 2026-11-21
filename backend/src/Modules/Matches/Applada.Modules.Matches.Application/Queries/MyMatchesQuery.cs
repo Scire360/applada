@@ -5,10 +5,8 @@ using Applada.Modules.Matches.Domain;
 namespace Applada.Modules.Matches.Application.Queries;
 
 /// <summary>
-/// "Minhas partidas" (spec §7): como organizador (<c>role=organizer</c>) ou com inscrição ativa
-/// (<c>role=participant</c>), só as que começam em <c>now</c> ou depois, por <c>(starts_at, id)</c>. O filtro é sempre o
-/// usuário autenticado: um cursor de outra pessoa só posiciona a leitura. Partidas canceladas continuam aparecendo,
-/// com <c>status = cancelled</c>, para que quem organiza ou joga saiba do cancelamento.
+/// Lista as partidas do usuário por <c>(starts_at, id)</c>. Canceladas aparecem só enquanto <c>starts_at &gt;= now</c>.
+/// Quem organiza também vê as partidas agendadas já iniciadas com a chamada aberta. O cursor só posiciona a leitura.
 /// </summary>
 public sealed class MyMatchesQuery(IMatchQueries queries)
 {
@@ -50,16 +48,17 @@ public sealed class MyMatchesQuery(IMatchQueries queries)
             after = key;
         }
 
-        var from = now.ToUniversalTime();
+        var nowUtc = now.ToUniversalTime();
         var rows = organizer
-            ? await queries.ListOrganizedAsync(userId, from, after, limit + 1, ct)
-            : await queries.ListParticipatingAsync(userId, from, after, limit + 1, ct);
+            ? await queries.ListOrganizedAsync(userId, nowUtc, after, limit + 1, ct)
+            : await queries.ListParticipatingAsync(userId, nowUtc, after, limit + 1, ct);
 
         var items = rows.Take(limit)
             .Select(r => new MyMatchSummary(
                 r.Id,
                 r.Title,
                 r.StartsAt,
+                r.DurationMinutes,
                 StatusText.Of(r.Status),
                 r.ConfirmedCount,
                 r.Capacity,

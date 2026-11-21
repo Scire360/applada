@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Applada.BuildingBlocks.Domain;
 using Applada.Modules.Matches.Domain;
 using Applada.Modules.Profiles.Contracts;
@@ -28,7 +27,7 @@ public sealed class ParticipantsQuery(IMatchQueries queries, IProfileNames profi
         ParticipantsKey? after = null;
         if (!string.IsNullOrEmpty(cursor))
         {
-            if (!TryReadKey(cursor, out var key))
+            if (!ParticipantsKey.TryRead(cursor, out var key))
             {
                 return MatchErrors.InvalidCursor;
             }
@@ -61,25 +60,5 @@ public sealed class ParticipantsQuery(IMatchQueries queries, IProfileNames profi
         }
 
         return new Page<Participant>(items, next);
-    }
-
-    /// <summary>Exatamente <c>[statusRank, queueSeq]</c>: rank 0 ou 1 e <c>queue_seq</c> inteiro positivo.</summary>
-    private static bool TryReadKey(string cursor, out ParticipantsKey key)
-    {
-        key = null!;
-        if (!Cursor.TryDecode(cursor, Cursor.ParticipantsKind, out var values)
-            || values.Length != 2
-            || values[0].ValueKind != JsonValueKind.Number
-            || values[1].ValueKind != JsonValueKind.Number
-            || !values[0].TryGetInt32(out var rank)
-            || !values[1].TryGetInt64(out var queueSeq)
-            || rank is not (ParticipantsKey.ConfirmedRank or ParticipantsKey.WaitlistedRank)
-            || queueSeq < 1)
-        {
-            return false;
-        }
-
-        key = new ParticipantsKey(rank, queueSeq);
-        return true;
     }
 }

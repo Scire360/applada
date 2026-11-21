@@ -25,6 +25,15 @@ public sealed partial class MatchesUnitOfWork(
     MatchesMetrics metrics,
     ILogger<MatchesUnitOfWork> logger) : IMatchesUnitOfWork
 {
+    public Task<IdempotencyEntry?> FindActiveIdempotencyAsync(Guid userId, string key, CancellationToken ct)
+    {
+        var since = timeProvider.GetUtcNow() - IdempotencyRecord.Retention;
+        return db.IdempotencyRecords.AsNoTracking()
+            .Where(r => r.UserId == userId && r.Key == key && r.CreatedAt >= since)
+            .Select(r => new IdempotencyEntry(r.UserId, r.Key, r.RequestHash, r.StatusCode, r.ResponseBody))
+            .SingleOrDefaultAsync(ct);
+    }
+
     public async Task<Result<T>> ExecuteAsync<T>(Func<IMatchesSession, CancellationToken, Task<Result<T>>> work, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(work);

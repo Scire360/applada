@@ -8,7 +8,7 @@ import { demoPlayers, useMatchDemo } from "@/components/match-demo-provider";
 import type { MatchDraft } from "@/components/match-demo-provider";
 
 type MatchDemoPanelProps = {
-  mode: "open" | "presence" | "checkin";
+  mode: "presence" | "checkin";
 };
 
 export type ScheduledMatch = {
@@ -322,7 +322,7 @@ export function MatchSchedule({ matches }: { matches: ScheduledMatch[] }) {
             {item.isDemo ? (
               <>
                 <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
-                <Link className="demo-match-link" href="/peladas/abertas">Ver encontro</Link>
+                <Link className="demo-match-link" href="/presenca">Ver encontro</Link>
               </>
             ) : (
               <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
@@ -339,20 +339,15 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
   const [notice, setNotice] = useState("");
 
   if (!match) {
-    const emptyState = mode === "open"
+    const emptyState = mode === "checkin"
       ? {
-        eyebrow: "ENCONTROS COM VAGAS",
-        message: "As partidas abertas aparecem aqui quando o grupo organiza um jogo.",
+        eyebrow: "CHECK-IN AGUARDANDO",
+        message: "Crie uma pelada e confirme o elenco para registrar a chegada no dia do jogo.",
       }
-      : mode === "checkin"
-        ? {
-          eyebrow: "CHECK-IN AGUARDANDO",
-          message: "Crie uma pelada e confirme o elenco para registrar a chegada no dia do jogo.",
-        }
-        : {
-          eyebrow: "PRESENÇA DO ELENCO",
-          message: "As confirmações ficam disponíveis quando uma pelada entrar na agenda.",
-        };
+      : {
+        eyebrow: "PRESENÇA DO ELENCO",
+        message: "As confirmações ficam disponíveis quando uma pelada entrar na agenda.",
+      };
 
     return (
       <div className="match-demo-empty">
@@ -366,7 +361,7 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
   const isCheckIn = mode === "checkin";
   const candidates = isCheckIn
     ? demoPlayers.filter((player) => attendees.includes(player))
-    : mode === "open" ? [demoPlayers[0]] : demoPlayers;
+    : demoPlayers;
   const isFull = attendees.length >= match.capacity;
   const remainingSlots = Math.max(0, match.capacity - attendees.length);
   const progressValue = isCheckIn ? checkedIn.length : attendees.length;
@@ -447,40 +442,7 @@ export function MatchDemoPanel({ mode }: MatchDemoPanelProps) {
       </section>
 
       <div className="match-demo-roster">
-        {mode === "open" ? (
-          <div className="match-demo-action">
-            <div>
-              <strong>Rafael Martins</strong>
-              <span>
-                {attendees.includes(demoPlayers[0])
-                  ? "Presença confirmada"
-                  : waitlist.includes(demoPlayers[0])
-                    ? `Na lista de espera · posição ${waitlist.indexOf(demoPlayers[0]) + 1}`
-                    : isFull
-                      ? "Vagas esgotadas · entre na lista de espera"
-                    : "Organizador do grupo"}
-              </span>
-            </div>
-            <button
-              aria-label={`${attendees.includes(demoPlayers[0])
-                ? "Cancelar presença"
-                : waitlist.includes(demoPlayers[0])
-                  ? "Sair da espera"
-                  : isFull ? "Entrar na espera" : "Confirmar presença"} para ${demoPlayers[0]}`}
-              aria-pressed={attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0])}
-              className={`button ${attendees.includes(demoPlayers[0]) || waitlist.includes(demoPlayers[0]) ? "button-secondary" : "button-primary"}`}
-              disabled={rosterIsLocked}
-              onClick={() => handleAttendance(demoPlayers[0])}
-              type="button"
-            >
-              {attendees.includes(demoPlayers[0])
-                ? "Cancelar presença"
-                : waitlist.includes(demoPlayers[0])
-                  ? "Sair da espera"
-                  : isFull ? "Entrar na espera" : "Confirmar presença"}
-            </button>
-          </div>
-        ) : candidates.length ? candidates.map((player) => {
+        {candidates.length ? candidates.map((player) => {
           const confirmed = attendees.includes(player);
           const waiting = waitlist.includes(player);
           const arrived = checkedIn.includes(player);

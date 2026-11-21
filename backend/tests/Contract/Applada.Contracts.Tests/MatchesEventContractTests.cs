@@ -61,6 +61,18 @@ public class MatchesEventContractTests
             Serialize(evt));
     }
 
+    [Theory]
+    [InlineData("present")]
+    [InlineData("absent")]
+    public void AttendanceRecordedV1_envelope_shape(string status)
+    {
+        var evt = new AttendanceRecordedV1(Guid.Parse(MatchId), Guid.Parse(UserId), status, OccurredAt);
+        var escapedPlus = (char)92 + "u002B";
+        Assert.Equal(
+            Envelope("matches.attendance-recorded.v1", $$"""{"matchId":"{{MatchId}}","userId":"{{UserId}}","status":"{{status}}","recordedAt":"2026-11-13T12:00:00{{escapedPlus}}00:00"}"""),
+            Serialize(evt));
+    }
+
     private static string Serialize(IntegrationEvent evt) =>
         Encoding.UTF8.GetString(IntegrationEventEnvelopeSerializer.Serialize(OutboxMessage.From(evt, "c-1", OccurredAt, Guid.Parse(EventId))));
 

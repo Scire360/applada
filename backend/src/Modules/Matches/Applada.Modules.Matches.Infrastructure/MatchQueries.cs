@@ -13,6 +13,7 @@ namespace Applada.Modules.Matches.Infrastructure;
 /// <item>participantes: índice <c>(match_id, status, queue_seq)</c>; a posição na espera é uma subconsulta no mesmo
 /// índice, na mesma instrução (mesmo snapshot);</item>
 /// <item>organizador: índice <c>(organizer_id, starts_at)</c>;</item>
+/// <item>grupo: índice parcial <c>(group_id, starts_at, id) WHERE status = 'scheduled'</c>;</item>
 /// <item>participante: índice <c>(user_id, status)</c>, com junção pela chave primária da partida.</item>
 /// </list>
 /// </summary>
@@ -104,9 +105,49 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
         return listing.Rows;
     }
 
-    public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, long? afterQueueSeq, int take, CancellationToken ct)
     {
-        var matches = db.Matches.AsNoTracking().Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart);
+        var confirmed = db.Registrations.Where(r => r.Status == RegistrationStatus.Confirmed);
+        if (afterQueueSeq is { } queueSeq)
+        {
+            confirmed = confirmed.Where(r => r.QueueSeq > queueSeq);
+        }
+
+        var page = from r in confirmed
+                   join a in db.Attendance on new { r.MatchId, r.UserId } equals new { a.MatchId, a.UserId } into attendance
+                   from a in attendance.DefaultIfEmpty()
+                   select new { r.MatchId, r.UserId, r.QueueSeq, a.Status, RecordedAt = (DateTimeOffset?)a.RecordedAt };
+
+        var listing = await db.Matches.AsNoTracking().AsSingleQuery()
+            .Where(m => m.Id == matchId)
+            .Select(m => new
+            {
+                CanRead = m.OrganizerId == viewerId,
+                Rows = page.Where(r => m.OrganizerId == viewerId && r.MatchId == m.Id)
+                    .OrderBy(r => r.QueueSeq)
+                    .Take(take)
+                    .Select(r => new AttendanceRow(r.UserId, r.QueueSeq, AttendanceStatusText.Parse(r.Status), r.RecordedAt))
+                    .ToList(),
+            })
+            .SingleOrDefaultAsync(ct);
+
+        if (listing is null)
+        {
+            return MatchErrors.MatchNotFound;
+        }
+
+        return listing.CanRead ? listing.Rows : MatchErrors.NotOrganizer;
+    }
+
+    public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset now, MyMatchesKey? after, int take, CancellationToken ct)
+    {
+        // Limite inferior para o índice (organizer_id, starts_at). O fechamento usa a duração de cada partida.
+        var earliestStart = now.AddHours(-MatchLimits.AttendanceWindowHoursAfterEnd).AddMinutes(-MatchLimits.DurationMax);
+        // O EF precisa da expressão de Match.AttendanceClosesAt inline para filtrar no PostgreSQL.
+        var matches = db.Matches.AsNoTracking()
+            .Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart
+                && (m.StartsAt >= now || (m.Status == MatchStatus.Scheduled
+                    && now < m.StartsAt.AddMinutes(m.DurationMinutes).AddHours(MatchLimits.AttendanceWindowHoursAfterEnd))));
         if (after is { } key)
         {
             matches = matches.Where(m => EF.Functions.GreaterThan(ValueTuple.Create(m.StartsAt, m.Id), ValueTuple.Create(key.StartsAt, key.Id)));
@@ -120,6 +161,37 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
                 m.Id,
                 m.Title,
                 m.StartsAt,
+                m.DurationMinutes,
+                m.Status,
+                m.ConfirmedCount,
+                m.Capacity,
+                db.Registrations
+                    .Where(r => r.MatchId == m.Id
+                        && r.UserId == userId
+                        && (r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.Waitlisted))
+                    .Select(r => (RegistrationStatus?)r.Status)
+                    .FirstOrDefault()))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MyMatchRow>> ListGroupUpcomingAsync(Guid groupId, Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
+    {
+        var matches = db.Matches.AsNoTracking()
+            .Where(m => m.GroupId == groupId && m.Status == MatchStatus.Scheduled && m.StartsAt >= earliestStart);
+        if (after is { } key)
+        {
+            matches = matches.Where(m => EF.Functions.GreaterThan(ValueTuple.Create(m.StartsAt, m.Id), ValueTuple.Create(key.StartsAt, key.Id)));
+        }
+
+        return await matches
+            .OrderBy(m => m.StartsAt)
+            .ThenBy(m => m.Id)
+            .Take(take)
+            .Select(m => new MyMatchRow(
+                m.Id,
+                m.Title,
+                m.StartsAt,
+                m.DurationMinutes,
                 m.Status,
                 m.ConfirmedCount,
                 m.Capacity,
@@ -154,6 +226,7 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
                 x.Match.Id,
                 x.Match.Title,
                 x.Match.StartsAt,
+                x.Match.DurationMinutes,
                 x.Match.Status,
                 x.Match.ConfirmedCount,
                 x.Match.Capacity,

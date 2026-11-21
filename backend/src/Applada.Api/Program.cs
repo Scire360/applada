@@ -3,15 +3,27 @@ using Applada.Api.Health;
 using Applada.Api.OpenApi;
 using Applada.Api.Security;
 using Applada.BuildingBlocks.Messaging;
+using Applada.Modules.Communities;
+using Applada.Modules.Discovery;
 using Applada.Modules.Identity;
 using Applada.Modules.Matches.Api;
 using Applada.Modules.Profiles;
 using Applada.ServiceDefaults;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Instrumentation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+// O Aspire pode habilitar queries completas nos traces de desenvolvimento.
+builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
+    options.EnrichWithHttpRequest = (activity, request) =>
+    {
+        if (request.Path.StartsWithSegments(DiscoveryModule.DiscoverMatchesPath))
+        {
+            activity.SetTag("url.query", null);
+        }
+    });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.AddApladaAuthentication();
 builder.Services.AddApladaProblemDetails();
@@ -19,6 +31,8 @@ builder.Services.AddApladaRateLimiting(builder.Configuration);
 builder.Services.AddRabbitMqPublisher(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddProfilesModule(builder.Configuration);
+builder.Services.AddCommunitiesModule(builder.Configuration);
+builder.Services.AddDiscoveryModule(builder.Configuration);
 builder.Services.AddMatchesModule(builder.Configuration);
 builder.AddApladaDevelopmentOpenApi();
 builder.Services.AddHealthChecks()
@@ -38,6 +52,8 @@ app.UseRateLimiter();
 app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 app.MapProfilesEndpoints();
+app.MapCommunitiesEndpoints();
+app.MapDiscoveryEndpoints();
 app.MapMatchesEndpoints();
 
 // OpenAPI e Scalar só existem em Development; o teste DevelopmentSurfaceTests garante a ausência fora dele.

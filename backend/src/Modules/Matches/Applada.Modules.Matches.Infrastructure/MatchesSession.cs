@@ -8,20 +8,51 @@ using Microsoft.EntityFrameworkCore;
 namespace Applada.Modules.Matches.Infrastructure;
 
 /// <summary>
-/// Sessão de uma chamada de <see cref="MatchesUnitOfWork.ExecuteAsync{T}"/>: tudo o que ela lê fica rastreado e o
-/// que ela adiciona só vai ao banco no <c>SaveChanges</c> da unidade de trabalho, dentro da mesma transação.
+/// Sessão de uma chamada de <see cref="MatchesUnitOfWork.ExecuteAsync{T}"/>. O upsert de presença e o
+/// <c>SaveChanges</c> que persiste o outbox participam da mesma transação.
 /// </summary>
 internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvider) : IMatchesSession
 {
-    /// <summary>Última partida cujo lock esta sessão pediu (para o log de lock-timeout).</summary>
+    /// <summary>Partida da operação que pode aguardar um lock, inclusive pela FK da presença.</summary>
     public Guid? LockedMatchId { get; private set; }
 
+    /// <inheritdoc/>
     public Task<Match?> GetMatchForUpdateAsync(Guid matchId, CancellationToken ct)
     {
         LockedMatchId = matchId;
         return db.Matches
             .FromSql($"SELECT * FROM matches.matches WHERE id = {matchId} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
+    }
+
+    public Task<AttendanceSubject?> GetAttendanceSubjectAsync(Guid matchId, Guid userId, CancellationToken ct)
+    {
+        LockedMatchId = matchId;
+        return db.Matches.AsNoTracking().Where(m => m.Id == matchId)
+            .Select(m => new AttendanceSubject(m, db.Registrations.FirstOrDefault(r => r.MatchId == m.Id && r.UserId == userId)))
+            .SingleOrDefaultAsync(ct);
+    }
+
+    public async Task<(DateTimeOffset RecordedAt, bool Changed)> UpsertAttendanceAsync(
+        Guid matchId, Guid userId, AttendanceStatus status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct)
+    {
+        var changed = await db.Database.SqlQuery<DateTimeOffset>($"""
+            INSERT INTO matches.attendance (match_id, user_id, status, recorded_by, recorded_at)
+            VALUES ({matchId}, {userId}, {status.ToContractText()}, {recordedBy}, {recordedAt})
+            ON CONFLICT (match_id, user_id) DO UPDATE
+            SET status = excluded.status, recorded_by = excluded.recorded_by, recorded_at = excluded.recorded_at
+            WHERE matches.attendance.status <> excluded.status
+            RETURNING recorded_at AS "Value"
+            """).ToListAsync(ct);
+        if (changed.Count != 0)
+        {
+            return (changed.Single(), true);
+        }
+
+        // ON CONFLICT mantém a linha travada até o commit mesmo quando o WHERE impede o UPDATE.
+        var original = await db.Attendance.Where(a => a.MatchId == matchId && a.UserId == userId)
+            .Select(a => a.RecordedAt).SingleAsync(ct);
+        return (original, false);
     }
 
     public Task<Registration?> FindRegistrationAsync(Guid matchId, Guid userId, CancellationToken ct) =>

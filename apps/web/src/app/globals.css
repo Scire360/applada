@@ -3814,6 +3814,20 @@ svg {
 }
 
 @media (max-width: 380px) {
+  /* Seis atalhos na barra inferior: folga para o rótulo "Comunidade" caber em 320 px. */
+  .sidebar {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .primary-nav {
+    gap: 0;
+  }
+
+  .nav-link > span {
+    font-size: .625rem;
+  }
+
   .preview-status {
     max-width: 105px;
   }
@@ -5846,28 +5860,41 @@ body {
 }
 
 .connected-card .button,
-.connected-session .button,
 .connected-match-item {
   min-height: 44px;
   white-space: normal;
 }
 
-.connected-actions,
-.connected-session {
+.connected-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.connected-session {
-  justify-content: space-between;
+.attendance-link-feedback:empty {
+  position: absolute;
+  padding: 0;
+  border: 0;
 }
 
-.connected-session .quiet-label {
-  display: inline-flex;
-  gap: 8px;
+.connected-page button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.attendance-link-feedback button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.attendance-link-feedback:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 14px;
 }
 
 .connected-feedback:has(p:empty):not(:has([role="alert"])) {
@@ -5963,4 +5990,66 @@ body {
   .connected-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.group-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.group-column {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.group-members {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.group-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--connected-border);
+}
+
+.group-member-name {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.group-member-name span {
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.group-invite-link {
+  display: grid;
+  gap: 10px;
+}
+
+.group-invite-link input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.invite-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px 16px;
+  place-items: center;
+}
+
+.invite-card {
+  width: min(100%, 32rem);
 }

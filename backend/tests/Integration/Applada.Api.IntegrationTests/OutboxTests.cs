@@ -13,9 +13,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 
 namespace Applada.Api.IntegrationTests;
 
@@ -361,6 +362,40 @@ public class OutboxTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Disposing_a_test_queue_allows_the_next_identity_event_to_be_published()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        Assert.True(await publisher.IsConnectedAsync(Ct));
+
+        // Repetir cobre a corrida entre a remoção da fila no broker e a publicação pelo canal já aberto.
+        for (var i = 0; i < 12; i++)
+        {
+            var message = OutboxMessage.From(new UserRegisteredV1(Guid.CreateVersion7()), "test-disposal", factory.Clock.GetUtcNow());
+            var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            await queue.DisposeAsync();
+
+            await publisher.PublishAsync(message, Ct);
+        }
+    }
+
+    [Fact]
+    public async Task Disposing_a_test_queue_after_the_broker_closes_its_connection_succeeds()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        Assert.True(await publisher.IsConnectedAsync(Ct));
+        try
+        {
+            await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            await factory.CloseRabbitMqConnectionsAsync();
+            await WaitUntilAsync(() => !queue.IsOpen && !publisher.HasOpenConnection, TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await publisher.IsConnectedAsync(Ct);
+        }
+    }
+
+    [Fact]
     public async Task Publisher_reconnects_after_broker_closes_its_connection()
     {
         var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
@@ -461,17 +496,56 @@ public class OutboxTests(ApiFactory factory)
             factory.Clock,
             Options.Create(options ?? new OutboxOptions()),
             factory.Services.GetRequiredService<OutboxMetrics>(),
-            NullLogger<OutboxProcessor<TContext>>.Instance);
+            new TestOutputLogger<OutboxProcessor<TContext>>());
 
-    /// <summary>Publica tudo o que está pendente e vencido (inclusive sobras de outras classes de teste da coleção).</summary>
+    /// <summary>
+    /// Escreve avisos e erros do processador na saída do teste (o xUnit mostra junto da falha). Falha intermitente
+    /// de publicação, sem isso, só deixa "esperado 1, obtido 0" e nenhuma pista da causa.
+    /// </summary>
+    private sealed class TestOutputLogger<T> : ILogger<T>
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                TestContext.Current.TestOutputHelper?.WriteLine(
+                    $"[{logLevel}] {formatter(state, exception)} {exception?.GetType().Name}: {exception?.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Publica tudo o que está pendente (inclusive sobras de outras classes de teste da coleção).
+    /// Logo depois de um teste que derruba a conexão do broker, a primeira publicação falha por desenho (o publicador
+    /// só percebe a queda ao tentar) e a mensagem ganha backoff; sem nova rodada, essa sobra furaria a fila do teste
+    /// seguinte. Por isso, enquanto restar mensagem que falhou, antecipa a próxima tentativa e drena de novo.
+    /// </summary>
     private Task DrainAsync() => DrainAsync<IdentityDbContext>();
 
     private async Task DrainAsync<TContext>()
         where TContext : DbContext, IHasOutbox
     {
         var processor = CreateProcessor<TContext>(factory.Services.GetRequiredService<IIntegrationEventPublisher>());
-        while (await processor.ProcessBatchAsync(Ct) > 0)
+        for (var round = 0; round < 3; round++)
         {
+            while (await processor.ProcessBatchAsync(Ct) > 0)
+            {
+            }
+
+            var now = factory.Clock.GetUtcNow();
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<TContext>();
+            var postponed = await db.OutboxMessages.Where(m => m.PublishedAt == null && m.NextAttemptAt > now)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.NextAttemptAt, now), Ct);
+            if (postponed == 0)
+            {
+                return;
+            }
         }
     }
 
@@ -647,9 +721,16 @@ public class OutboxTests(ApiFactory factory)
             _queue = queue;
         }
 
+        public bool IsOpen => _channel.IsOpen;
+
         public static async Task<TestQueue> CreateAsync(string connectionString, string bindingKey)
         {
-            var connection = await new ConnectionFactory { Uri = new Uri(connectionString) }.CreateConnectionAsync(Ct);
+            var connection = await new ConnectionFactory
+            {
+                Uri = new Uri(connectionString),
+                AutomaticRecoveryEnabled = false,
+                TopologyRecoveryEnabled = false,
+            }.CreateConnectionAsync(Ct);
             var channel = await connection.CreateChannelAsync(cancellationToken: Ct);
             await channel.ExchangeDeclareAsync("applada.events", ExchangeType.Topic, durable: true, autoDelete: false, cancellationToken: Ct);
             var queue = await channel.QueueDeclareAsync(queue: string.Empty, durable: false, exclusive: true, autoDelete: true, cancellationToken: Ct);
@@ -697,10 +778,23 @@ public class OutboxTests(ApiFactory factory)
 
         public async ValueTask DisposeAsync()
         {
-            await _channel.CloseAsync();
-            await _channel.DisposeAsync();
-            await _connection.CloseAsync();
-            await _connection.DisposeAsync();
+            await using var connection = _connection;
+            await using (var channel = _channel)
+            {
+                // Aguardamos queue.delete-ok para que o binding seja removido antes de fechar a conexão.
+                // Se o canal já fechou ou fechar durante o delete, só o broker pode remover a fila exclusiva.
+                // Apenas nesse caso a remoção pode coincidir com um confirm pendente e gerar um nack.
+                if (channel.IsOpen)
+                {
+                    try
+                    {
+                        await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
+                    }
+                    catch (Exception ex) when ((ex is AlreadyClosedException or OperationInterruptedException) && !channel.IsOpen)
+                    {
+                    }
+                }
+            }
         }
     }
 }

@@ -40,7 +40,7 @@ flowchart TB
 | Statistics | gols, assistências, reputação e rankings | `statistics.match_events`, `statistics.player_stats`, `statistics.ranking_snapshots` | `StatsUpdated` |
 | Payments | rateio, cobranças, recibos, conciliação | `payments.charges`, `payments.contributions`, `payments.provider_events` | `PaymentConfirmed` |
 | Notifications | push, inbox, preferências, entregas | `notifications.devices`, `notifications.messages`, `notifications.deliveries` | `NotificationDispatched` |
-| Discovery | busca por região e coordenadas, sugestões | `discovery.venues`, `discovery.search_projection` | `VenuePublished` |
+| Discovery | busca por raio via contrato síncrono com Matches | `discovery.venues` (projeção `discovery.search_projection` adiada) | `VenuePublished` adiado ([ADR-0009](../adr/0009-descoberta-por-contrato-sincrono.md)) |
 | Trust & Safety | denúncias, moderação, sanções e auditoria | `trust.reports`, `trust.moderation_cases`, `trust.actions`, `trust.audit_log` | `ContentRestricted`, `AccountSuspended` |
 
 **Dependências:** Matches consulta a identidade do usuário por identificador/contrato, não por `JOIN` sobre tabela de Identity; Social recebe `AssetReady` e mantém referência a mídia; Notifications apenas consome eventos. Views transversais são projeções de leitura, não acesso arbitrário às tabelas de outros módulos. Na primeira versão, os módulos podem compartilhar o mesmo cluster PostgreSQL, mas cada um possui schema e migrações próprias.
@@ -58,7 +58,7 @@ flowchart TB
 - Confirmação da última vaga: transação no PostgreSQL com lock na linha da partida (`SELECT ... FOR UPDATE`) ou atualização condicional atômica do contador; estado de ocupação e registro alterados na mesma transação; retry delimitado. **Não confiar no Redis para alocação definitiva.**
 - `social.posts`: índice `(author_id,created_at DESC,id DESC)` e visibilidade; `feed_entries`: índice `(recipient_id,ranked_at DESC,post_id DESC)`.
 - `media.assets`: estado `pending|processing|ready|rejected|deleted`, proprietário, tamanho, MIME validado, hash e chave no storage; nunca salvar binário no PostgreSQL.
-- `discovery.venues`: coluna geográfica PostGIS `geography(Point,4326)` com GiST e parâmetros de raio; evitar exposição desnecessária de localização pessoal.
+- A coluna gerada `discovery.venues.location` usa PostGIS `geography(Point,4326)` e índice GiST. A busca considera até 200 locais no raio e devolve a distância aproximada para evitar exposição desnecessária de localização pessoal. [ADR-0009](../adr/0009-descoberta-por-contrato-sincrono.md)
 - `notifications.deliveries` e `payments.provider_events`: chaves de deduplicação. `integration.outbox` contém `event_id`, `type`, `version`, `payload`, `occurred_at`, `published_at`; consumidor mantém inbox ou tabela de processamento idempotente.
 
 ## 4. Contratos HTTP (v1)

@@ -23,6 +23,10 @@ public static class MatchErrors
     public static Error MatchNotFound { get; } =
         new("match-not-found", ErrorKind.NotFound, "Partida não encontrada.");
 
+    /// <summary>Grupo inexistente ou o usuário não é membro dele: a mesma resposta, para não revelar o grupo.</summary>
+    public static Error GroupNotFound { get; } =
+        new("group-not-found", ErrorKind.NotFound, "Grupo não encontrado.");
+
     public static Error RegistrationNotFound { get; } =
         new("registration-not-found", ErrorKind.NotFound, "Não há inscrição ativa nesta partida.");
 
@@ -31,6 +35,15 @@ public static class MatchErrors
 
     public static Error MatchCancelled { get; } =
         new("match-cancelled", ErrorKind.Conflict, "A partida foi cancelada.");
+
+    public static Error AttendanceNotOpen { get; } =
+        new("attendance-not-open", ErrorKind.Conflict, "A chamada abre no início da partida.");
+
+    public static Error AttendanceClosed { get; } =
+        new("attendance-closed", ErrorKind.Conflict, "A chamada desta partida já encerrou.");
+
+    public static Error AttendanceParticipantNotFound { get; } =
+        new("attendance-participant-not-found", ErrorKind.NotFound, "Não há inscrição confirmada para esse participante nesta partida.");
 
     public static Error CapacityBelowConfirmed { get; } =
         new("capacity-below-confirmed", ErrorKind.Conflict, "A capacidade não pode ficar abaixo do número de confirmados.");
@@ -47,6 +60,10 @@ public static class MatchErrors
     public static Error IdempotencyKeyReused { get; } =
         new("idempotency-key-reused", ErrorKind.Unprocessable, "Esta Idempotency-Key já foi usada com outro conteúdo.");
 
+    /// <summary>Grupo inexistente ou o organizador não é owner/admin dele: a mesma resposta, para não revelar o grupo.</summary>
+    public static Error GroupNotAllowed { get; } =
+        new("group-not-allowed", ErrorKind.Unprocessable, "Grupo inexistente ou você não pode organizar partidas nele.");
+
     public static Error LockTimeout { get; } =
         new("lock-timeout", ErrorKind.Unavailable, "A partida está ocupada no momento; tente de novo em instantes.");
 
@@ -54,6 +71,6 @@ public static class MatchErrors
     public static Error Validation(IReadOnlyDictionary<string, string[]> fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
-        return new Error("validation", ErrorKind.Validation, "Um ou mais campos são inválidos.", fields);
+        return new Error("validation", ErrorKind.Validation, "Dados inválidos.", fields);
     }
 }

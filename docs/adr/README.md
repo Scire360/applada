@@ -15,3 +15,4 @@ ADRs planejados (seção 11 da Especificação de Arquitetura v1.0):
 | 0006 | [Deploy em VPS com Docker](0006-deploy-vps-docker.md) | proposto |
 | 0007 | [Identidade interna desacoplada do provedor + Keycloak local para a API](0007-identidade-interna-e-keycloak-dev.md) | aceito |
 | 0008 | [Limite de tentativas de login por IP no Keycloak](0008-limite-de-login-por-ip-no-keycloak.md) | aceito |
+| 0009 | [Descoberta por contrato síncrono](0009-descoberta-por-contrato-sincrono.md) | aceito |

@@ -1,9 +1,8 @@
-export const localAccountHeader = "X-Applada-Account";
-
 export type MatchSummary = {
   id: string;
   title: string;
   startsAt: string;
+  durationMinutes: number;
   status: "scheduled" | "cancelled";
   confirmedCount: number;
   capacity: number;
@@ -15,7 +14,6 @@ type RegistrationStatus = "confirmed" | "waitlisted" | "withdrawn";
 export type MatchDetails = Omit<MatchSummary, "myStatus"> & {
   organizerId: string;
   timeZone: string;
-  durationMinutes: number;
   waitlistCount: number;
   locationText: string | null;
   version: number;
@@ -31,29 +29,22 @@ export type MatchCreation = MatchEdit & {
   timeZone: string;
   durationMinutes: number;
   visibility: "public";
+  groupId?: string;
+  venueId?: string;
 };
 
-export class LocalApiError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
-  }
-}
-
-export async function localApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/local/${path}`, { ...options, cache: "no-store" });
-  if (!response.ok) {
-    const problem: { title?: string; errors?: Record<string, string[]> } = await response.json().catch(() => ({}));
-    const detail = problem.errors && Object.values(problem.errors).flat().join(" ");
-    const retryAfter = response.headers.get("Retry-After");
-    const message = response.status === 412
-      ? "A partida mudou. Atualize os dados e revise a edição."
-      : response.status === 429 && retryAfter
-        ? `Aguarde ${retryAfter} s antes de tentar novamente.`
-        : detail || problem.title || "A operação falhou. Tente novamente.";
-    throw new LocalApiError(response.status, message);
-  }
-  return response.status === 204 ? undefined as T : response.json();
-}
+export type GroupRole = "owner" | "admin" | "member";
+export type GroupSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  memberCount: number;
+  myRole: GroupRole;
+  createdAt: string;
+};
+export type GroupDetails = GroupSummary;
+export type GroupMember = { userId: string; displayName: string | null; role: GroupRole; joinedAt: string };
+export type CreatedInvitation = { id: string; token: string; expiresAt: string; maxUses: number };
 
 export function matchDate(startsAt: string, timeZone?: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(startsAt));
@@ -63,4 +54,9 @@ export function registrationLabel(status: RegistrationStatus, position?: number 
   if (status === "confirmed") return "Confirmado";
   if (status === "waitlisted") return position ? `${position}º na lista de espera` : "Lista de espera";
   return "Inscrição retirada";
+}
+
+export function discoveryResultMessage(count: number) {
+  if (count === 0) return "Nenhuma pelada encontrada neste raio. Experimente aumentar a distância.";
+  return count === 1 ? "1 pelada encontrada" : `${count} peladas encontradas`;
 }

@@ -211,6 +211,14 @@ namespace Applada.Modules.Matches.Infrastructure.Migrations
                     b.HasIndex("OrganizerId", "StartsAt")
                         .HasDatabaseName("ix_matches_organizer_id_starts_at");
 
+                    b.HasIndex("GroupId", "StartsAt", "Id")
+                        .HasDatabaseName("ix_matches_group_upcoming")
+                        .HasFilter("status = 'scheduled'");
+
+                    b.HasIndex("VenueId", "StartsAt", "Id")
+                        .HasDatabaseName("ix_matches_venue_upcoming")
+                        .HasFilter("status = 'scheduled' AND venue_id IS NOT NULL");
+
                     b.ToTable("matches", "matches", t =>
                         {
                             t.HasCheckConstraint("ck_matches_capacity_range", "capacity BETWEEN 1 AND 200");
@@ -281,6 +289,38 @@ namespace Applada.Modules.Matches.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Applada.Modules.Matches.Infrastructure.Configurations.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("RecordedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("MatchId", "UserId")
+                        .HasName("pk_attendance");
+
+                    b.ToTable("attendance", "matches", t =>
+                        {
+                            t.HasCheckConstraint("ck_attendance_status", "status IN ('present', 'absent')");
+                        });
+                });
+
             modelBuilder.Entity("Applada.Modules.Matches.Domain.Registration", b =>
                 {
                     b.HasOne("Applada.Modules.Matches.Domain.Match", null)
@@ -289,6 +329,16 @@ namespace Applada.Modules.Matches.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_registrations_matches_match_id");
+                });
+
+            modelBuilder.Entity("Applada.Modules.Matches.Infrastructure.Configurations.AttendanceRecord", b =>
+                {
+                    b.HasOne("Applada.Modules.Matches.Domain.Match", null)
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attendance_matches_match_id");
                 });
 #pragma warning restore 612, 618
         }

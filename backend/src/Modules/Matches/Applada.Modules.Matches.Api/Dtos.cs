@@ -97,6 +97,12 @@ public sealed record MyRegistrationResponse(string Status, int? Position);
 /// <summary>Corpo de <c>POST /matches/{id}/registrations</c>: <see cref="Position"/> só em espera (1 = próximo a ser promovido).</summary>
 public sealed record RegistrationResponse(string Status, int? Position);
 
+public sealed record RecordAttendanceRequest(string Status);
+
+public sealed record AttendanceResponse(Guid UserId, string Status, DateTimeOffset RecordedAt);
+
+public sealed record AttendanceEntryResponse(Guid UserId, string? DisplayName, string? Status, DateTimeOffset? RecordedAt);
+
 /// <summary>Item de <c>GET /matches/{id}/registrations</c>, com nome nulo enquanto o participante não configurar seu perfil.</summary>
 public sealed record ParticipantResponse(Guid UserId, string Status, int? Position, string? DisplayName)
 {

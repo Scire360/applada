@@ -40,6 +40,7 @@ public class DependencyRulesTests
             .NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleApplication)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleInfrastructure)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(ModuleApi)
+            .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(@"^Applada\.BuildingBlocks\.Web(\.|$)")
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(EfCore)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(AspNetCore);
 
@@ -67,6 +68,7 @@ public class DependencyRulesTests
     {
         var modules = ModuleNames();
         Assert.NotEmpty(modules);
+        Assert.Contains("Discovery", modules);
 
         // Applada.Api (raiz de composição) e os testes ficam fora de Applada.Modules.*, logo isentos.
         var violations = new List<string>();

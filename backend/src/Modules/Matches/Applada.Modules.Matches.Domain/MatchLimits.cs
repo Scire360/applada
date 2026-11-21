@@ -11,4 +11,5 @@ public static class MatchLimits
     public const int CapacityMax = 200;
     public const int WaitlistMax = 50;
     public const int MaxDaysAhead = 365;
+    public const int AttendanceWindowHoursAfterEnd = 24;
 }

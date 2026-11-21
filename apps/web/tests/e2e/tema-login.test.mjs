@@ -38,8 +38,8 @@ test("login e troca de senha do Applada em português e responsivos no Brave", {
   const authorize = new URL("/realms/applada/protocol/openid-connect/auth", keycloak);
   const verifier = randomBytes(32).toString("base64url");
   authorize.search = new URLSearchParams({
-    client_id: "applada-dev-web",
-    redirect_uri: "http://localhost:3000/api/local/callback",
+    client_id: "applada-web",
+    redirect_uri: "http://localhost:3000/api/auth/callback/keycloak",
     response_type: "code",
     scope: "openid",
     state: randomBytes(16).toString("base64url"),

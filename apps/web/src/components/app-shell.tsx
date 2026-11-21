@@ -20,6 +20,7 @@ type NavigationItem = {
 const primaryNavigation: NavigationItem[] = [
   { href: "/", label: "Visão geral", icon: "home", key: "overview", primary: true },
   { href: "/peladas", label: "Peladas", icon: "football", key: "matches", primary: true, count: "3" },
+  { href: "/grupos", label: "Grupos", icon: "people", key: "groups", primary: true },
   { href: "/jogadores", label: "Jogadores", icon: "people", key: "players", primary: true },
   { href: "/comunidade", label: "Comunidade", icon: "sparkles", key: "community", primary: true },
   { href: "/financeiro", label: "Financeiro", icon: "wallet", key: "finance", primary: true },
@@ -76,10 +77,11 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
 ];
 
 type AppShellProps = {
-  active: "overview" | ScreenGroup;
+  active: "overview" | "groups" | ScreenGroup;
   activePath?: string;
   title?: string;
-  variant?: "local";
+  // "api": a tela usa dados reais da API; some o rótulo de prévia e o nome do espaço de demonstração.
+  dataSource?: "demo" | "api";
   children: ReactNode;
 };
 
@@ -95,6 +97,7 @@ function NavigationSection({ title, children }: { title: string; children: React
 const titlesByNavigation: Record<AppShellProps["active"], string> = {
   overview: "Visão geral",
   matches: "Peladas",
+  groups: "Grupos",
   players: "Jogadores",
   community: "Comunidade",
   finance: "Financeiro",
@@ -102,10 +105,10 @@ const titlesByNavigation: Record<AppShellProps["active"], string> = {
   admin: "Administração",
 };
 
-export function AppShell({ active, activePath, title, variant, children }: AppShellProps) {
+export function AppShell({ active, activePath, title, dataSource, children }: AppShellProps) {
   return (
     <Suspense fallback={<div className="auth-loading" role="status">Carregando seu espaço…</div>}>
-      <AuthenticatedAppShell active={active} activePath={activePath} title={title} variant={variant}>
+      <AuthenticatedAppShell active={active} activePath={activePath} title={title} dataSource={dataSource}>
         {children}
       </AuthenticatedAppShell>
     </Suspense>
@@ -116,12 +119,14 @@ async function AuthenticatedAppShell({
   active,
   activePath,
   title,
-  variant,
+  dataSource,
   children,
 }: AppShellProps) {
+  const demo = dataSource !== "api";
+  const workspace = demo ? { initials: "SC", name: "Santa Cecília FC" } : { initials: "AP", name: "Applada" };
   const visualPreview = isVisualPreview();
-  const session = variant === "local" || visualPreview ? null : await auth();
-  if (variant !== "local" && !visualPreview && !session?.user) redirect("/login");
+  const session = visualPreview ? null : await auth();
+  if (!visualPreview && !session?.user) redirect("/login");
   const hasAdminAccess = visualPreview || hasAdminRole(session?.user?.roles ?? []);
   if (
     (active === "admin" || isAdminPath(activePath ?? "")) &&
@@ -131,7 +136,6 @@ async function AuthenticatedAppShell({
   }
 
   const currentTitle = title ?? titlesByNavigation[active];
-  const profileName = session?.user?.name?.trim() || session?.user?.email || "Sua conta";
   const primaryLinks = primaryNavigation.map((item) => {
     const isActive = item.href === "/"
       ? active === "overview"
@@ -151,12 +155,6 @@ async function AuthenticatedAppShell({
       </Link>
     );
   });
-  const profileInitials = profileName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0] ?? "")
-    .join("")
-    .toLocaleUpperCase("pt-BR");
 
   return (
     <div className="app-shell">
@@ -170,10 +168,10 @@ async function AuthenticatedAppShell({
         </Link>
 
         <div className="workspace-switcher">
-          <span aria-hidden="true" className="workspace-avatar">{variant === "local" ? "AP" : "SC"}</span>
+          <span aria-hidden="true" className="workspace-avatar">{workspace.initials}</span>
           <span className="workspace-copy">
             <span className="eyebrow">SEU ESPAÇO</span>
-            <span className="workspace-name">{variant === "local" ? "Testes do Applada" : "Santa Cecília FC"}</span>
+            <span className="workspace-name">{workspace.name}</span>
           </span>
         </div>
 
@@ -213,24 +211,12 @@ async function AuthenticatedAppShell({
             </span>
           </div>
           <div className="sidebar-profile">
-            {variant === "local" ? (
-              <SidebarAccountButton />
-            ) : (
-              <>
-                <Link aria-label="Abrir perfil do jogador" className="sidebar-profile-link" href="/jogadores/perfil">
-                  <span className="avatar avatar-dark">{profileInitials || "AP"}</span>
-                  <span className="profile-copy">
-                    <strong>{profileName}</strong>
-                    <span>Conta Applada</span>
-                  </span>
-                </Link>
-                <form action={signOutOfApplada} className="sidebar-logout-form">
-                  <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
-                    Sair
-                  </button>
-                </form>
-              </>
-            )}
+            <SidebarAccountButton />
+            <form action={signOutOfApplada} className="sidebar-logout-form">
+              <button aria-label="Sair da conta" className="sidebar-logout" type="submit">
+                Sair
+              </button>
+            </form>
           </div>
         </div>
       </aside>
@@ -238,7 +224,7 @@ async function AuthenticatedAppShell({
       <div className="main-column">
         <header className="topbar">
           <div aria-label={`Você está em ${currentTitle}`} className="breadcrumbs">
-            <span>{variant === "local" ? "Applada" : "Santa Cecília FC"}</span>
+            <span>{workspace.name}</span>
             <span className="breadcrumb-divider">/</span>
             <strong>{currentTitle}</strong>
           </div>
@@ -246,17 +232,13 @@ async function AuthenticatedAppShell({
             <Link aria-current={activePath === "/modulos" ? "page" : undefined} aria-label="Mapa de funcionalidades" className="compact-catalog-link" href="/modulos" title="Mapa de funcionalidades">
               <Icon name="file" />
             </Link>
-            <span className="preview-status">
-              <span className="status-dot" />
-              {variant === "local" ? "Ambiente local" : "Prévia · dados ilustrativos"}
-            </span>
-            {variant === "local" ? (
-              <HeaderAccountButton />
-            ) : (
-              <span aria-label={`Usuário ${profileName}`} className="avatar avatar-light">
-                {profileInitials || "AP"}
+            {demo && (
+              <span className="preview-status">
+                <span className="status-dot" />
+                Prévia · dados ilustrativos
               </span>
             )}
+            <HeaderAccountButton />
           </div>
         </header>
         <main className="page-content" id="conteudo" tabIndex={-1}>{children}</main>
