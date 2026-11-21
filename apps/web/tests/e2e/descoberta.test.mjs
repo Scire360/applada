@@ -20,6 +20,10 @@ test("organizador cadastra uma quadra e jogador encontra a pelada e entra", { ti
   await owner.context.grantPermissions(["geolocation"], { origin: webOrigin });
   const organize = owner.page.getByRole("region", { name: "Organizar partida" });
   await organize.getByRole("button", { name: "Cadastrar local", exact: true }).click();
+  assert.equal(await organize.getByLabel("Nome do local").evaluate((el) => el === document.activeElement), true);
+  await organize.getByRole("button", { name: "Cancelar cadastro" }).click();
+  assert.equal(await organize.getByLabel("Meus locais").evaluate((el) => el === document.activeElement), true);
+  await organize.getByRole("button", { name: "Cadastrar local", exact: true }).click();
   await organize.getByLabel("Nome do local").fill(venueName);
   await organize.getByLabel("Endereço").fill("Quadra pública de teste");
   await organize.getByRole("button", { name: "Usar minha localização atual" }).click();
@@ -33,6 +37,7 @@ test("organizador cadastra uma quadra e jogador encontra a pelada e entra", { ti
   const { id: venueId } = await venue.json();
   await organize.getByRole("option", { name: venueName }).waitFor({ state: "attached" });
   assert.equal(await organize.getByLabel("Meus locais").inputValue(), venueId);
+  assert.equal(await organize.getByLabel("Meus locais").evaluate((el) => el === document.activeElement), true);
 
   await organize.getByLabel("Nome da partida").fill(title);
   const start = await owner.page.evaluate(() => {
@@ -83,5 +88,12 @@ test("organizador cadastra uma quadra e jogador encontra a pelada e entra", { ti
   }
   await match.getByText(venueName, { exact: true }).waitFor();
   await match.getByRole("button", { name: "Entrar", exact: true }).click();
-  await match.getByText("Confirmado", { exact: true }).waitFor();
+  const registration = match.getByText("Confirmado", { exact: true });
+  await registration.waitFor();
+  assert.equal(await registration.evaluate((el) => el === document.activeElement), true);
+  const search = player.page.getByRole("region", { name: "Partidas perto de mim" });
+  await search.getByRole("button", { name: "Usar minha localização", disabled: false }).waitFor();
+  const announcement = search.getByRole("status");
+  assert.match(await announcement.innerText(), /Confirmado/);
+  assert.ok((await announcement.innerText()).includes(title));
 });

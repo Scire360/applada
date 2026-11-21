@@ -22,7 +22,8 @@ export function OpenMatches() {
   const [page, setPage] = useState<Page<OpenMatch>>();
   const [registrations, setRegistrations] = useState<Record<string, Registration>>({});
   const [progress, setProgress] = useState("");
-  const { busy, error, signedOut, run, setError } = useAction();
+  const { busy, error, notice, signedOut, run, setError, setNotice } = useAction();
+  const focusRegistration = useRef<string | null>(null);
   const lifetime = useRef<AbortController>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -58,12 +59,14 @@ export function OpenMatches() {
     });
   }
 
-  function join(id: string) {
+  function join({ matchId: id, title }: OpenMatch, button: HTMLButtonElement) {
     void run(async () => {
       setProgress("Enviando inscrição…");
       const path = `matches/${id}`;
       const registration = await appApi<Registration>(path + "/registrations", { method: "POST" });
+      if (document.activeElement === button) focusRegistration.current = id;
       setRegistrations((current) => ({ ...current, [id]: registration }));
+      setNotice(`${registrationLabel(registration.status, registration.position)} em ${title}.`);
       // A inscrição é idempotente. A contagem atual vem da API mesmo quando já havia inscrição.
       const match = await appApi<MatchDetails>(path, { signal: lifetime.current?.signal });
       setPage((current) => current && ({
@@ -91,7 +94,7 @@ export function OpenMatches() {
         </label>
         <button className="button button-primary" disabled={busy || signedOut} onClick={locate} type="button">Usar minha localização</button>
       </div>
-      <p role="status">{busy ? progress : page?.items.length === 0 ? "Nenhuma pelada encontrada neste raio. Experimente aumentar a distância." : ""}</p>
+      <p role="status">{notice || (busy ? progress : page?.items.length === 0 ? "Nenhuma pelada encontrada neste raio. Experimente aumentar a distância." : "")}</p>
       {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
       {signedOut && <SignInAgain />}
       {error && !signedOut && position && !page && (
@@ -108,8 +111,16 @@ export function OpenMatches() {
                 <p><strong>{match.venue.name}</strong> · {distance.format(match.distanceKm)} km</p>
                 {match.venue.addressText && <p>{match.venue.addressText}</p>}
                 <p>{match.spotsLeft === 1 ? "1 vaga disponível" : `${match.spotsLeft} vagas disponíveis`}{match.spotsLeft === 0 && " · Lista de espera"}</p>
-                {registration ? <p role="status">{registrationLabel(registration.status, registration.position)}</p> : (
-                  <button className="button button-primary" disabled={busy || signedOut} onClick={() => join(match.matchId)} type="button">Entrar</button>
+                {registration ? (
+                  <p tabIndex={-1} ref={(status) => {
+                    if (status && focusRegistration.current === match.matchId) {
+                      focusRegistration.current = null;
+                      status.focus();
+                    }
+                  }}>{registrationLabel(registration.status, registration.position)}</p>
+                ) : (
+                  <button className="button button-primary" disabled={signedOut} aria-disabled={busy || signedOut}
+                    onClick={(event) => { if (!busy) join(match, event.currentTarget); }} type="button">Entrar</button>
                 )}
               </li>
             );

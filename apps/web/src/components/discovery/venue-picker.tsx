@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, appApi } from "@/lib/api-client";
 import type { Page } from "@/lib/connected-matches";
 import { deniedMessage, readBrowserPosition } from "@/lib/geo";
@@ -21,6 +21,16 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const { busy, error, notice, signedOut, run, setError, setNotice, setSignedOut } = useAction();
+  const nameInput = useRef<HTMLInputElement>(null);
+  const venueSelect = useRef<HTMLSelectElement>(null);
+  const transferFocus = useRef(false);
+  const locked = disabled || busy || signedOut;
+
+  useLayoutEffect(() => {
+    if (!transferFocus.current || locked) return;
+    transferFocus.current = false;
+    (editing ? nameInput.current : venueSelect.current)?.focus();
+  }, [editing, locked]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -59,6 +69,8 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (locked) return;
+    const { submitter } = event.nativeEvent as SubmitEvent;
     const data = new FormData(event.currentTarget);
     const name = String(data.get("nome")).trim();
     if (name.length < 3) {
@@ -73,25 +85,26 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
       });
       setPage((current) => ({ items: [venue, ...(current?.items ?? [])], nextCursor: current?.nextCursor ?? null }));
       onChange(venue.id);
+      transferFocus.current = submitter !== null && document.activeElement === submitter;
       onEdit(false);
       setNotice("Local cadastrado e selecionado para a partida.");
     });
   }
 
-  function edit(open: boolean) {
+  function edit(open: boolean, button: HTMLButtonElement) {
     setError("");
     setNotice("");
     setLatitude("");
     setLongitude("");
+    transferFocus.current = document.activeElement === button;
     onEdit(open);
   }
 
-  const locked = disabled || busy || signedOut;
   return (
     <div className="preview-form">
       <label className="preview-field">
         <span>Meus locais <small>(opcional)</small></span>
-        <select disabled={locked || editing || !page} onChange={(event) => onChange(event.target.value)} value={value}>
+        <select ref={venueSelect} disabled={locked || editing || !page} onChange={(event) => onChange(event.target.value)} value={value}>
           <option value="">Sem local cadastrado</option>
           {page?.items.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
         </select>
@@ -103,18 +116,18 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
               {page ? "Ver mais locais" : "Carregar locais novamente"}
             </button>
           )}
-          <button className="button button-secondary" disabled={locked || !page} onClick={() => edit(true)} type="button">Cadastrar local</button>
+          <button className="button button-secondary" disabled={locked || !page} onClick={(event) => edit(true, event.currentTarget)} type="button">Cadastrar local</button>
         </div>
       )}
       {editing && (
-        <form onSubmit={save} autoComplete="off">
+        <form className="connected-fieldset" onSubmit={save} autoComplete="off">
           <fieldset className="connected-fieldset" disabled={locked}>
             <legend>Cadastrar local</legend>
             <p>Cadastre só locais públicos, como quadras e campos. Nunca use endereço de casa.</p>
             <div className="preview-form-grid">
               <label className="preview-field preview-field-wide">
                 <span>Nome do local</span>
-                <input name="nome" minLength={3} maxLength={80} required />
+                <input ref={nameInput} name="nome" minLength={3} maxLength={80} required />
               </label>
               <label className="preview-field preview-field-wide">
                 <span>Endereço <small>(opcional)</small></span>
@@ -130,11 +143,11 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
                 <input name="longitude" type="number" step="any" min={-180} max={180} required value={longitude} onChange={(e) => setLongitude(e.target.value)} />
               </label>
             </div>
-            <div className="connected-actions">
-              <button className="button button-primary" type="submit">Salvar local</button>
-              <button className="button button-secondary" type="button" onClick={() => edit(false)}>Cancelar cadastro</button>
-            </div>
           </fieldset>
+          <div className="connected-actions">
+            <button className="button button-primary" type="submit" disabled={disabled || signedOut} aria-disabled={locked}>Salvar local</button>
+            <button className="button button-secondary" type="button" disabled={locked} onClick={(event) => edit(false, event.currentTarget)}>Cancelar cadastro</button>
+          </div>
         </form>
       )}
       <p role="status">{!page && !error ? "Carregando locais…" : notice || (busy ? "Aguarde…" : "")}</p>
