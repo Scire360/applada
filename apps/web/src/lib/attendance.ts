@@ -14,11 +14,14 @@ export function canTakeAttendance(match: AttendanceMatch, now: Date): "not-open"
 }
 
 export function attendanceMessage(error: ApiError): string {
-  if (error.status === 403 && error.code === "not-organizer") return "Só o organizador pode fazer a chamada.";
+  if (error.status === 403) {
+    return error.code === "not-organizer" ? "Só o organizador pode fazer a chamada." : "Você não tem permissão para fazer esta chamada.";
+  }
   if (error.status === 409) {
     if (error.code === "attendance-not-open") return "A chamada abre no início da partida.";
     if (error.code === "attendance-closed") return "A chamada fechou.";
     if (error.code === "match-cancelled") return "A partida foi cancelada.";
+    return "Não foi possível atualizar a chamada. Recarregue a página e tente novamente.";
   }
   if (error.status === 404 && error.code === "attendance-participant-not-found") {
     return "Este participante não tem inscrição confirmada nesta partida.";

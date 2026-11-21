@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useState } from "react";
 import { ApiError, appApi } from "@/lib/api-client";
 import { attendanceMessage } from "@/lib/attendance";
 import type { MatchDetails, Page } from "@/lib/connected-matches";
@@ -11,65 +11,73 @@ import { useAction } from "../groups/use-action";
 type Status = "present" | "absent";
 type Mark = { userId: string; status: Status; recordedAt: string };
 type Entry = { userId: string; displayName: string | null; status: Status | null; recordedAt: string | null };
-type Start = Pick<MatchDetails, "startsAt" | "status">;
 const labels = { present: "Veio", absent: "Faltou" } as const;
 
-function onVisibilityChange(changed: () => void) {
-  document.addEventListener("visibilitychange", changed);
-  return () => document.removeEventListener("visibilitychange", changed);
-}
-
 export function AttendanceRoll({ matchId }: { matchId: string }) {
-  const write = useRef<Promise<Mark> | null>(null);
-  const [upcoming, setUpcoming] = useState<Start>();
-  // Uma lista lida antes do apito ainda pode ganhar ou perder confirmados.
-  const startedSinceRead = useAttendanceWindow(upcoming) === "started";
-  // Ao voltar à aba, a sessão pode ser de outra pessoa. A nova montagem
-  // precisa de um GET autorizado antes de exibir qualquer marcação.
-  const visible = useSyncExternalStore(onVisibilityChange, () => document.visibilityState === "visible", () => false);
-  return visible ? <VisibleRoll key={String(startedSinceRead)} matchId={matchId} write={write} onUpcoming={setUpcoming} /> : null;
-}
-
-function VisibleRoll({ matchId, write, onUpcoming }: {
-  matchId: string;
-  write: RefObject<Promise<Mark> | null>;
-  onUpcoming: (match: Start) => void;
-}) {
   const path = `matches/${matchId}/attendance`;
   const [page, setPage] = useState<Page<Entry>>();
   const [match, setMatch] = useState<MatchDetails>();
   const [pending, setPending] = useState<Pick<Mark, "userId" | "status">>();
   const [failure, setFailure] = useState<ApiError>();
   const [closedMessage, setClosedMessage] = useState("");
-  const [attempt, setAttempt] = useState(0);
+  const [readBeforeStart, setReadBeforeStart] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<ApiError>();
   const { busy, run, notice, setNotice } = useAction();
   const phase = useAttendanceWindow(match);
+  // Uma leitura iniciada antes do apito ainda pode ter confirmados desatualizados.
+  const needsLoad = !page || (phase === "open" && readBeforeStart);
 
   useEffect(() => {
+    if (!needsLoad || loadFailure || busy) return;
     const controller = new AbortController();
     const options = { signal: controller.signal };
     async function load() {
       try {
-        // A aba pode ter sido ocultada durante um PUT da montagem anterior.
-        await write.current?.catch(() => undefined);
-        if (controller.signal.aborted) return;
         const requestedAt = Date.now();
-        const next = await appApi<Page<Entry>>(path, options);
-        const details = await appApi<MatchDetails>(`matches/${matchId}`, options);
+        const [next, details] = await Promise.all([
+          appApi<Page<Entry>>(path, options),
+          appApi<MatchDetails>(`matches/${matchId}`, options),
+        ]);
         if (!controller.signal.aborted) {
-          if (details.status === "scheduled" && requestedAt < Date.parse(details.startsAt)) {
-            onUpcoming({ startsAt: details.startsAt, status: details.status });
-          }
+          setFailure(undefined);
+          setReadBeforeStart(requestedAt < Date.parse(details.startsAt));
           setMatch(details);
           setPage(next);
         }
       } catch (error) {
-        if (!controller.signal.aborted) setFailure(asApiError(error));
+        if (!controller.signal.aborted) setLoadFailure(asApiError(error));
       }
     }
     void load();
     return () => controller.abort();
-  }, [matchId, path, attempt, write, onUpcoming]);
+  }, [matchId, path, needsLoad, loadFailure, busy, readBeforeStart]);
+
+  useEffect(() => {
+    let current: AbortController | undefined;
+    // A sessão pode mudar em outra aba. Revalida o acesso sem perder a paginação nem interferir no PUT.
+    async function checkAccess() {
+      if (document.visibilityState !== "visible") return;
+      current?.abort();
+      const controller = new AbortController();
+      current = controller;
+      try {
+        await appApi(`${path}?limit=1`, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setLoadFailure((error) => accessDenied(error) ? undefined : error);
+          setFailure((error) => accessDenied(error) ? undefined : error);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted && error instanceof ApiError && accessDenied(error)) {
+          setLoadFailure(error);
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", checkAccess);
+    return () => {
+      current?.abort();
+      document.removeEventListener("visibilitychange", checkAccess);
+    };
+  }, [path]);
 
   function more(cursor: string) {
     void run(async () => {
@@ -88,10 +96,9 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
       setFailure(undefined);
       setPending({ userId: entry.userId, status });
       try {
-        write.current = appApi<Mark>(`${path}/${entry.userId}`, {
+        const saved = await appApi<Mark>(`${path}/${entry.userId}`, {
           method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
         });
-        const saved = await write.current;
         setPage((current) => current && ({
           ...current, items: current.items.map((item) => item.userId === saved.userId ? { ...item, ...saved } : item),
         }));
@@ -103,14 +110,13 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
           setClosedMessage(attendanceMessage(problem));
         }
       } finally {
-        write.current = null;
         setPending(undefined);
       }
     });
   }
 
-  const accessDenied = failure?.status === 401 || failure?.status === 403;
-  const loading = !page && !failure;
+  const problem = accessDenied(failure) ? failure : loadFailure ?? failure;
+  const loading = needsLoad && !loadFailure;
   const windowMessage = closedMessage || (match?.status === "cancelled" ? "A partida foi cancelada."
     : phase === "not-open" ? "A chamada abre no início da partida." : phase === "closed" ? "A chamada fechou." : "");
   const nextCursor = page?.nextCursor;
@@ -118,18 +124,18 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
     <section className="surface-card connected-card" aria-labelledby="confirmados">
       <h2 id="confirmados">Participantes confirmados</h2>
       <p role="status">{loading ? "Carregando chamada…" : busy ? "Aguarde…" : notice}</p>
-      {failure && <p className="form-feedback form-feedback-error" role="alert">{attendanceMessage(failure)}</p>}
-      {failure?.status === 401 && <SignInAgain />}
-      {!page && failure && !accessDenied && (
-        <button className="button button-secondary" type="button" onClick={() => { setFailure(undefined); setAttempt(attempt + 1); }}>Tentar novamente</button>
+      {problem && <p className="form-feedback form-feedback-error" role="alert">{attendanceMessage(problem)}</p>}
+      {problem?.status === 401 && <SignInAgain />}
+      {needsLoad && loadFailure && !accessDenied(problem) && (
+        <button className="button button-secondary" type="button" onClick={() => setLoadFailure(undefined)}>Tentar novamente</button>
       )}
-      {page && !accessDenied && (
+      {page && !accessDenied(problem) && (
         <>
-          {windowMessage && (!failure || windowMessage !== attendanceMessage(failure)) && <p>{windowMessage}</p>}
+          {windowMessage && (!problem || windowMessage !== attendanceMessage(problem)) && <p>{windowMessage}</p>}
           {page.items.length ? (
             <ul className="connected-list">
               {page.items.map((entry) => {
-                const name = entry.displayName ?? entry.userId;
+                const name = entry.displayName ?? "Jogador sem nome";
                 const selected = pending?.userId === entry.userId ? pending.status : entry.status;
                 return (
                   <li key={entry.userId}>
@@ -137,7 +143,7 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
                     <div aria-label={`Presença de ${name}`} className="connected-actions" role="group">
                       {(["present", "absent"] as const).map((status) => (
                         <button key={status} aria-pressed={selected === status} className={`button button-${selected === status ? "primary" : "secondary"}`}
-                          disabled={busy || Boolean(windowMessage)} onClick={() => mark(entry, status)} type="button">{labels[status]}</button>
+                          disabled={busy || needsLoad || Boolean(windowMessage)} onClick={() => mark(entry, status)} type="button">{labels[status]}</button>
                       ))}
                     </div>
                   </li>
@@ -145,7 +151,7 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
               })}
             </ul>
           ) : <p>Nenhum participante confirmado.</p>}
-          {nextCursor && <button className="button button-secondary" disabled={busy} onClick={() => more(nextCursor)} type="button">Ver mais</button>}
+          {nextCursor && <button className="button button-secondary" disabled={busy || needsLoad} onClick={() => more(nextCursor)} type="button">Ver mais</button>}
         </>
       )}
     </section>
@@ -154,4 +160,8 @@ function VisibleRoll({ matchId, write, onUpcoming }: {
 
 function asApiError(error: unknown) {
   return error instanceof ApiError ? error : new ApiError(0, "Não foi possível carregar ou atualizar a chamada.");
+}
+
+function accessDenied(error?: ApiError) {
+  return error?.status === 401 || error?.status === 403;
 }

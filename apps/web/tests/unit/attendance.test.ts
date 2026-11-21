@@ -42,3 +42,15 @@ test("appApi mantém o código recebido em code ou no tipo de problem da API", a
     fetch.mock.restore();
   }
 });
+
+test("403 sem código reconhecido explica a falta de permissão para a chamada", () => {
+  for (const code of [undefined, "outro-erro"]) {
+    assert.equal(attendanceMessage(new ApiError(403, "Forbidden", code)), "Você não tem permissão para fazer esta chamada.");
+  }
+});
+
+test("409 sem código reconhecido explica o conflito em português", () => {
+  for (const code of [undefined, "outro-erro"]) {
+    assert.equal(attendanceMessage(new ApiError(409, "Conflict", code)), "Não foi possível atualizar a chamada. Recarregue a página e tente novamente.");
+  }
+});
