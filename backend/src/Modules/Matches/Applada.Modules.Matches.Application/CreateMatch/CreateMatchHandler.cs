@@ -28,11 +28,6 @@ namespace Applada.Modules.Matches.Application.CreateMatch;
 /// </remarks>
 public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider, IGroupMembership groups, IVenueDirectory venues)
 {
-    private static readonly Error UnknownVenue = MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
-    {
-        ["venueId"] = ["Local não encontrado."],
-    });
-
     public async Task<Result<(int Status, string Body)>> HandleAsync(
         NewMatch data,
         Guid userId,
@@ -61,10 +56,7 @@ public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvid
             return MatchErrors.GroupNotAllowed;
         }
 
-        if (data.VenueId is { } venueId && !await venues.ExistsAsync(venueId, ct))
-        {
-            return UnknownVenue;
-        }
+        var unknownVenue = data.VenueId is { } venueId && !await venues.ExistsAsync(venueId, ct);
 
         try
         {
@@ -78,6 +70,15 @@ public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvid
                     }
 
                     var created = Match.Create(data, userId, timeProvider.GetUtcNow());
+                    if (unknownVenue)
+                    {
+                        var fields = created.IsSuccess || created.Error.Fields is not { } domainErrors
+                            ? new Dictionary<string, string[]>(StringComparer.Ordinal)
+                            : new Dictionary<string, string[]>(domainErrors, StringComparer.Ordinal);
+                        fields["venueId"] = ["Local não encontrado."];
+                        return MatchErrors.Validation(fields);
+                    }
+
                     if (!created.IsSuccess)
                     {
                         return created.Error;

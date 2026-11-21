@@ -47,6 +47,22 @@ public class MatchesLifecycleTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Create_match_returns_title_and_unknown_venue_errors_together()
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        var request = JsonNode.Parse(ValidBody())!.AsObject();
+        request["title"] = string.Empty;
+        request["venueId"] = Guid.NewGuid();
+
+        using var response = await PostMatchAsync(client, NewKey(), request.ToJsonString());
+
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        var errors = problem.RootElement.GetProperty("errors");
+        Assert.Equal("Local não encontrado.", Assert.Single(errors.GetProperty("venueId").EnumerateArray()).GetString());
+        Assert.Equal($"O título deve ter de 1 a {MatchLimits.TitleMax} caracteres.", Assert.Single(errors.GetProperty("title").EnumerateArray()).GetString());
+    }
+
+    [Fact]
     public async Task Create_match_with_existing_venue_returns_201()
     {
         using var owner = factory.CreateClientFor(NewSubject());
