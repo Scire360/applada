@@ -28,13 +28,15 @@ async function appRoutes() {
 
 const adminOnlyRoute = /^\/(administracao|modulos)(\/|$)/;
 
-async function assertAttendanceFeedback(page, title) {
+async function assertAttendanceFeedbackAt320px(page, title) {
   const row = page.getByRole("listitem").filter({ hasText: title });
   const text = "Não foi possível verificar a chamada.";
   const message = row.getByText(text, { exact: true });
   await message.waitFor();
   const status = row.getByRole("status").filter({ hasText: text });
   assert.equal(await status.count(), 1, "A mensagem da chamada deve estar na região de status");
+  assert.equal(await status.evaluate(element => element.matches(".form-feedback.form-feedback-error")), true,
+    "O aviso deve usar o padrão de feedback de erro");
   const button = status.getByRole("button", { name: "Tentar de novo a consulta da chamada de " + title });
   assert.equal(await button.isVisible(), true);
   const textBox = await message.boundingBox();
@@ -46,10 +48,37 @@ async function assertAttendanceFeedback(page, title) {
   }
 }
 
-test("falha da consulta da chamada agrupa mensagem e nova tentativa em 320 px", async () => {
+async function assertAttendanceRetryFocus(page, match, userId) {
+  const row = page.getByRole("listitem").filter({ hasText: match.title });
+  const retry = row.getByRole("button", { name: "Tentar de novo a consulta da chamada de " + match.title });
+  const focused = element => element === document.activeElement;
+  await retry.focus();
+  for (const success of [false, true]) {
+    const reply = Promise.withResolvers();
+    const path = "**/api/app/matches/" + match.id;
+    await page.route(path, async route => {
+      await reply.promise;
+      await route.fulfill(success ? { json: { ...match, organizerId: userId } } : { status: 503, json: {} });
+    }, { times: 1 });
+    try {
+      await Promise.all([page.waitForRequest(path), page.keyboard.press("Enter")]);
+      const checking = row.getByRole("button", { name: "Verificando…" });
+      assert.equal(await checking.count(), 1, "O botão deve continuar montado durante a consulta");
+      assert.equal(await checking.isDisabled(), true);
+      assert.equal(await checking.evaluate(focused), true);
+    } finally {
+      reply.resolve();
+    }
+    const target = success ? row.getByRole("link", { name: "Fazer chamada" }) : retry;
+    await target.waitFor();
+    assert.equal(await target.evaluate(focused), true);
+  }
+}
+
+test("aviso da chamada em 320 px agrupa os controles e preserva o foco ao tentar de novo", async () => {
   const browser = await launchChrome();
   try {
-    const { page } = await signIn(browser, "jogador1.dev", requirePassword());
+    const { page, userId } = await signIn(browser, "jogador1.dev", requirePassword());
     await page.setViewportSize({ width: 320, height: 568 });
     const match = {
       id: "f0cf5702-1234-4321-a987-27aa3a0a88ab", title: "Pelada de sábado",
@@ -62,7 +91,8 @@ test("falha da consulta da chamada agrupa mensagem e nova tentativa em 320 px", 
     await page.goto("/peladas/conectadas");
     await page.getByRole("button", { name: "Participo", exact: true }).click();
 
-    await assertAttendanceFeedback(page, match.title);
+    await assertAttendanceFeedbackAt320px(page, match.title);
+    await assertAttendanceRetryFocus(page, match, userId);
 
     const groupId = "78a3fc46-ad31-4c34-90f0-1f13be632570";
     await page.route("**/api/app/groups/" + groupId, route =>
@@ -72,7 +102,7 @@ test("falha da consulta da chamada agrupa mensagem e nova tentativa em 320 px", 
     await page.route(`**/api/app/groups/${groupId}/matches`, route =>
       route.fulfill({ json: { items: [match], nextCursor: null } }));
     await page.goto("/grupos/" + groupId);
-    await assertAttendanceFeedback(page, match.title);
+    await assertAttendanceFeedbackAt320px(page, match.title);
   } finally {
     await browser.close();
   }
