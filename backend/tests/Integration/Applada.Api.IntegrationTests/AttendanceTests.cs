@@ -200,9 +200,9 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         foreach (var cursor in cursors)
         {
             using var response = await _organizer.GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}", Ct);
-            var error = await Record.ExceptionAsync(async () =>
-                (await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor")).Dispose());
-            Assert.True(error is null, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {error}");
+            var raw = await response.Content.ReadAsStringAsync(Ct);
+            Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {(int)response.StatusCode} {raw}");
+            (await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor")).Dispose();
         }
     }
 

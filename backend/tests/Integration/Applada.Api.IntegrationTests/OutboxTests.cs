@@ -16,6 +16,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 
 namespace Applada.Api.IntegrationTests;
 
@@ -387,10 +388,12 @@ public class OutboxTests(ApiFactory factory)
             await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
             await factory.CloseRabbitMqConnectionsAsync();
             await WaitUntilAsync(() => !queue.IsOpen && !publisher.HasOpenConnection, TimeSpan.FromSeconds(10));
+            await Task.Delay(new ConnectionFactory().NetworkRecoveryInterval + TimeSpan.FromSeconds(3), Ct);
+            Assert.False(queue.IsOpen, "A fila exclusiva reabriu após o broker fechar a conexão.");
         }
         finally
         {
-            Assert.True(await publisher.IsConnectedAsync(Ct));
+            await publisher.IsConnectedAsync(Ct);
         }
     }
 
@@ -724,7 +727,12 @@ public class OutboxTests(ApiFactory factory)
 
         public static async Task<TestQueue> CreateAsync(string connectionString, string bindingKey)
         {
-            var connection = await new ConnectionFactory { Uri = new Uri(connectionString) }.CreateConnectionAsync(Ct);
+            var connection = await new ConnectionFactory
+            {
+                Uri = new Uri(connectionString),
+                AutomaticRecoveryEnabled = false,
+                TopologyRecoveryEnabled = false,
+            }.CreateConnectionAsync(Ct);
             var channel = await connection.CreateChannelAsync(cancellationToken: Ct);
             await channel.ExchangeDeclareAsync("applada.events", ExchangeType.Topic, durable: true, autoDelete: false, cancellationToken: Ct);
             var queue = await channel.QueueDeclareAsync(queue: string.Empty, durable: false, exclusive: true, autoDelete: true, cancellationToken: Ct);
@@ -775,12 +783,18 @@ public class OutboxTests(ApiFactory factory)
             await using var connection = _connection;
             await using (var channel = _channel)
             {
+                // Aguardamos queue.delete-ok para que o binding seja removido antes de fechar a conexão.
+                // Se o canal já fechou ou fechar durante o delete, só o broker pode remover a fila exclusiva.
+                // Apenas nesse caso a remoção pode coincidir com um confirm pendente e gerar um nack.
                 if (channel.IsOpen)
                 {
-                    // Após a conexão fechar, o broker remove a fila exclusiva/auto-delete de forma assíncrona.
-                    // Até lá, o binding ainda roteia mensagens e a remoção com um confirm pendente pode gerar
-                    // um nack para o publisher. Aguardamos queue.delete-ok antes de fechar o canal e a conexão.
-                    await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
+                    try
+                    {
+                        await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
+                    }
+                    catch (Exception ex) when ((ex is AlreadyClosedException or OperationInterruptedException) && !channel.IsOpen)
+                    {
+                    }
                 }
             }
         }
