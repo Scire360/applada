@@ -197,11 +197,13 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
             "%%%",
         ];
 
-        await Assert.AllAsync(cursors, async cursor =>
+        foreach (var cursor in cursors)
         {
             using var response = await _organizer.GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}", Ct);
-            using var _ = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
-        });
+            var error = await Record.ExceptionAsync(async () =>
+                (await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor")).Dispose());
+            Assert.True(error is null, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {error}");
+        }
     }
 
     [Fact]
