@@ -87,11 +87,6 @@ public class ProfilesTests(ApiFactory factory)
         }
     }
 
-    private sealed class UnknownLengthStream(byte[] data) : MemoryStream(data)
-    {
-        public override bool CanSeek => false;
-    }
-
     [Fact]
     public async Task Profile_requires_authentication_for_reads_and_writes()
     {

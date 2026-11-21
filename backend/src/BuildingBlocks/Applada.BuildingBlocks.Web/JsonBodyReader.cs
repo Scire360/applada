@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Unicode;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Net.Http.Headers;
@@ -35,11 +36,17 @@ public static class JsonBodyReader
             return (null, PayloadTooLarge());
         }
 
+        // O desserializador pode ignorar bytes malformados em uma propriedade desconhecida.
+        var isUtf8 = encoding.CodePage == Encoding.UTF8.CodePage;
+        if (isUtf8 && !Utf8.IsValid(buffer.AsSpan(0, length)))
+        {
+            return (null, Invalid("body"));
+        }
+
         try
         {
             using var stream = new MemoryStream(buffer, 0, length, writable: false);
-            using var utf8 = encoding.CodePage != Encoding.UTF8.CodePage
-                ? Encoding.CreateTranscodingStream(stream, encoding, Encoding.UTF8) : null;
+            using var utf8 = isUtf8 ? null : Encoding.CreateTranscodingStream(stream, encoding, Encoding.UTF8);
             var value = await JsonSerializer.DeserializeAsync<T>(utf8 ?? stream, options, ct);
             return value is null ? (null, Invalid("body")) : (value, null);
         }

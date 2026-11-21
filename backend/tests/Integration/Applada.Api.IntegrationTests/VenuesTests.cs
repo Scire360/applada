@@ -74,11 +74,6 @@ public class VenuesTests(ApiFactory factory)
         }
     }
 
-    private sealed class UnknownLengthStream(byte[] data) : MemoryStream(data)
-    {
-        public override bool CanSeek => false;
-    }
-
     [Theory]
     [InlineData("{", "body")]
     [InlineData("null", "body")]

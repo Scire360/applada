@@ -89,6 +89,22 @@ public class JsonBodyReaderTests
         Assert.Equal("body", Assert.Single(problem.ProblemDetails.Errors).Key);
     }
 
+    [Fact]
+    public async Task Invalid_bytes_with_explicit_utf8_charset_return_validation_error_for_body()
+    {
+        byte[] bytes = [.. "{\""u8, 0xFF, .. "\":\"Arena\"}"u8];
+        using var stream = new MemoryStream(bytes);
+        var request = Request(stream, "application/json; charset=utf-8");
+
+        var (value, failure) = await JsonBodyReader.ReadJsonBodyAsync<Body>(request, Limit, JsonSerializerOptions.Web, Ct);
+
+        Assert.Null(value);
+        var problem = Assert.IsType<ValidationProblem>(failure);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal("urn:applada:problem:validation", problem.ProblemDetails.Type);
+        Assert.Equal("body", Assert.Single(problem.ProblemDetails.Errors).Key);
+    }
+
     [Theory]
     [InlineData("""{"NAME":!}""", "name")]
     [InlineData("""{"unknown":!}""", "body")]

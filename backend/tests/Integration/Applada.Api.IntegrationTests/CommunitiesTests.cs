@@ -424,12 +424,6 @@ public class CommunitiesTests(ApiFactory factory)
         await db.Database.ExecuteSqlAsync($"UPDATE communities.groups SET member_count = {count} WHERE id = {groupId}", Ct);
     }
 
-    /// <summary>Stream que não informa tamanho, para forçar envio chunked.</summary>
-    private sealed class UnknownLengthStream(byte[] data) : MemoryStream(data)
-    {
-        public override bool CanSeek => false;
-    }
-
     private async Task<int> ScalarAsync(string sql)
     {
         await using var scope = factory.Services.CreateAsyncScope();
