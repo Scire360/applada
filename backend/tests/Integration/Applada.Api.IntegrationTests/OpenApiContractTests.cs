@@ -52,6 +52,29 @@ public class OpenApiContractTests : IClassFixture<DevelopmentApiFactory>
     }
 
     [Fact]
+    public async Task Attendance_operations_describe_private_responses_and_pagination()
+    {
+        using var client = _development.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), Ct));
+        var paths = document.RootElement.GetProperty("paths");
+        var list = paths.GetProperty("/api/v1/matches/{id}/attendance").GetProperty("get");
+        var record = paths.GetProperty("/api/v1/matches/{id}/attendance/{userId}").GetProperty("put");
+        foreach (var operation in new[] { list, record })
+        {
+            var ok = operation.GetProperty("responses").GetProperty("200");
+            Assert.True(ok.TryGetProperty("headers", out var headers), "Faltam os cabeçalhos da resposta 200 de presença.");
+            Assert.Contains("private, no-store", headers.GetProperty("Cache-Control").GetProperty("description").GetString(), StringComparison.Ordinal);
+        }
+
+        var parameters = list.GetProperty("parameters").EnumerateArray().ToArray();
+        foreach (var (name, content) in new[] { ("cursor", "nextCursor"), ("limit", "1 a 50") })
+        {
+            var parameter = Assert.Single(parameters, p => p.GetProperty("name").GetString() == name);
+            Assert.Contains(content, parameter.GetProperty("description").GetString(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public async Task Attendance_schemas_describe_the_allowed_status_values()
     {
         using var client = _development.CreateClient();

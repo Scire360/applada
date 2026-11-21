@@ -2130,6 +2130,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2230,6 +2238,7 @@
           {
             "name": "cursor",
             "in": "query",
+            "description": "Cursor opaco devolvido em nextCursor; s\u00F3 vale para esta listagem.",
             "schema": {
               "type": "string"
             }
@@ -2237,6 +2246,7 @@
           {
             "name": "limit",
             "in": "query",
+            "description": "Itens por p\u00E1gina, de 1 a 50 (padr\u00E3o 20).",
             "schema": {
               "type": "string"
             }
@@ -2245,6 +2255,14 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
