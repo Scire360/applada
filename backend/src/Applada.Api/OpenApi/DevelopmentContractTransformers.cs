@@ -1,3 +1,4 @@
+using Applada.Modules.Discovery.Api;
 using Applada.Modules.Matches.Api;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
@@ -31,10 +32,37 @@ internal static class DevelopmentContractTransformers
         return Task.CompletedTask;
     }
 
+    public static Task DescribeVenueRequestAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        if (context.JsonTypeInfo.Type == typeof(CreateVenueRequest) && schema.Properties is { } fields)
+        {
+            schema.Required = new HashSet<string>(["name", "latitude", "longitude"], StringComparer.Ordinal);
+            if (fields["latitude"] is OpenApiSchema latitude && fields["longitude"] is OpenApiSchema longitude)
+            {
+                latitude.Type &= ~JsonSchemaType.Null;
+                longitude.Type &= ~JsonSchemaType.Null;
+                latitude.Minimum = "-90";
+                latitude.Maximum = "90";
+                longitude.Minimum = "-180";
+                longitude.Maximum = "180";
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public static async Task TransformOperationAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
     {
         switch (operation.OperationId)
         {
+            case "CreateVenue":
+                AddResponseHeader(operation, "201", "Location", "URL do local cadastrado (/api/v1/venues/{id}).");
+                break;
+            case "ListMyVenues":
+                AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
+                Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
+                Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
+                break;
             case "CreateMatch":
                 AddHeader(operation, "Idempotency-Key", required: true,
                     "Chave de idempotência (1 a 100 caracteres ASCII imprimíveis), por usuário, retida por 24 h. Mesma chave com o mesmo corpo devolve a resposta gravada; com corpo diferente, 422.");

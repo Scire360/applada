@@ -4,6 +4,7 @@ using Applada.Api.OpenApi;
 using Applada.Api.Security;
 using Applada.BuildingBlocks.Messaging;
 using Applada.Modules.Communities;
+using Applada.Modules.Discovery;
 using Applada.Modules.Identity;
 using Applada.Modules.Matches.Api;
 using Applada.Modules.Profiles;
@@ -21,6 +22,7 @@ builder.Services.AddRabbitMqPublisher(builder.Configuration);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddProfilesModule(builder.Configuration);
 builder.Services.AddCommunitiesModule(builder.Configuration);
+builder.Services.AddDiscoveryModule(builder.Configuration);
 builder.Services.AddMatchesModule(builder.Configuration);
 builder.AddApladaDevelopmentOpenApi();
 builder.Services.AddHealthChecks()
@@ -41,6 +43,7 @@ app.MapDefaultEndpoints();
 app.MapIdentityEndpoints();
 app.MapProfilesEndpoints();
 app.MapCommunitiesEndpoints();
+app.MapDiscoveryEndpoints();
 app.MapMatchesEndpoints();
 
 // OpenAPI e Scalar só existem em Development; o teste DevelopmentSurfaceTests garante a ausência fora dele.

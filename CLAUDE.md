@@ -77,6 +77,8 @@ cd backend; dotnet ef migrations add <Nome> --project src/Modules/Profiles/Appla
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Profiles/Applada.Modules.Profiles --startup-project src/Applada.Api --context ProfilesDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext --output-dir Infrastructure/Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Communities/Applada.Modules.Communities --startup-project src/Applada.Api --context CommunitiesDbContext
+cd backend; dotnet ef migrations add <Nome> --project src/Modules/Discovery/Applada.Modules.Discovery --startup-project src/Applada.Api --context DiscoveryDbContext --output-dir Infrastructure/Migrations
+cd backend; dotnet ef migrations script --idempotent --project src/Modules/Discovery/Applada.Modules.Discovery --startup-project src/Applada.Api --context DiscoveryDbContext
 cd backend; dotnet ef migrations add <Nome> --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext --output-dir Migrations
 cd backend; dotnet ef migrations script --idempotent --project src/Modules/Matches/Applada.Modules.Matches.Infrastructure --startup-project src/Applada.Api --context MatchesDbContext
 ```
