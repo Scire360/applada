@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Applada.Api.IntegrationTests.Infrastructure;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
 using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
@@ -45,6 +46,49 @@ public class ProfilesTests(ApiFactory factory)
         using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
         Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("displayName", out _));
         Assert.Null(await ReadNameAsync(await client.GetAsync(ProfilePath, Ct)));
+    }
+
+    [Fact]
+    public async Task Unsupported_content_type_returns_415()
+    {
+        using var client = factory.CreateClientFor(NewSubject("profile"));
+        using var content = new StringContent("""{"displayName":"João"}""", Encoding.UTF8, "text/plain");
+        using var response = await client.PutAsync(ProfilePath, content, Ct);
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
+    }
+
+    [Theory]
+    [InlineData(false, 8192)]
+    [InlineData(true, 8192)]
+    [InlineData(false, 8193)]
+    [InlineData(true, 8193)]
+    public async Task Update_limits_body_to_8kb(bool chunked, int size)
+    {
+        var bytes = Encoding.UTF8.GetBytes("""{"displayName":"Ana"}""".PadRight(size));
+        using var client = factory.CreateClientFor(NewSubject("profile"));
+        using var request = new HttpRequestMessage(HttpMethod.Put, ProfilePath)
+        {
+            Content = chunked ? new StreamContent(new UnknownLengthStream(bytes)) : new ByteArrayContent(bytes),
+        };
+        request.Content.Headers.ContentType = new("application/json");
+        request.Headers.TransferEncodingChunked = chunked;
+        Assert.Equal(chunked ? (long?)null : size, request.Content.Headers.ContentLength);
+
+        using var response = await client.SendAsync(request, Ct);
+        if (size == 8192)
+        {
+            Assert.Equal("Ana", await ReadNameAsync(response));
+        }
+        else
+        {
+            using var problem = await AssertProblemAsync(response, HttpStatusCode.RequestEntityTooLarge, "payload-too-large");
+            Assert.Null(await ReadNameAsync(await client.GetAsync(ProfilePath, Ct)));
+        }
+    }
+
+    private sealed class UnknownLengthStream(byte[] data) : MemoryStream(data)
+    {
+        public override bool CanSeek => false;
     }
 
     [Fact]

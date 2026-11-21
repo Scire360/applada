@@ -1,11 +1,13 @@
-using System.Text.Json;
 using Applada.BuildingBlocks.Contracts;
+using Applada.BuildingBlocks.Web;
 using Applada.Modules.Profiles.Domain;
 using Applada.Modules.Profiles.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 namespace Applada.Modules.Profiles.Api;
 
@@ -15,6 +17,8 @@ public sealed record DisplayNameRequest(string DisplayName);
 
 internal static class ProfileEndpoints
 {
+    private const int MaxBodyBytes = 8192;
+
     public static IEndpointRouteBuilder MapProfileEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var profile = endpoints.MapGroup("/api/v1/me/profile").WithTags("Profiles").RequireAuthorization();
@@ -28,7 +32,10 @@ internal static class ProfileEndpoints
             .WithSummary("Salva o nome de exibição do usuário autenticado, de 1 a 80 caracteres após remover espaços nas pontas.")
             .Accepts<DisplayNameRequest>("application/json")
             .RequireRateLimiting(RateLimitPolicies.Writes)
+            .Produces<ProfileResponse>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
@@ -43,28 +50,16 @@ internal static class ProfileEndpoints
         return TypedResults.Ok(new ProfileResponse(displayName));
     }
 
-    private static async Task<Results<Ok<ProfileResponse>, ValidationProblem, ProblemHttpResult>> SaveAsync(
-        HttpRequest request, ICurrentUser currentUser, ProfileStore store, HttpResponse response, CancellationToken ct)
+    private static async Task<IResult> SaveAsync(
+        HttpRequest request, ICurrentUser currentUser, ProfileStore store, HttpResponse response, IOptions<JsonOptions> json, CancellationToken ct)
     {
-        if (!request.HasJsonContentType() || request.GetTypedHeaders().ContentType is { Charset.HasValue: true, Encoding: null })
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<DisplayNameRequest>(request, MaxBodyBytes, json.Value.SerializerOptions, ct);
+        if (failure is not null)
         {
-            return TypedResults.Problem(
-                statusCode: StatusCodes.Status415UnsupportedMediaType,
-                title: "O corpo deve ser JSON com uma codificação reconhecida.",
-                type: "urn:applada:problem:unsupported-media-type");
+            return failure;
         }
 
-        DisplayNameRequest? body;
-        try
-        {
-            body = await request.ReadFromJsonAsync<DisplayNameRequest>(ct);
-        }
-        catch (JsonException)
-        {
-            return InvalidDisplayName();
-        }
-
-        var displayName = DisplayNameRules.Normalize(body?.DisplayName);
+        var displayName = DisplayNameRules.Normalize(body!.DisplayName);
         if (displayName is null)
         {
             return InvalidDisplayName();
