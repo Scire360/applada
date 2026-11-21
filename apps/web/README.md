@@ -115,8 +115,9 @@ Ao criar uma partida, o seletor opcional **Grupo** lista os grupos em que você 
 `/peladas/conectadas?grupo=<id>` abre a criação com o grupo já escolhido.
 
 Em **Meus locais**, selecione uma quadra ou um campo público para que a partida apareça em
-`/peladas/abertas`. **Cadastrar local** aceita coordenadas digitadas ou permite preencher os
-campos com a localização aproximada do dispositivo. Confira os valores antes de salvar o local.
+`/peladas/abertas`. Em **Cadastrar local**, **Usar minha localização atual** arredonda a latitude
+e a longitude a duas casas decimais (~1 km) para proteger quem cadastra de casa. Você pode digitar
+ou ajustar as duas coordenadas para indicar a posição da quadra ou do campo antes de salvar.
 
 Em **Peladas abertas**, clique em **Usar minha localização** e escolha um raio de 5, 10, 25 ou 50 km.
 A posição de busca fica em memória. A tela envia ao BFF apenas a latitude e a longitude arredondadas a
