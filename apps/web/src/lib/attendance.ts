@@ -17,6 +17,14 @@ export function accessDenied(error?: ApiError): boolean {
   return error?.status === 401 || error?.status === 403;
 }
 
+export function attendanceLinkAction(phase: ReturnType<typeof canTakeAttendance>, isOrganizer: boolean | undefined, failure?: unknown) {
+  if (phase !== "open" || isOrganizer === false) return "hidden";
+  if (isOrganizer) return "link";
+  if (failure === undefined) return "load";
+  if (failure instanceof ApiError && (failure.status === 0 || (failure.status >= 500 && failure.status < 600))) return "retry";
+  return "hidden";
+}
+
 export function attendanceProblem(loadFailure?: ApiError, actionFailure?: ApiError): ApiError | undefined {
   return accessDenied(actionFailure) ? actionFailure : loadFailure ?? actionFailure;
 }

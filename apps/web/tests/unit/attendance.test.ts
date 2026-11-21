@@ -1,9 +1,54 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { attendanceMessage, attendanceProblem, canTakeAttendance, readAttendance } from "../../src/lib/attendance.ts";
+import { attendanceLinkAction, attendanceMessage, attendanceProblem, canTakeAttendance, readAttendance } from "../../src/lib/attendance.ts";
 import { ApiError, appApi } from "../../src/lib/api-client.ts";
 
 const match = { startsAt: "2026-11-21T19:00:00-03:00", durationMinutes: 90, status: "scheduled" };
+
+test("organizador conhecido vê o link na janela aberta sem consultar detalhes", () => {
+  assert.equal(attendanceLinkAction("open", true), "link");
+  assert.equal(attendanceLinkAction("open", true, new ApiError(503, "Indisponível")), "link");
+  assert.equal(attendanceLinkAction("open", false), "hidden");
+  assert.equal(attendanceLinkAction("open", undefined), "load");
+});
+
+test("consulta da chamada oferece nova tentativa apenas em falha de rede ou 5xx", () => {
+  for (const status of [0, 500, 503, 599]) {
+    assert.equal(attendanceLinkAction("open", undefined, new ApiError(status, "Erro")), "retry");
+  }
+  for (const status of [401, 403, 404, 429, 499]) {
+    assert.equal(attendanceLinkAction("open", undefined, new ApiError(status, "Erro")), "hidden");
+  }
+  assert.equal(attendanceLinkAction("open", undefined, new SyntaxError("JSON inválido")), "hidden");
+});
+
+test("interrupção do corpo da resposta permite tentar a consulta da chamada de novo", async (t) => {
+  const body = new ReadableStream({ start(controller) { controller.error(new TypeError("Conexão interrompida")); } });
+  t.mock.method(globalThis, "fetch", async () => new Response(body));
+  await assert.rejects(appApi("matches/partida"), (error) => {
+    assert.equal(attendanceLinkAction("open", undefined, error), "retry");
+    return true;
+  });
+});
+
+test("consulta usa o status HTTP quando a resposta de erro traz JSON nulo", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const [status, action] of [[403, "hidden"], [503, "retry"]] as const) {
+    fetch.mock.mockImplementation(async () => new Response("null", { status }));
+    await assert.rejects(appApi("matches/partida"), (error) => {
+      assert.equal(attendanceLinkAction("open", undefined, error), action);
+      return true;
+    });
+  }
+});
+
+test("fora da janela a chamada fica oculta mesmo para o organizador ou após um 503", () => {
+  for (const phase of ["not-open", "closed"] as const) {
+    assert.equal(attendanceLinkAction(phase, true), "hidden");
+    assert.equal(attendanceLinkAction(phase, undefined), "hidden");
+    assert.equal(attendanceLinkAction(phase, undefined, new ApiError(503, "Indisponível")), "hidden");
+  }
+});
 
 test("erro de acesso em uma ação prevalece sobre o 503 da leitura anterior", () => {
   const unavailable = new ApiError(503, "Indisponível");

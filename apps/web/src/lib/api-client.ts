@@ -16,30 +16,30 @@ export class ApiError extends Error {
 }
 
 export async function appApi<T>(path: string, options?: RequestInit): Promise<T> {
-  let response: Response;
+  let response: Response | undefined;
   try {
     response = await fetch(`/api/app/${path}`, { ...options, cache: "no-store" });
+    if (response.ok) {
+      return response.status === 204 ? undefined as T : await response.json();
+    }
   } catch (failure) {
-    // Cancelamento pedido pelo próprio componente segue como AbortError: quem cancelou já ignora.
-    if (options?.signal?.aborted) throw failure;
+    // Fetch também pode falhar durante a leitura do corpo, depois de receber os cabeçalhos.
+    if (options?.signal?.aborted || (response && !(failure instanceof TypeError))) throw failure;
     throw new ApiError(0, "Não foi possível conectar ao Applada. Verifique sua conexão e tente novamente.");
   }
-  if (!response.ok) {
-    if (response.status === 401) {
-      await response.body?.cancel();
-      throw new ApiError(401, "Sua sessão expirou. Entre novamente.");
-    }
-    const problem: { title?: string; type?: string; errors?: Record<string, string[]> } = await response.json().catch(() => ({}));
-    const detail = problem.errors && Object.values(problem.errors).flat().join(" ");
-    const retryAfter = response.headers.get("Retry-After");
-    const message = response.status === 412
-      ? "A partida mudou. Atualize os dados e revise a edição."
-      : response.status === 429 && retryAfter
-        ? `Aguarde ${retryAfter} s antes de tentar novamente.`
-        : detail || problem.title || "A operação falhou. Tente novamente.";
-    const prefix = "urn:applada:problem:";
-    const code = problem.type?.startsWith(prefix) ? problem.type.slice(prefix.length) : undefined;
-    throw new ApiError(response.status, message, code);
+  if (response.status === 401) {
+    await response.body?.cancel();
+    throw new ApiError(401, "Sua sessão expirou. Entre novamente.");
   }
-  return response.status === 204 ? undefined as T : response.json();
+  const problem: { title?: string; type?: string; errors?: Record<string, string[]> } = (await response.json().catch(() => null)) ?? {};
+  const detail = problem.errors && Object.values(problem.errors).flat().join(" ");
+  const retryAfter = response.headers.get("Retry-After");
+  const message = response.status === 412
+    ? "A partida mudou. Atualize os dados e revise a edição."
+    : response.status === 429 && retryAfter
+      ? `Aguarde ${retryAfter} s antes de tentar novamente.`
+      : detail || problem.title || "A operação falhou. Tente novamente.";
+  const prefix = "urn:applada:problem:";
+  const code = typeof problem.type === "string" && problem.type.startsWith(prefix) ? problem.type.slice(prefix.length) : undefined;
+  throw new ApiError(response.status, message, code);
 }

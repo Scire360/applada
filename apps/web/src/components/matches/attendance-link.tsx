@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { appApi } from "@/lib/api-client";
+import { attendanceLinkAction } from "@/lib/attendance";
 import type { MatchDetails, MatchSummary } from "@/lib/connected-matches";
 import { useAttendanceWindow } from "./use-attendance-window";
 
@@ -13,36 +14,43 @@ export function AttendanceLink({ match, userId, knownOrganizer = false }: {
 }) {
   const [details, setDetails] = useState<MatchDetails>();
   const [attempt, setAttempt] = useState(0);
-  const [failure, setFailure] = useState<{ matchId: string; attempt: number }>();
+  const [failure, setFailure] = useState<{ matchId: string; attempt: number; error: unknown }>();
   const current = "organizerId" in match ? match : details?.id === match.id ? details : undefined;
   const phase = useAttendanceWindow(current ?? match);
-  const needsDetails = phase === "open" && !knownOrganizer && !current;
+  const isOrganizer = knownOrganizer || (current ? current.organizerId === userId : undefined);
+  const currentError = failure?.matchId === match.id && failure.attempt === attempt ? failure.error : undefined;
+  const action = attendanceLinkAction(phase, isOrganizer, currentError);
 
   useEffect(() => {
-    if (!needsDetails) return;
+    if (action !== "load") return;
     const controller = new AbortController();
-    const retry = () => setAttempt(value => value + 1);
     async function check() {
       try {
         const next = await appApi<MatchDetails>(`matches/${match.id}`, { signal: controller.signal });
         if (!controller.signal.aborted) setDetails(next);
-      } catch {
+      } catch (error) {
         if (controller.signal.aborted) return;
-        setFailure({ matchId: match.id, attempt });
-        window.addEventListener("online", retry, { once: true });
+        setFailure({ matchId: match.id, attempt, error: error ?? null });
       }
     }
     void check();
-    return () => {
-      controller.abort();
-      window.removeEventListener("online", retry);
-    };
-  }, [match.id, needsDetails, attempt]);
+    return () => controller.abort();
+  }, [match.id, action, attempt]);
 
-  if (needsDetails && failure?.matchId === match.id && failure.attempt === attempt) {
-    return <button className="button button-secondary" type="button" aria-label={`Tentar de novo a consulta da chamada de ${match.title}`}
-      onClick={() => setAttempt(value => value + 1)}>Tentar de novo</button>;
+  useEffect(() => {
+    if (action !== "retry") return;
+    const retry = () => setAttempt(value => value + 1);
+    window.addEventListener("online", retry, { once: true });
+    return () => window.removeEventListener("online", retry);
+  }, [action]);
+
+  if (action === "retry") {
+    return <>
+      <span>Não foi possível verificar a chamada.</span>
+      <button className="button button-secondary" type="button" aria-label={`Tentar de novo a consulta da chamada de ${match.title}`}
+        onClick={() => setAttempt(value => value + 1)}>Tentar de novo</button>
+    </>;
   }
-  if (phase !== "open" || (!knownOrganizer && current?.organizerId !== userId)) return null;
+  if (action !== "link") return null;
   return <Link className="button button-secondary" href={`/peladas/${match.id}/presenca`}>Fazer chamada</Link>;
 }
