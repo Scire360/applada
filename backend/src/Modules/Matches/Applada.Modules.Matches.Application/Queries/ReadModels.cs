@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Applada.Modules.Matches.Domain;
 
 namespace Applada.Modules.Matches.Application.Queries;
@@ -16,6 +17,26 @@ public sealed record ParticipantsKey(int StatusRank, long QueueSeq)
 {
     public const int ConfirmedRank = 0;
     public const int WaitlistedRank = 1;
+
+    /// <summary>Exatamente <c>[statusRank, queueSeq]</c>: rank 0 ou 1 e <c>queue_seq</c> inteiro positivo.</summary>
+    internal static bool TryRead(string cursor, out ParticipantsKey key)
+    {
+        key = null!;
+        if (!Cursor.TryDecode(cursor, Cursor.ParticipantsKind, out var values)
+            || values.Length != 2
+            || values[0].ValueKind != JsonValueKind.Number
+            || values[1].ValueKind != JsonValueKind.Number
+            || !values[0].TryGetInt32(out var rank)
+            || !values[1].TryGetInt64(out var queueSeq)
+            || rank is not (ParticipantsKey.ConfirmedRank or ParticipantsKey.WaitlistedRank)
+            || queueSeq < 1)
+        {
+            return false;
+        }
+
+        key = new ParticipantsKey(rank, queueSeq);
+        return true;
+    }
 
     public static int RankOf(RegistrationStatus status) => status switch
     {

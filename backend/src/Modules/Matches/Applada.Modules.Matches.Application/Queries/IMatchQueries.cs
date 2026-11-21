@@ -17,6 +17,8 @@ public interface IMatchQueries
     /// </summary>
     Task<Result<IReadOnlyList<ParticipantRow>>> ListParticipantsAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct);
 
+    Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct);
+
     /// <summary>Partidas organizadas por <paramref name="userId"/> com <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>.</summary>
     Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);
 

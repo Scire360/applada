@@ -16,6 +16,8 @@ public sealed class MatchesDbContext(DbContextOptions<MatchesDbContext> options)
 
     public DbSet<Registration> Registrations => Set<Registration>();
 
+    internal DbSet<AttendanceRecord> Attendance => Set<AttendanceRecord>();
+
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -43,6 +45,7 @@ public sealed class MatchesDbContext(DbContextOptions<MatchesDbContext> options)
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new MatchConfiguration());
         modelBuilder.ApplyConfiguration(new RegistrationConfiguration());
+        modelBuilder.ApplyConfiguration(new AttendanceConfiguration());
         modelBuilder.AddIdempotencyRecords();
         modelBuilder.AddOutboxMessages();
     }

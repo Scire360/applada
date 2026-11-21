@@ -1,0 +1,57 @@
+using Applada.BuildingBlocks.Domain;
+using Applada.Modules.Matches.Application.Ports;
+using Applada.Modules.Matches.Contracts;
+using Applada.Modules.Matches.Domain;
+
+namespace Applada.Modules.Matches.Application.RecordAttendance;
+
+public sealed record RecordedAttendance(Guid UserId, string Status, DateTimeOffset RecordedAt);
+
+public sealed class RecordAttendanceHandler(IMatchesUnitOfWork unitOfWork, TimeProvider clock)
+{
+    public async Task<Result<RecordedAttendance>> HandleAsync(Guid matchId, Guid actorId, Guid userId, string status, CancellationToken ct)
+    {
+        if (status is not ("present" or "absent"))
+        {
+            return MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["status"] = ["Informe present ou absent para a presença."],
+            });
+        }
+
+        return await unitOfWork.ExecuteAsync<RecordedAttendance>(async (session, token) =>
+        {
+            var now = clock.GetUtcNow();
+            var allowed = await CheckEligibilityAsync(session, matchId, userId, actorId, now, token);
+            if (!allowed.IsSuccess)
+            {
+                return allowed.Error;
+            }
+
+            var (recordedAt, changed) = await session.UpsertAttendanceAsync(matchId, userId, status, actorId, now, token);
+            if (changed)
+            {
+                // No primeiro INSERT, a FK espera por saídas/cancelamentos iniciados antes da abertura.
+                // Releia o estado que comitou durante a espera antes de publicar; erro desfaz o upsert.
+                allowed = await CheckEligibilityAsync(session, matchId, userId, actorId, now, token);
+                if (!allowed.IsSuccess)
+                {
+                    return allowed.Error;
+                }
+
+                session.Publish(new AttendanceRecordedV1(matchId, userId, status, recordedAt));
+            }
+
+            return new RecordedAttendance(userId, status, recordedAt);
+        }, ct);
+    }
+
+    private static async Task<Result> CheckEligibilityAsync(IMatchesSession session, Guid matchId, Guid userId, Guid actorId,
+        DateTimeOffset now, CancellationToken ct)
+    {
+        var subject = await session.GetAttendanceSubjectAsync(matchId, userId, ct);
+        return subject is null
+            ? MatchErrors.MatchNotFound
+            : subject.Match.CanRecordAttendance(actorId, subject.Registration, now);
+    }
+}

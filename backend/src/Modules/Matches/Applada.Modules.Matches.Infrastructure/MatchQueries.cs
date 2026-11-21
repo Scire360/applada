@@ -105,6 +105,40 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
         return listing.Rows;
     }
 
+    public async Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct)
+    {
+        var confirmed = db.Registrations.Where(r => r.Status == RegistrationStatus.Confirmed);
+        if (after is not null)
+        {
+            confirmed = confirmed.Where(r => after.StatusRank == ParticipantsKey.ConfirmedRank && r.QueueSeq > after.QueueSeq);
+        }
+
+        var page = from r in confirmed
+                   join a in db.Attendance on new { r.MatchId, r.UserId } equals new { a.MatchId, a.UserId } into attendance
+                   from a in attendance.DefaultIfEmpty()
+                   select new { r.MatchId, r.UserId, r.QueueSeq, a.Status, RecordedAt = (DateTimeOffset?)a.RecordedAt };
+
+        var listing = await db.Matches.AsNoTracking().AsSingleQuery()
+            .Where(m => m.Id == matchId)
+            .Select(m => new
+            {
+                CanRead = m.OrganizerId == viewerId,
+                Rows = page.Where(r => m.OrganizerId == viewerId && r.MatchId == m.Id)
+                    .OrderBy(r => r.QueueSeq)
+                    .Take(take)
+                    .Select(r => new AttendanceRow(r.UserId, r.QueueSeq, r.Status, r.RecordedAt))
+                    .ToList(),
+            })
+            .SingleOrDefaultAsync(ct);
+
+        if (listing is null)
+        {
+            return MatchErrors.MatchNotFound;
+        }
+
+        return listing.CanRead ? listing.Rows : MatchErrors.NotOrganizer;
+    }
+
     public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
     {
         var matches = db.Matches.AsNoTracking().Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart);

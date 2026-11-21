@@ -1,6 +1,7 @@
 using Applada.Modules.Matches.Application.CancelMatch;
 using Applada.Modules.Matches.Application.CreateMatch;
 using Applada.Modules.Matches.Application.Queries;
+using Applada.Modules.Matches.Application.RecordAttendance;
 using Applada.Modules.Matches.Application.Register;
 using Applada.Modules.Matches.Application.UpdateMatch;
 using Applada.Modules.Matches.Application.Withdraw;
@@ -29,6 +30,8 @@ public static class MatchesModule
         services.AddScoped<RegisterHandler>();
         services.AddScoped<WithdrawHandler>();
         services.AddScoped<ParticipantsQuery>();
+        services.AddScoped<RecordAttendanceHandler>();
+        services.AddScoped<AttendanceQuery>();
         services.AddScoped<MyMatchesQuery>();
         services.AddScoped<GroupMatchesQuery>();
 
@@ -46,6 +49,7 @@ public static class MatchesModule
         return endpoints
             .MapMatchEndpoints()
             .MapRegistrationEndpoints()
+            .MapAttendanceEndpoints()
             .MapMyMatchesEndpoints()
             .MapGroupMatchesEndpoints();
     }

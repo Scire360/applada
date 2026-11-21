@@ -15,6 +15,22 @@ internal static class DevelopmentContractTransformers
     private const string PrivateNoStore = "private, no-store: a resposta depende de quem pergunta.";
     private const string ETagDescription = "ETag fraco W/\"<version>\" da versão dos dados editáveis (não do corpo); use em If-Match.";
 
+    public static Task DescribeAttendanceStatusAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        var type = context.JsonTypeInfo.Type;
+        if ((type == typeof(RecordAttendanceRequest) || type == typeof(AttendanceResponse) || type == typeof(AttendanceEntryResponse))
+            && schema.Properties?.TryGetValue("status", out var property) == true && property is OpenApiSchema status)
+        {
+            status.Enum = ["present", "absent"];
+            if (type == typeof(AttendanceEntryResponse))
+            {
+                status.Enum.Add(null!); // Vale JSON null enquanto o organizador não marcar a presença.
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public static async Task TransformOperationAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
     {
         switch (operation.OperationId)

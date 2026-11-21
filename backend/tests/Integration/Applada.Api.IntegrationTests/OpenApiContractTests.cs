@@ -52,6 +52,21 @@ public class OpenApiContractTests : IClassFixture<DevelopmentApiFactory>
     }
 
     [Fact]
+    public async Task Attendance_schemas_describe_the_allowed_status_values()
+    {
+        using var client = _development.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), Ct));
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        foreach (var name in new[] { "RecordAttendanceRequest", "AttendanceResponse", "AttendanceEntryResponse" })
+        {
+            var status = schemas.GetProperty(name).GetProperty("properties").GetProperty("status");
+            Assert.True(status.TryGetProperty("enum", out var values), $"Faltam os valores permitidos de status em {name}.");
+            string?[] expected = name == "AttendanceEntryResponse" ? ["present", "absent", null] : ["present", "absent"];
+            Assert.Equal(expected, values.EnumerateArray().Select(v => v.GetString()));
+        }
+    }
+
+    [Fact]
     public async Task Match_request_schemas_describe_required_properties_and_starts_at()
     {
         using var client = _development.CreateClient();
