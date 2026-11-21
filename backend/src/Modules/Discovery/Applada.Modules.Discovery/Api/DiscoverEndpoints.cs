@@ -14,6 +14,9 @@ public sealed record DiscoveredMatchResponse(Guid MatchId, string Title, DateTim
 
 internal static class DiscoverEndpoints
 {
+    private const int DefaultRadiusKm = 10;
+    private const int MaxRadiusKm = 50;
+
     public static IEndpointRouteBuilder MapDiscoverEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet(DiscoveryModule.DiscoverMatchesPath, DiscoverAsync).WithTags("Discovery").WithName("DiscoverMatches")
@@ -39,9 +42,9 @@ internal static class DiscoverEndpoints
             return Invalid("lon", "Informe uma longitude entre -180 e 180.");
         }
 
-        if (!TryPositiveInteger(radiusKm, 10, 50, out var radius))
+        if (!TryPositiveInteger(radiusKm, DefaultRadiusKm, MaxRadiusKm, out var radius))
         {
-            return Invalid("radiusKm", "O raio deve ser um inteiro entre 1 e 50.");
+            return Invalid("radiusKm", $"O raio deve ser um inteiro entre 1 e {MaxRadiusKm}.");
         }
 
         if (!TryPositiveInteger(limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
@@ -51,7 +54,7 @@ internal static class DiscoverEndpoints
 
         if (cursor is not null && !catalog.IsValidCursor(cursor))
         {
-            return Invalid("cursor", "Cursor inválido.");
+            return InvalidCursor();
         }
 
         var venues = await nearby.FindAsync(latitude, longitude, radius, ct);
@@ -67,7 +70,7 @@ internal static class DiscoverEndpoints
         }
         catch (ArgumentException ex) when (ex.ParamName == nameof(cursor))
         {
-            return Invalid("cursor", "Cursor inválido.");
+            return InvalidCursor();
         }
         catch (ArgumentOutOfRangeException ex) when (ex.ParamName == nameof(limit))
         {
@@ -100,6 +103,8 @@ internal static class DiscoverEndpoints
         value = defaultValue;
         return input is null || (int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 1 && value <= max);
     }
+
+    private static ValidationProblem InvalidCursor() => Invalid("cursor", "Cursor inválido.");
 
     private static ValidationProblem InvalidLimit() =>
         Invalid("limit", $"O limite deve ser um inteiro entre 1 e {MatchPageLimits.Max}.");

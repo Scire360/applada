@@ -158,9 +158,9 @@ public class DiscoverMatchesTests(ApiFactory factory)
     {
         using var user = NewClient();
         await CreateVenueAsync(user, -66, 0);
-        var catalog = new LimitRejectingCatalog();
+        int? requestedLimit = null;
         await using var host = factory.WithWebHostBuilder(b => b.ConfigureServices(services =>
-            services.AddSingleton<IOpenMatchCatalog>(catalog)));
+            services.AddScoped<IOpenMatchCatalog>(_ => new LimitRejectingCatalog(limit => requestedLimit = limit))));
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = user.DefaultRequestHeaders.Authorization;
 
@@ -168,7 +168,7 @@ public class DiscoverMatchesTests(ApiFactory factory)
         using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
         var error = Assert.Single(problem.RootElement.GetProperty("errors").GetProperty("limit").EnumerateArray());
         Assert.Equal("O limite deve ser um inteiro entre 1 e 50.", error.GetString());
-        Assert.Equal(expectedLimit, catalog.RequestedLimit);
+        Assert.Equal(expectedLimit, requestedLimit);
     }
 
     [Fact]
@@ -324,16 +324,14 @@ public class DiscoverMatchesTests(ApiFactory factory)
         }
     }
 
-    private sealed class LimitRejectingCatalog : IOpenMatchCatalog
+    private sealed class LimitRejectingCatalog(Action<int> recordLimit) : IOpenMatchCatalog
     {
-        public int? RequestedLimit { get; private set; }
-
         public bool IsValidCursor(string cursor) => throw new InvalidOperationException("Busca sem cursor tentou validá-lo.");
 
         public Task<OpenMatchPage> ListUpcomingAtVenuesAsync(
             IReadOnlyCollection<Guid> venueIds, DateTimeOffset now, string? cursor, int limit, CancellationToken ct)
         {
-            RequestedLimit = limit;
+            recordLimit(limit);
             throw new ArgumentOutOfRangeException(nameof(limit));
         }
     }
