@@ -38,6 +38,11 @@ internal static class DevelopmentContractTransformers
         if (context.JsonTypeInfo.Type == typeof(CreateVenueRequest) && schema.Properties is { } fields)
         {
             schema.Required = new HashSet<string>(["name", "latitude", "longitude"], StringComparer.Ordinal);
+            if (fields["name"] is OpenApiSchema name)
+            {
+                name.Type &= ~JsonSchemaType.Null;
+            }
+
             if (fields["latitude"] is OpenApiSchema latitude && fields["longitude"] is OpenApiSchema longitude)
             {
                 latitude.Type &= ~JsonSchemaType.Null;

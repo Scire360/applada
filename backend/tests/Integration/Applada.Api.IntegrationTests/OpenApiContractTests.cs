@@ -52,6 +52,18 @@ public class OpenApiContractTests : IClassFixture<DevelopmentApiFactory>
     }
 
     [Fact]
+    public async Task Create_venue_requires_a_non_nullable_name()
+    {
+        using var client = _development.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), Ct));
+        var schema = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("CreateVenueRequest");
+        Assert.Contains("name", schema.GetProperty("required").EnumerateArray().Select(property => property.GetString()));
+        var nameType = schema.GetProperty("properties").GetProperty("name").GetProperty("type");
+        Assert.Equal(JsonValueKind.String, nameType.ValueKind);
+        Assert.Equal("string", nameType.GetString());
+    }
+
+    [Fact]
     public async Task Attendance_operations_describe_private_responses_and_pagination()
     {
         using var client = _development.CreateClient();
