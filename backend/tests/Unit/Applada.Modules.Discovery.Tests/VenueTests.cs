@@ -21,13 +21,19 @@ public class VenueTests
     }
 
     [Theory]
-    [InlineData(200, true)]
-    [InlineData(201, false)]
-    public void Address_length_is_validated(int length, bool valid)
+    [InlineData(200, "", true)]
+    [InlineData(201, "", false)]
+    [InlineData(200, "  ", true)]
+    [InlineData(201, "  ", false)]
+    public void Address_length_is_validated(int length, string padding, bool valid)
     {
-        var address = new string('a', length);
-        var result = Venue.Create("Arena", $"  {address}  ", 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
+        var address = padding + new string('a', length) + padding;
+        var result = Venue.Create("Arena", address, 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
         Assert.Equal(valid, result.IsSuccess);
+        if (!valid)
+        {
+            Assert.Single(result.Error.Fields!["addressText"]);
+        }
     }
 
     [Theory]
