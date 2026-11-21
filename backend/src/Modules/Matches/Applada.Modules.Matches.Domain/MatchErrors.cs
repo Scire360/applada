@@ -36,6 +36,15 @@ public static class MatchErrors
     public static Error MatchCancelled { get; } =
         new("match-cancelled", ErrorKind.Conflict, "A partida foi cancelada.");
 
+    public static Error AttendanceNotOpen { get; } =
+        new("attendance-not-open", ErrorKind.Conflict, "A chamada abre no início da partida.");
+
+    public static Error AttendanceClosed { get; } =
+        new("attendance-closed", ErrorKind.Conflict, "A chamada desta partida já encerrou.");
+
+    public static Error AttendanceParticipantNotFound { get; } =
+        new("attendance-participant-not-found", ErrorKind.NotFound, "Não há inscrição confirmada para esse participante nesta partida.");
+
     public static Error CapacityBelowConfirmed { get; } =
         new("capacity-below-confirmed", ErrorKind.Conflict, "A capacidade não pode ficar abaixo do número de confirmados.");
 

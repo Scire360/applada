@@ -207,6 +207,37 @@ public sealed class Match
         return Result.Success();
     }
 
+    public Result CanRecordAttendance(Guid actorId, Registration? registration, DateTimeOffset now)
+    {
+        if (actorId != OrganizerId)
+        {
+            return MatchErrors.NotOrganizer;
+        }
+
+        if (Status == MatchStatus.Cancelled)
+        {
+            return MatchErrors.MatchCancelled;
+        }
+
+        if (now < StartsAt)
+        {
+            return MatchErrors.AttendanceNotOpen;
+        }
+
+        var windowDuration = TimeSpan.FromMinutes(DurationMinutes) + TimeSpan.FromHours(MatchLimits.AttendanceWindowHoursAfterEnd);
+        if (now - StartsAt >= windowDuration)
+        {
+            return MatchErrors.AttendanceClosed;
+        }
+
+        if (registration is null || registration.MatchId != Id || registration.Status != RegistrationStatus.Confirmed)
+        {
+            return MatchErrors.AttendanceParticipantNotFound;
+        }
+
+        return Result.Success();
+    }
+
     public Result Cancel(Guid actorId, DateTimeOffset now)
     {
         if (actorId != OrganizerId)
