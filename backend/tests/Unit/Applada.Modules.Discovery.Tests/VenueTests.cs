@@ -26,8 +26,32 @@ public class VenueTests
     public void Address_length_is_validated(int length, bool valid)
     {
         var address = new string('a', length);
-        var result = Venue.Create("Arena", address, 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
+        var result = Venue.Create("Arena", $"  {address}  ", 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
         Assert.Equal(valid, result.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData("  Praça central  ", "Praça central")]
+    public void Address_is_trimmed_and_empty_becomes_null(string address, string? expected)
+    {
+        var result = Venue.Create("Arena", address, 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
+        Assert.Equal(expected, result.Value.AddressText);
+    }
+
+    [Theory]
+    [InlineData("Are\nna", null, "name")]
+    [InlineData("Arena\t", null, "name")]
+    [InlineData("\u001bArena", null, "name")]
+    [InlineData("Arena", "Rua\ncentral", "addressText")]
+    [InlineData("Arena", "\t", "addressText")]
+    [InlineData("Arena", "Rua\u001b", "addressText")]
+    public void Control_characters_are_rejected_on_the_field(string name, string? address, string field)
+    {
+        var result = Venue.Create(name, address, 0, 0, Guid.NewGuid(), DateTimeOffset.UnixEpoch);
+        Assert.False(result.IsSuccess);
+        Assert.Single(result.Error.Fields![field]);
     }
 
     [Theory]

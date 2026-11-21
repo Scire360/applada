@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 namespace Applada.Modules.Discovery.Api;
 
-public sealed record CreateVenueRequest(string Name, string? AddressText, double? Latitude, double? Longitude);
+public sealed record CreateVenueRequest(string? Name, string? AddressText, double? Latitude, double? Longitude);
 public sealed record VenueResponse(Guid Id, string Name, string? AddressText, double Latitude, double Longitude);
 public sealed record Page<T>(IReadOnlyList<T> Items, string? NextCursor);
 

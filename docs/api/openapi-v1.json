@@ -2519,7 +2519,10 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "addressText": {
             "type": [

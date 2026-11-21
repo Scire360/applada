@@ -81,6 +81,9 @@ public class VenuesTests(ApiFactory factory)
 
     [Theory]
     [InlineData("name", "ab")]
+    [InlineData("name", null)]
+    [InlineData("name", "Arena\tcentral")]
+    [InlineData("addressText", "Rua\ncentral")]
     [InlineData("name", "A🏟")]
     [InlineData("addressText", "too-long")]
     [InlineData("latitude", "missing")]
@@ -89,7 +92,7 @@ public class VenuesTests(ApiFactory factory)
     [InlineData("longitude", "outside")]
     [InlineData("latitude", "NaN")]
     [InlineData("longitude", "NaN")]
-    public async Task Create_returns_400_for_each_invalid_field(string field, string invalid)
+    public async Task Create_returns_400_for_each_invalid_field(string field, string? invalid)
     {
         var body = ValidBody();
         if (invalid == "missing")

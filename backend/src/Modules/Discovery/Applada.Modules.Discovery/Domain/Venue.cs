@@ -22,15 +22,16 @@ internal sealed class Venue
     public static Result<Venue> Create(
         string? name, string? addressText, double? latitude, double? longitude, Guid createdBy, DateTimeOffset now)
     {
-        name = name?.Trim();
-        if (name is null || name.EnumerateRunes().Count() is < MinNameLength or > MaxNameLength || name.Contains('\0'))
+        var trimmedName = name?.Trim() ?? string.Empty;
+        if (trimmedName.EnumerateRunes().Count() is < MinNameLength or > MaxNameLength || name?.Any(char.IsControl) == true)
         {
-            return Invalid("name", $"Informe um nome de {MinNameLength} a {MaxNameLength} caracteres, sem caracteres nulos.");
+            return Invalid("name", $"Informe um nome de {MinNameLength} a {MaxNameLength} caracteres, sem caracteres de controle.");
         }
 
-        if (addressText is not null && (addressText.EnumerateRunes().Count() > MaxAddressLength || addressText.Contains('\0')))
+        var trimmedAddress = addressText?.Trim();
+        if (trimmedAddress?.EnumerateRunes().Count() > MaxAddressLength || addressText?.Any(char.IsControl) == true)
         {
-            return Invalid("addressText", $"Informe um endereço de até {MaxAddressLength} caracteres, sem caracteres nulos.");
+            return Invalid("addressText", $"Informe um endereço de até {MaxAddressLength} caracteres, sem caracteres de controle.");
         }
 
         if (latitude is not (>= -90 and <= 90))
@@ -46,8 +47,8 @@ internal sealed class Venue
         return new Venue
         {
             Id = Guid.CreateVersion7(now),
-            Name = name,
-            AddressText = addressText,
+            Name = trimmedName,
+            AddressText = string.IsNullOrEmpty(trimmedAddress) ? null : trimmedAddress,
             Latitude = RoundCoordinate(latitude.Value),
             Longitude = RoundCoordinate(longitude.Value),
             CreatedBy = createdBy,
