@@ -36,7 +36,7 @@ public static class MatchesModule
     }
 
     /// <summary>
-    /// Mapeia <c>/api/v1/matches</c> (partidas e inscrições) , <c>/api/v1/me/matches</c> e <c>/api/v1/groups/{id}/matches</c>. As escritas exigem a política de rate limiting <c>"writes"</c> registrada na
+    /// Mapeia <c>/api/v1/matches</c> (partidas e inscrições), <c>/api/v1/me/matches</c> e <c>/api/v1/groups/{id}/matches</c>. As escritas exigem a política de rate limiting <c>"writes"</c> registrada na
     /// raiz de composição.
     /// </summary>
     public static IEndpointRouteBuilder MapMatchesEndpoints(this IEndpointRouteBuilder endpoints)

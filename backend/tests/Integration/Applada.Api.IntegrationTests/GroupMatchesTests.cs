@@ -87,6 +87,16 @@ public class GroupMatchesTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Without_token_returns_401()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri($"{GroupsPath}/{Guid.NewGuid()}/matches", UriKind.Relative), Ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Pages_with_cursor_without_repeating_items()
     {
         using var owner = await NewUserAsync(factory, "gm");
