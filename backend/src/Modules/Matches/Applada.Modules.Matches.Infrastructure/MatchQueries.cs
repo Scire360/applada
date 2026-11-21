@@ -105,12 +105,12 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
         return listing.Rows;
     }
 
-    public async Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, long? afterQueueSeq, int take, CancellationToken ct)
     {
         var confirmed = db.Registrations.Where(r => r.Status == RegistrationStatus.Confirmed);
-        if (after is not null)
+        if (afterQueueSeq is { } queueSeq)
         {
-            confirmed = confirmed.Where(r => after.StatusRank == ParticipantsKey.ConfirmedRank && r.QueueSeq > after.QueueSeq);
+            confirmed = confirmed.Where(r => r.QueueSeq > queueSeq);
         }
 
         var page = from r in confirmed

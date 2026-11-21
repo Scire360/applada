@@ -13,6 +13,7 @@ namespace Applada.Modules.Matches.Application.Queries;
 public static class Cursor
 {
     public const string ParticipantsKind = "participants";
+    public const string AttendanceKind = "attendance";
     public const string MyMatchesKind = "my-matches";
     public const string GroupMatchesKind = "group-matches";
 

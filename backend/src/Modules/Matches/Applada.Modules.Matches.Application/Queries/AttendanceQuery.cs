@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Applada.BuildingBlocks.Domain;
 using Applada.Modules.Matches.Domain;
 using Applada.Modules.Profiles.Contracts;
@@ -17,13 +18,20 @@ public sealed class AttendanceQuery(IMatchQueries queries, IProfileNames profile
             return PageLimit.Invalid;
         }
 
-        ParticipantsKey? after = null;
-        if (!string.IsNullOrEmpty(cursor) && !ParticipantsKey.TryRead(cursor, out after))
+        long? afterQueueSeq = null;
+        if (!string.IsNullOrEmpty(cursor))
         {
-            return MatchErrors.InvalidCursor;
+            if (!Cursor.TryDecode(cursor, Cursor.AttendanceKind, out var values)
+                || values.Length != 1 || values[0].ValueKind != JsonValueKind.Number
+                || !values[0].TryGetInt64(out var queueSeq) || queueSeq < 1)
+            {
+                return MatchErrors.InvalidCursor;
+            }
+
+            afterQueueSeq = queueSeq;
         }
 
-        var result = await queries.ListAttendanceAsync(matchId, viewerId, after, limit + 1, ct);
+        var result = await queries.ListAttendanceAsync(matchId, viewerId, afterQueueSeq, limit + 1, ct);
         if (!result.IsSuccess)
         {
             return result.Error;
@@ -38,7 +46,7 @@ public sealed class AttendanceQuery(IMatchQueries queries, IProfileNames profile
         var page = rows.Take(limit).ToArray();
         var names = await profiles.ListAsync(page.Select(r => r.UserId).ToArray(), ct);
         var items = page.Select(r => new AttendanceEntry(r.UserId, names.GetValueOrDefault(r.UserId), r.Status, r.RecordedAt)).ToArray();
-        var next = rows.Count > limit ? Cursor.Encode(Cursor.ParticipantsKind, ParticipantsKey.ConfirmedRank, page[^1].QueueSeq) : null;
+        var next = rows.Count > limit ? Cursor.Encode(Cursor.AttendanceKind, page[^1].QueueSeq) : null;
         return new Page<AttendanceEntry>(items, next);
     }
 }

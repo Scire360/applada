@@ -182,6 +182,30 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task List_rejects_cursors_from_registrations()
+    {
+        using var second = await NewUserAsync(factory);
+        using var waiting = await NewUserAsync(factory);
+        using var last = await NewUserAsync(factory);
+        await RegisterExpectingAsync(second.Client, _match, HttpStatusCode.Created);
+        await RegisterExpectingAsync(waiting.Client, _match, HttpStatusCode.Created);
+        await RegisterExpectingAsync(last.Client, _match, HttpStatusCode.Created);
+
+        foreach (var (limit, status) in new[] { (3, "waitlisted"), (1, "confirmed") })
+        {
+            using var registrations = await _organizer.GetAsync($"{MatchesPath}/{_match}/registrations?limit={limit}", Ct);
+            registrations.EnsureSuccessStatusCode();
+            using var page = await ReadJsonAsync(registrations);
+            Assert.Equal(status, page.RootElement.GetProperty("items")[limit - 1].GetProperty("status").GetString());
+            var cursor = page.RootElement.GetProperty("nextCursor").GetString();
+            Assert.NotNull(cursor);
+
+            using var response = await _organizer.GetAsync($"{Path}?cursor={cursor}", Ct);
+            using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
+        }
+    }
+
+    [Fact]
     public async Task List_shows_confirmed_with_null_until_marked_and_paginates()
     {
         using var second = await NewUserAsync(factory);
