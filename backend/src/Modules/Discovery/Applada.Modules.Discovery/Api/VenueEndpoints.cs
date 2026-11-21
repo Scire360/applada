@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Applada.BuildingBlocks.Contracts;
 using Applada.Modules.Discovery.Domain;
@@ -6,7 +7,9 @@ using Applada.Modules.Discovery.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 namespace Applada.Modules.Discovery.Api;
 
@@ -17,6 +20,7 @@ public sealed record Page<T>(IReadOnlyList<T> Items, string? NextCursor);
 internal static class VenueEndpoints
 {
     private const string VenuesPath = "/api/v1/venues";
+    private const int MaxBodyBytes = 8192;
     private const int DefaultLimit = 20;
     private const int MaxLimit = 50;
 
@@ -28,6 +32,7 @@ internal static class VenueEndpoints
             .Produces<VenueResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
         venues.MapGet("/{id:guid}", GetAsync).WithName("GetVenue")
@@ -43,18 +48,38 @@ internal static class VenueEndpoints
     }
 
     private static async Task<IResult> CreateAsync(
-        HttpRequest request, ICurrentUser user, VenueStore store, TimeProvider clock, CancellationToken ct)
+        HttpRequest request, ICurrentUser user, VenueStore store, TimeProvider clock, IOptions<JsonOptions> json, CancellationToken ct)
     {
-        if (!request.HasJsonContentType() || request.GetTypedHeaders().ContentType is { Charset.HasValue: true, Encoding: null })
+        if (!request.HasJsonContentType())
         {
-            return TypedResults.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
-                title: "O corpo deve ser JSON com uma codificação reconhecida.", type: "urn:applada:problem:unsupported-media-type");
+            return UnsupportedMediaType();
+        }
+
+        var mediaType = request.GetTypedHeaders().ContentType;
+        if (mediaType is { Charset.HasValue: true, Encoding: null })
+        {
+            return UnsupportedMediaType();
+        }
+
+        if (request.ContentLength > MaxBodyBytes)
+        {
+            return PayloadTooLarge();
+        }
+
+        var buffer = new byte[MaxBodyBytes + 1];
+        var length = await request.Body.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, ct);
+        if (length > MaxBodyBytes)
+        {
+            return PayloadTooLarge();
         }
 
         CreateVenueRequest? body;
         try
         {
-            body = await request.ReadFromJsonAsync<CreateVenueRequest>(ct);
+            using var stream = new MemoryStream(buffer, 0, length, writable: false);
+            using var utf8 = mediaType?.Encoding is { } encoding && !encoding.Equals(Encoding.UTF8)
+                ? Encoding.CreateTranscodingStream(stream, encoding, Encoding.UTF8) : null;
+            body = await JsonSerializer.DeserializeAsync<CreateVenueRequest>(utf8 ?? stream, json.Value.SerializerOptions, ct);
         }
         catch (JsonException)
         {
@@ -111,4 +136,10 @@ internal static class VenueEndpoints
     private static ValidationProblem Invalid(string field, string message) =>
         TypedResults.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [message] },
             title: "Dados inválidos.", type: "urn:applada:problem:validation");
+
+    private static ProblemHttpResult PayloadTooLarge() => TypedResults.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
+        title: "Corpo da requisição grande demais.", type: "urn:applada:problem:payload-too-large");
+
+    private static ProblemHttpResult UnsupportedMediaType() => TypedResults.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
+        title: "O corpo deve ser JSON com uma codificação reconhecida.", type: "urn:applada:problem:unsupported-media-type");
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Applada.Api.IntegrationTests.Infrastructure;
@@ -42,6 +43,40 @@ public class VenuesTests(ApiFactory factory)
         using var reader = NewClient();
         var read = await reader.GetFromJsonAsync<JsonElement>(created.Headers.Location, Ct);
         Assert.True(JsonElement.DeepEquals(body, read));
+    }
+
+    [Theory]
+    [InlineData(false, 8192, HttpStatusCode.Created)]
+    [InlineData(true, 8192, HttpStatusCode.Created)]
+    [InlineData(false, 8193, HttpStatusCode.RequestEntityTooLarge)]
+    [InlineData(true, 8193, HttpStatusCode.RequestEntityTooLarge)]
+    public async Task Create_limits_body_to_8kb(bool chunked, int size, HttpStatusCode expected)
+    {
+        var json = """{"name":"Arena","latitude":0,"longitude":0}""".PadRight(size);
+        var bytes = Encoding.UTF8.GetBytes(json);
+        using var client = NewClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, Venues)
+        {
+            Content = chunked ? new StreamContent(new UnknownLengthStream(bytes)) : new ByteArrayContent(bytes),
+        };
+        request.Content.Headers.ContentType = new("application/json");
+        request.Headers.TransferEncodingChunked = chunked;
+        Assert.Equal(chunked ? (long?)null : size, request.Content.Headers.ContentLength);
+
+        using var response = await client.SendAsync(request, Ct);
+        if (expected == HttpStatusCode.RequestEntityTooLarge)
+        {
+            using var problem = await MatchesApi.AssertProblemAsync(response, expected, "payload-too-large");
+        }
+        else
+        {
+            Assert.Equal(expected, response.StatusCode);
+        }
+    }
+
+    private sealed class UnknownLengthStream(byte[] data) : MemoryStream(data)
+    {
+        public override bool CanSeek => false;
     }
 
     [Theory]
