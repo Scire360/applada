@@ -191,19 +191,23 @@ public class DiscoverMatchesTests(ApiFactory factory)
 
     [Theory]
     [InlineData("lon=0", "lat")]
+    [InlineData("lat=&lon=0", "lat")]
     [InlineData("lat=0", "lon")]
     [InlineData("lat=90.0001&lon=0", "lat")]
     [InlineData("lat=-90.0001&lon=0", "lat")]
     [InlineData("lat=0&lon=180.0001", "lon")]
     [InlineData("lat=0&lon=-180.0001", "lon")]
     [InlineData("lat=NaN&lon=0", "lat")]
+    [InlineData("lat=Infinity&lon=0", "lat")]
     [InlineData("lat=0&lon=NaN", "lon")]
     [InlineData("lat=0&lon=Infinity", "lon")]
     [InlineData("lat=0&lon=0&radiusKm=0", "radiusKm")]
     [InlineData("lat=0&lon=0&radiusKm=51", "radiusKm")]
     [InlineData("lat=0&lon=0&radiusKm=1.5", "radiusKm")]
+    [InlineData("lat=0&lon=0&radiusKm=abc", "radiusKm")]
     [InlineData("lat=0&lon=0&limit=51", "limit")]
     [InlineData("lat=0&lon=0&limit=0", "limit")]
+    [InlineData("lat=0&lon=0&limit=abc", "limit")]
     [InlineData("lat=-20.47&lon=-64&cursor=adulterado", "cursor")]
     public async Task Validation_400_for_missing_or_out_of_range_lat_lon_radius_and_bad_cursor(string query, string field)
     {
