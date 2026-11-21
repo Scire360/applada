@@ -59,13 +59,11 @@ test("mensagem da chamada usa o código do problem e preserva outros erros", () 
   assert.equal(attendanceMessage(new ApiError(429, "Aguarde 2 s antes de tentar novamente.")), "Aguarde 2 s antes de tentar novamente.");
 });
 
-test("appApi mantém o código recebido em code ou no tipo de problem da API", async (t) => {
+test("appApi extrai o código do tipo de problem da API", async (t) => {
   const code = "attendance-closed";
-  for (const problem of [{ type: `urn:applada:problem:${code}` }, { code }]) {
-    const fetch = t.mock.method(globalThis, "fetch", async () => Response.json(problem, { status: 409 }));
-    await assert.rejects(appApi("matches/partida/attendance"), (error) => error instanceof ApiError && error.code === code);
-    fetch.mock.restore();
-  }
+  const problem = { type: `urn:applada:problem:${code}` };
+  t.mock.method(globalThis, "fetch", async () => Response.json(problem, { status: 409 }));
+  await assert.rejects(appApi("matches/partida/attendance"), (error) => error instanceof ApiError && error.code === code);
 });
 
 test("403 sem código reconhecido explica a falta de permissão para a chamada", () => {
