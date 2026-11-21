@@ -378,6 +378,23 @@ public class OutboxTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Disposing_a_test_queue_after_the_broker_closes_its_connection_succeeds()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        Assert.True(await publisher.IsConnectedAsync(Ct));
+        try
+        {
+            await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            await factory.CloseRabbitMqConnectionsAsync();
+            await WaitUntilAsync(() => !queue.IsOpen && !publisher.HasOpenConnection, TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            Assert.True(await publisher.IsConnectedAsync(Ct));
+        }
+    }
+
+    [Fact]
     public async Task Publisher_reconnects_after_broker_closes_its_connection()
     {
         var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
@@ -703,6 +720,8 @@ public class OutboxTests(ApiFactory factory)
             _queue = queue;
         }
 
+        public bool IsOpen => _channel.IsOpen;
+
         public static async Task<TestQueue> CreateAsync(string connectionString, string bindingKey)
         {
             var connection = await new ConnectionFactory { Uri = new Uri(connectionString) }.CreateConnectionAsync(Ct);
@@ -756,11 +775,14 @@ public class OutboxTests(ApiFactory factory)
             await using var connection = _connection;
             await using (var channel = _channel)
             {
-                await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
-                await channel.CloseAsync();
+                if (channel.IsOpen)
+                {
+                    // Após a conexão fechar, o broker remove a fila exclusiva/auto-delete de forma assíncrona.
+                    // Até lá, o binding ainda roteia mensagens e a remoção com um confirm pendente pode gerar
+                    // um nack para o publisher. Aguardamos queue.delete-ok antes de fechar o canal e a conexão.
+                    await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
+                }
             }
-
-            await connection.CloseAsync();
         }
     }
 }
