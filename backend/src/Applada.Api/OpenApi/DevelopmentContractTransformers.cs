@@ -59,6 +59,11 @@ internal static class DevelopmentContractTransformers
             case "CreateVenue":
                 AddResponseHeader(operation, "201", "Location", "URL do local cadastrado (/api/v1/venues/{id}).");
                 break;
+            case "DiscoverMatches":
+                Describe(operation, "lat", "Latitude entre -90 e 90, arredondada a duas casas na busca.", required: true);
+                Describe(operation, "lon", "Longitude entre -180 e 180, arredondada a duas casas na busca.", required: true);
+                Describe(operation, "radiusKm", "Raio em quilômetros, inteiro de 1 a 50 (padrão 10).");
+                goto case "ListMyVenues";
             case "ListMyVenues":
                 AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");

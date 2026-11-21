@@ -11,6 +11,8 @@ namespace Applada.Modules.Discovery;
 
 public static class DiscoveryModule
 {
+    public const string DiscoverMatchesPath = "/api/v1/discover/matches";
+
     public static IServiceCollection AddDiscoveryModule(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -22,6 +24,7 @@ public static class DiscoveryModule
             DiscoveryDbContext.ConfigureNpgsql));
         services.AddMigrationsOnStartup<DiscoveryDbContext>();
         services.AddScoped<VenueStore>();
+        services.AddScoped<NearbyVenueQuery>();
         services.AddScoped<IVenueDirectory>(provider => provider.GetRequiredService<VenueStore>());
         return services;
     }
@@ -29,6 +32,6 @@ public static class DiscoveryModule
     public static IEndpointRouteBuilder MapDiscoveryEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        return endpoints.MapVenueEndpoints();
+        return endpoints.MapVenueEndpoints().MapDiscoverEndpoints();
     }
 }

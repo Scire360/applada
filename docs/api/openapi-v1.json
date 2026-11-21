@@ -267,6 +267,98 @@
         }
       }
     },
+    "/api/v1/discover/matches": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "operationId": "DiscoverMatches",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "description": "Latitude entre -90 e 90, arredondada a duas casas na busca.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "description": "Longitude entre -180 e 180, arredondada a duas casas na busca.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "radiusKm",
+            "in": "query",
+            "description": "Raio em quil\u00F4metros, inteiro de 1 a 50 (padr\u00E3o 10).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Cursor opaco devolvido em nextCursor; s\u00F3 vale para esta listagem.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por p\u00E1gina, de 1 a 50 (padr\u00E3o 20).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "description": "private, no-store: a resposta depende de quem pergunta.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOfDiscoveredMatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/matches": {
       "get": {
         "tags": [
@@ -2562,6 +2654,94 @@
           }
         }
       },
+      "DiscoveredMatchResponse": {
+        "required": [
+          "matchId",
+          "title",
+          "startsAt",
+          "timeZone",
+          "capacity",
+          "confirmedCount",
+          "spotsLeft",
+          "venue",
+          "distanceKm"
+        ],
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "capacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "confirmedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "spotsLeft": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "venue": {
+            "$ref": "#/components/schemas/DiscoveredVenueResponse"
+          },
+          "distanceKm": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "DiscoveredVenueResponse": {
+        "required": [
+          "id",
+          "name",
+          "addressText"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "addressText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DisplayNameRequest": {
         "required": [
           "displayName"
@@ -2981,6 +3161,27 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AttendanceEntryResponse"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PageOfDiscoveredMatchResponse": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveredMatchResponse"
             }
           },
           "nextCursor": {

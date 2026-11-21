@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Domain\Applada.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\Applada.Modules.Discovery.Contracts\Applada.Modules.Discovery.Contracts.csproj" />
+    <ProjectReference Include="..\..\Matches\Applada.Modules.Matches.Contracts\Applada.Modules.Matches.Contracts.csproj" />
     <InternalsVisibleTo Include="Applada.Modules.Discovery.Tests" />
   </ItemGroup>
 

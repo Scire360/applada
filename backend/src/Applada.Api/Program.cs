@@ -10,10 +10,20 @@ using Applada.Modules.Matches.Api;
 using Applada.Modules.Profiles;
 using Applada.ServiceDefaults;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Instrumentation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+// O Aspire pode habilitar queries completas nos traces de desenvolvimento.
+builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
+    options.EnrichWithHttpRequest = (activity, request) =>
+    {
+        if (request.Path.StartsWithSegments(DiscoveryModule.DiscoverMatchesPath))
+        {
+            activity.SetTag("url.query", null);
+        }
+    });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.AddApladaAuthentication();
 builder.Services.AddApladaProblemDetails();
