@@ -143,6 +143,8 @@ as contas de teste `jogador1.dev`, `jogador2.dev` e `jogador3.dev` no Keycloak. 
 conclua o primeiro login de cada conta e defina a mesma senha de teste nas três. O teste usa essa senha
 apenas no processo local e espera que as contas já tenham concluído a troca obrigatória.
 
+O E2E não cobre a chamada porque a partida precisa ter começado. Os testes de integração da API e os unitários da web cobrem esse fluxo.
+
 Em outro terminal PowerShell 7.2 ou superior, a partir de `apps/web`:
 
 ```powershell
@@ -196,6 +198,7 @@ npm run build
 
 - `/` — visão geral do grupo
 - `/peladas` — agenda e partidas
+- `/peladas/[id]/presenca` — chamada dos participantes confirmados pelo organizador
 - `/eventos/novo`, `/peladas/abertas`, `/presenca`, `/presenca/check-in` e `/partidas/ao-vivo` — fluxos de organização das partidas
 - `/jogadores` — elenco e presença
 - `/jogadores/novo` e `/jogadores/perfil` — convite e perfil
