@@ -26,6 +26,8 @@ async function appRoutes() {
   return [...new Set([...fixed, ...catalog])].filter((route) => !withoutShell.has(route)).sort();
 }
 
+const adminOnlyRoute = /^\/(administracao|modulos)(\/|$)/;
+
 async function measureLayout() {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const shell = Array.from(document.querySelectorAll(".app-shell"))
@@ -88,8 +90,15 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
             page.waitForResponse((response) => response.url() === base + "/api/app/me"),
             page.goto(base + route, { waitUntil: "load" }),
           ]);
-          await page.getByRole("main").waitFor({ state: "visible" });
           assert.equal(response?.status(), 200, route);
+          await page.getByRole("main").waitFor({ state: "visible" });
+          // jogador1.dev não é administrador: as áreas administrativas devem negar o acesso, sem shell para medir.
+          if (new URL(page.url()).pathname === "/acesso-negado") {
+            if (!adminOnlyRoute.test(route)) failures.push(route + " negou o acesso a uma conta sem papel de administrador");
+            continue;
+          }
+          // O shell chega por streaming (Suspense) depois do load: antes dele só existe o aviso "Carregando".
+          await page.locator(".app-shell:visible").waitFor();
           for (const viewport of viewports) {
             await page.setViewportSize(viewport);
             const info = await page.evaluate(measureLayout);
@@ -128,9 +137,11 @@ test("seções do sidebar começam fechadas e os atalhos compactos ficam acessí
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + "/peladas");
     const nav = page.getByRole("navigation", { name: "Navegação principal" });
+    // O shell chega por streaming (Suspense) depois do load.
+    await nav.waitFor();
     const groups = nav.locator("details");
     assert.deepEqual(await groups.locator("summary").allTextContents(), [
-      "Menu", "Dentro de campo", "Comunidade", "Acompanhamento", "Espaço do grupo", "Ferramentas",
+      "Menu", "Dentro de campo", "Comunidade", "Acompanhamento", "Ferramentas",
     ]);
     assert.equal(await nav.locator("details[open]").count(), 0);
     assert.equal(await nav.getByRole("link").count(), 0);
@@ -145,13 +156,14 @@ test("seções do sidebar começam fechadas e os atalhos compactos ficam acessí
     assert.equal(await nav.getByRole("link", { name: "Peladas", exact: true }).count(), 0);
     assert.equal(await nav.getByRole("link", { name: "Organizar pelada", exact: true }).isVisible(), true);
     await page.reload();
+    await nav.waitFor();
     assert.equal(await nav.locator("details[open]").count(), 0);
 
     for (const width of [768, 320]) {
       await page.setViewportSize({ width, height: 820 });
       assert.equal(await groups.locator("summary:visible").count(), 0);
       assert.deepEqual(await nav.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href"))), [
-        "/", "/peladas", "/jogadores", "/comunidade", "/financeiro",
+        "/", "/peladas", "/grupos", "/jogadores", "/comunidade", "/financeiro",
       ]);
     }
   } finally {
