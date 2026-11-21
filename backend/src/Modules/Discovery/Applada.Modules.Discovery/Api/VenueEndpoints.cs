@@ -1,7 +1,6 @@
 using System.Globalization;
-using System.Text;
-using System.Text.Json;
 using Applada.BuildingBlocks.Contracts;
+using Applada.BuildingBlocks.Web;
 using Applada.Modules.Discovery.Domain;
 using Applada.Modules.Discovery.Infrastructure;
 using Microsoft.AspNetCore.Builder;
@@ -50,48 +49,13 @@ internal static class VenueEndpoints
     private static async Task<IResult> CreateAsync(
         HttpRequest request, ICurrentUser user, VenueStore store, TimeProvider clock, IOptions<JsonOptions> json, CancellationToken ct)
     {
-        if (!request.HasJsonContentType())
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<CreateVenueRequest>(request, MaxBodyBytes, json.Value.SerializerOptions, ct);
+        if (failure is not null)
         {
-            return UnsupportedMediaType();
+            return failure;
         }
 
-        var mediaType = request.GetTypedHeaders().ContentType;
-        if (mediaType is { Charset.HasValue: true, Encoding: null })
-        {
-            return UnsupportedMediaType();
-        }
-
-        if (request.ContentLength > MaxBodyBytes)
-        {
-            return PayloadTooLarge();
-        }
-
-        var buffer = new byte[MaxBodyBytes + 1];
-        var length = await request.Body.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, ct);
-        if (length > MaxBodyBytes)
-        {
-            return PayloadTooLarge();
-        }
-
-        CreateVenueRequest? body;
-        try
-        {
-            using var stream = new MemoryStream(buffer, 0, length, writable: false);
-            using var utf8 = mediaType?.Encoding is { } encoding && !encoding.Equals(Encoding.UTF8)
-                ? Encoding.CreateTranscodingStream(stream, encoding, Encoding.UTF8) : null;
-            body = await JsonSerializer.DeserializeAsync<CreateVenueRequest>(utf8 ?? stream, json.Value.SerializerOptions, ct);
-        }
-        catch (JsonException)
-        {
-            return Invalid("body", "Envie um objeto JSON válido.");
-        }
-
-        if (body is null)
-        {
-            return Invalid("body", "Envie um objeto JSON.");
-        }
-
-        var result = Venue.Create(body.Name, body.AddressText, body.Latitude, body.Longitude, user.UserId, clock.GetUtcNow());
+        var result = Venue.Create(body!.Name, body.AddressText, body.Latitude, body.Longitude, user.UserId, clock.GetUtcNow());
         if (!result.IsSuccess)
         {
             return TypedResults.ValidationProblem(result.Error.Fields!.ToDictionary(StringComparer.Ordinal),
@@ -136,10 +100,4 @@ internal static class VenueEndpoints
     private static ValidationProblem Invalid(string field, string message) =>
         TypedResults.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [message] },
             title: "Dados inválidos.", type: "urn:applada:problem:validation");
-
-    private static ProblemHttpResult PayloadTooLarge() => TypedResults.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
-        title: "Corpo da requisição grande demais.", type: "urn:applada:problem:payload-too-large");
-
-    private static ProblemHttpResult UnsupportedMediaType() => TypedResults.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
-        title: "O corpo deve ser JSON com uma codificação reconhecida.", type: "urn:applada:problem:unsupported-media-type");
 }

@@ -80,15 +80,16 @@ public class VenuesTests(ApiFactory factory)
     }
 
     [Theory]
-    [InlineData("{")]
-    [InlineData("null")]
-    public async Task Create_with_invalid_json_body_returns_400(string json)
+    [InlineData("{", "body")]
+    [InlineData("null", "body")]
+    [InlineData("""{"latitude":false}""", "latitude")]
+    public async Task Create_with_invalid_json_body_returns_400(string json, string field)
     {
         using var client = NewClient();
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
         using var response = await client.PostAsync(Venues, content, Ct);
         using var problem = await MatchesApi.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
-        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty("body", out _));
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty(field, out _));
     }
 
     [Fact]

@@ -4,6 +4,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Contracts\Applada.BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Web\Applada.BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Domain\Applada.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Applada.BuildingBlocks.Persistence\Applada.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\Applada.Modules.Discovery.Contracts\Applada.Modules.Discovery.Contracts.csproj" />
