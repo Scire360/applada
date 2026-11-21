@@ -5860,28 +5860,16 @@ body {
 }
 
 .connected-card .button,
-.connected-session .button,
 .connected-match-item {
   min-height: 44px;
   white-space: normal;
 }
 
-.connected-actions,
-.connected-session {
+.connected-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.connected-session {
-  justify-content: space-between;
-}
-
-.connected-session .quiet-label {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .connected-feedback:has(p:empty):not(:has([role="alert"])) {

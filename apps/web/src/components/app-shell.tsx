@@ -80,6 +80,8 @@ type AppShellProps = {
   active: "overview" | "groups" | ScreenGroup;
   activePath?: string;
   title?: string;
+  // "api": a tela usa dados reais da API; some o rótulo de prévia e o nome do espaço de demonstração.
+  dataSource?: "demo" | "api";
   children: ReactNode;
 };
 
@@ -103,10 +105,10 @@ const titlesByNavigation: Record<AppShellProps["active"], string> = {
   admin: "Administração",
 };
 
-export function AppShell({ active, activePath, title, children }: AppShellProps) {
+export function AppShell({ active, activePath, title, dataSource, children }: AppShellProps) {
   return (
     <Suspense fallback={<div className="auth-loading" role="status">Carregando seu espaço…</div>}>
-      <AuthenticatedAppShell active={active} activePath={activePath} title={title}>
+      <AuthenticatedAppShell active={active} activePath={activePath} title={title} dataSource={dataSource}>
         {children}
       </AuthenticatedAppShell>
     </Suspense>
@@ -117,8 +119,11 @@ async function AuthenticatedAppShell({
   active,
   activePath,
   title,
+  dataSource,
   children,
 }: AppShellProps) {
+  const demo = dataSource !== "api";
+  const workspace = demo ? { initials: "SC", name: "Santa Cecília FC" } : { initials: "AP", name: "Applada" };
   const session = await auth();
   if (!session?.user) redirect("/login");
   const hasAdminAccess = hasAdminRole(session?.user?.roles ?? []);
@@ -162,10 +167,10 @@ async function AuthenticatedAppShell({
         </Link>
 
         <div className="workspace-switcher">
-          <span aria-hidden="true" className="workspace-avatar">SC</span>
+          <span aria-hidden="true" className="workspace-avatar">{workspace.initials}</span>
           <span className="workspace-copy">
             <span className="eyebrow">SEU ESPAÇO</span>
-            <span className="workspace-name">Santa Cecília FC</span>
+            <span className="workspace-name">{workspace.name}</span>
           </span>
         </div>
 
@@ -218,7 +223,7 @@ async function AuthenticatedAppShell({
       <div className="main-column">
         <header className="topbar">
           <div aria-label={`Você está em ${currentTitle}`} className="breadcrumbs">
-            <span>Santa Cecília FC</span>
+            <span>{workspace.name}</span>
             <span className="breadcrumb-divider">/</span>
             <strong>{currentTitle}</strong>
           </div>
@@ -226,10 +231,12 @@ async function AuthenticatedAppShell({
             <Link aria-current={activePath === "/modulos" ? "page" : undefined} aria-label="Mapa de funcionalidades" className="compact-catalog-link" href="/modulos" title="Mapa de funcionalidades">
               <Icon name="file" />
             </Link>
-            <span className="preview-status">
-              <span className="status-dot" />
-              Prévia · dados ilustrativos
-            </span>
+            {demo && (
+              <span className="preview-status">
+                <span className="status-dot" />
+                Prévia · dados ilustrativos
+              </span>
+            )}
             <HeaderAccountButton />
           </div>
         </header>

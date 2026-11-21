@@ -3,7 +3,7 @@ import { MyGroups } from "@/components/groups/my-groups";
 
 export default function GroupsPage() {
   return (
-    <AppShell active="groups" activePath="/grupos" title="Grupos">
+    <AppShell active="groups" activePath="/grupos" title="Grupos" dataSource="api">
       <div className="module-page connected-page">
         <section className="page-heading">
           <div>
