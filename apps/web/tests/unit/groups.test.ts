@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canLeave, canManageInvitations, invitationFromHash, memberActions } from "../../src/lib/groups.ts";
+import { canLeave, canManageInvitations, invitationFromHash, keepInvitation, memberActions } from "../../src/lib/groups.ts";
 import { shouldClearInvitationCookie } from "../../src/lib/bff/invitation.ts";
 
 const token = "A".repeat(43);
@@ -43,4 +43,12 @@ test("canLeave e canManageInvitations", () => {
 test("shouldClearInvitationCookie", () => {
   for (const status of [200, 201, 204, 400, 404, 409]) assert.equal(shouldClearInvitationCookie(status), true, String(status));
   for (const status of [401, 403, 429, 500, 502, 503]) assert.equal(shouldClearInvitationCookie(status), false, String(status));
+});
+
+test("keepInvitation: segunda leitura com hash vazio mantém o token (Strict Mode)", () => {
+  const first = keepInvitation(null, `#${token}`);
+  assert.equal(first, token);
+  assert.equal(keepInvitation(first, ""), token);
+  assert.equal(keepInvitation(null, ""), null);
+  assert.equal(keepInvitation(token, `#${"B".repeat(43)}`), token);
 });

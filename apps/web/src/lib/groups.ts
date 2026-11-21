@@ -24,3 +24,9 @@ export function canLeave(myRole: Role) {
 export function canManageInvitations(myRole: Role) {
   return myRole === "owner" || myRole === "admin";
 }
+
+// O efeito pode rodar duas vezes (Strict Mode em dev) e a 1ª leitura já apagou o hash:
+// um token lido antes nunca é sobrescrito por uma leitura vazia.
+export function keepInvitation(previous: string | null, hash: string): string | null {
+  return previous ?? invitationFromHash(hash);
+}

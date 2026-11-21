@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signInForInvitation } from "@/app/actions/auth";
 import { ApiError, appApi } from "@/lib/api-client";
-import { invitationFromHash } from "@/lib/groups";
+import { keepInvitation } from "@/lib/groups";
 import { useAction } from "./use-action";
 
 type Phase = "checking" | "incomplete" | "signed-out" | "ready" | "error";
@@ -21,8 +21,8 @@ export function AcceptInvitation() {
   useEffect(() => {
     const controller = new AbortController();
     const url = new URL(window.location.href);
-    token.current = invitationFromHash(url.hash);
-    resuming.current = url.searchParams.get("retomar") === "1";
+    token.current = keepInvitation(token.current, url.hash);
+    resuming.current = resuming.current || url.searchParams.get("retomar") === "1";
     window.history.replaceState(null, "", `${url.pathname}${url.search}`);
     if (!token.current && !resuming.current) {
       setPhase("incomplete");
