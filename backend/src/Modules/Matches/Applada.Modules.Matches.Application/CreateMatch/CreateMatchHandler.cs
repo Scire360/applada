@@ -19,6 +19,7 @@ namespace Applada.Modules.Matches.Application.CreateMatch;
 /// Essa espera conta no <c>lock_timeout</c>: se a primeira segurar a transação por mais que ele, a segunda recebe
 /// <c>lock-timeout</c> (503 com <c>Retry-After</c>) e o cliente repete. Aceitável: a repetição devolve a resposta gravada.
 /// <para>Antes de consultar Communities ou Discovery, o handler procura a resposta gravada para o usuário e a chave.
+/// A mesma chave com corpo diferente devolve 422 <c>idempotency-key-reused</c> antes da verificação do papel atual no grupo.
 /// Um replay independe desses módulos. A criação confere a chave novamente dentro da transação.</para>
 /// <para>Partida de grupo: o organizador precisa ser owner ou admin do grupo (contrato <see cref="IGroupMembership"/> do
 /// Communities). A consulta acontece antes da transação, em outro módulo: perder o papel entre a consulta e o commit é

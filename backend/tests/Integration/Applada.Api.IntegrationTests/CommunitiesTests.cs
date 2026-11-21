@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Communities.Infrastructure;
+using Applada.Modules.Matches.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
@@ -347,6 +348,36 @@ public class CommunitiesTests(ApiFactory factory)
     {
         using var owner = await NewUserAsync(factory, "grp");
         using var admin = await NewUserAsync(factory, "grp");
+        var (groupId, key, startsAt, originalBody) = await CreateMatchThenDemoteAdminAsync(owner, admin);
+
+        using var replay = await CreateGroupMatchAsync(admin.Client, groupId, key, startsAt);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.Equal(originalBody, await replay.Content.ReadAsStringAsync(Ct));
+
+        using var fresh = await CreateGroupMatchAsync(admin.Client, groupId, startsAt: startsAt);
+        using var problem = await AssertProblemAsync(fresh, HttpStatusCode.UnprocessableEntity, "group-not-allowed");
+    }
+
+    [Fact]
+    public async Task Create_group_match_rejects_reused_key_with_different_body_after_admin_is_demoted()
+    {
+        using var owner = await NewUserAsync(factory, "grp");
+        using var admin = await NewUserAsync(factory, "grp");
+        var (groupId, key, startsAt, originalBody) = await CreateMatchThenDemoteAdminAsync(owner, admin);
+
+        using var retry = await CreateGroupMatchAsync(admin.Client, groupId, key, startsAt.AddHours(1));
+        using var problem = await AssertProblemAsync(retry, HttpStatusCode.UnprocessableEntity, "idempotency-key-reused");
+
+        using var original = JsonDocument.Parse(originalBody);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        var onlyMatch = await db.Matches.Where(m => m.GroupId == groupId).Select(m => m.Id).SingleAsync(Ct);
+        Assert.Equal(original.RootElement.GetProperty("id").GetGuid(), onlyMatch);
+    }
+
+    private async Task<(Guid GroupId, string Key, DateTimeOffset StartsAt, string Body)> CreateMatchThenDemoteAdminAsync(
+        TestUser owner, TestUser admin)
+    {
         var groupId = await CreateGroupAsync(owner.Client);
         await JoinAsync(owner.Client, admin.Client, groupId);
         var memberPath = $"{GroupsPath}/{groupId}/members/{admin.Id}";
@@ -360,12 +391,7 @@ public class CommunitiesTests(ApiFactory factory)
 
         using var demoted = await owner.Client.PatchAsJsonAsync(memberPath, new { role = "member" }, Ct);
         Assert.Equal(HttpStatusCode.OK, demoted.StatusCode);
-        using var replay = await CreateGroupMatchAsync(admin.Client, groupId, key, startsAt);
-        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
-        Assert.Equal(await created.Content.ReadAsStringAsync(Ct), await replay.Content.ReadAsStringAsync(Ct));
-
-        using var fresh = await CreateGroupMatchAsync(admin.Client, groupId, startsAt: startsAt);
-        using var problem = await AssertProblemAsync(fresh, HttpStatusCode.UnprocessableEntity, "group-not-allowed");
+        return (groupId, key, startsAt, await created.Content.ReadAsStringAsync(Ct));
     }
 
     private static async Task<Guid> CreateGroupAsync(HttpClient client)
