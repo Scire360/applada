@@ -13,7 +13,7 @@ namespace Applada.Modules.Matches.Infrastructure;
 /// </summary>
 internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvider) : IMatchesSession
 {
-    /// <summary>Última partida cujo lock esta sessão pediu (para o log de lock-timeout).</summary>
+    /// <summary>Partida da operação que pode aguardar um lock, inclusive pela FK da presença.</summary>
     public Guid? LockedMatchId { get; private set; }
 
     /// <inheritdoc/>
@@ -25,10 +25,13 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
             .SingleOrDefaultAsync(ct);
     }
 
-    public Task<AttendanceSubject?> GetAttendanceSubjectAsync(Guid matchId, Guid userId, CancellationToken ct) =>
-        db.Matches.AsNoTracking().Where(m => m.Id == matchId)
+    public Task<AttendanceSubject?> GetAttendanceSubjectAsync(Guid matchId, Guid userId, CancellationToken ct)
+    {
+        LockedMatchId = matchId;
+        return db.Matches.AsNoTracking().Where(m => m.Id == matchId)
             .Select(m => new AttendanceSubject(m, db.Registrations.FirstOrDefault(r => r.MatchId == m.Id && r.UserId == userId)))
             .SingleOrDefaultAsync(ct);
+    }
 
     public async Task<(DateTimeOffset RecordedAt, bool Changed)> UpsertAttendanceAsync(
         Guid matchId, Guid userId, AttendanceStatus status, Guid recordedBy, DateTimeOffset recordedAt, CancellationToken ct)

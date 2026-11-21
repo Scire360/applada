@@ -5,8 +5,10 @@ using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Matches.Application.Queries;
 using Applada.Modules.Matches.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
 
 namespace Applada.Api.IntegrationTests;
@@ -326,6 +328,27 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         Assert.False(await db.Database.SqlQuery<bool>($"""
             SELECT EXISTS (SELECT 1 FROM matches.attendance WHERE match_id = {_match}) AS "Value"
             """).SingleAsync(Ct));
+    }
+
+    [Fact]
+    public async Task Attendance_lock_timeout_logs_the_match_id()
+    {
+        using var logs = new CapturingLoggerProvider();
+        await using var host = factory.WithWebHostBuilder(b => b
+            .UseSetting("Matches:LockTimeout", "00:00:01")
+            .ConfigureLogging(logging => logging.AddProvider(logs)));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = _organizer.DefaultRequestHeaders.Authorization;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<MatchesDbContext>();
+        await using var tx = await db.Database.BeginTransactionAsync(Ct);
+        await db.Matches.FromSql($"SELECT * FROM matches.matches WHERE id = {_match} FOR UPDATE").SingleAsync(Ct);
+
+        OpenAttendance();
+        using var response = await PutAsync(client, _player.Id);
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.ServiceUnavailable, "lock-timeout");
+        var warning = Assert.Single(logs.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("lock-timeout", StringComparison.Ordinal));
+        Assert.Contains(_match.ToString(), warning.Message, StringComparison.Ordinal);
     }
 
     private void OpenAttendance() => factory.Clock.SetUtcNow(_startsAt);
