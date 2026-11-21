@@ -19,8 +19,8 @@ public interface IMatchQueries
 
     Task<Result<IReadOnlyList<AttendanceRow>>> ListAttendanceAsync(Guid matchId, Guid viewerId, ParticipantsKey? after, int take, CancellationToken ct);
 
-    /// <summary>Partidas organizadas por <paramref name="userId"/> com <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>.</summary>
-    Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);
+    /// <summary>Partidas de <paramref name="userId"/> futuras ou com a chamada aberta em <paramref name="now"/>, por <c>(starts_at, id)</c>.</summary>
+    Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset now, MyMatchesKey? after, int take, CancellationToken ct);
 
     /// <summary>
     /// Partidas agendadas do grupo <paramref name="groupId"/> com <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>;

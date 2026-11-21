@@ -67,7 +67,7 @@ internal static class DevelopmentContractTransformers
                 break;
             case "ListMyMatches":
                 AddResponseHeader(operation, "200", "Cache-Control", PrivateNoStore);
-                Describe(operation, "role", "Obrigatório: organizer (partidas que organizo) ou participant (inscrição ativa).", required: true, ["organizer", "participant"]);
+                Describe(operation, "role", "Obrigatório: organizer (partidas que organizo, futuras ou com chamada aberta) ou participant (próximas partidas com inscrição ativa).", required: true, ["organizer", "participant"]);
                 Describe(operation, "cursor", "Cursor opaco devolvido em nextCursor; só vale para esta listagem.");
                 Describe(operation, "limit", "Itens por página, de 1 a 50 (padrão 20).");
                 break;

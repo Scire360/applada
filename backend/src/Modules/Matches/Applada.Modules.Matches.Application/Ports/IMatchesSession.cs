@@ -12,7 +12,12 @@ public sealed record AttendanceSubject(Match Match, Registration? Registration);
 /// </summary>
 public interface IMatchesSession
 {
-    /// <summary>Carrega a partida com <c>SELECT ... FOR UPDATE</c>; o lock vale até o fim da transação.</summary>
+    /// <summary>Carrega a partida com <c>SELECT ... FOR UPDATE</c> até o fim da transação.</summary>
+    /// <remarks>
+    /// A presença depende de Withdraw e Cancel travarem a partida com <c>FOR UPDATE</c>, que conflita
+    /// com o <c>FOR KEY SHARE</c> adquirido pela FK de <c>matches.attendance</c> na inserção.
+    /// Trocar por <c>FOR NO KEY UPDATE</c> permitiria que esses locks coexistissem.
+    /// </remarks>
     Task<Match?> GetMatchForUpdateAsync(Guid matchId, CancellationToken ct);
 
     Task<AttendanceSubject?> GetAttendanceSubjectAsync(Guid matchId, Guid userId, CancellationToken ct);

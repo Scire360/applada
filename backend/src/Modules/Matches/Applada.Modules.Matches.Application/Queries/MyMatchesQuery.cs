@@ -5,10 +5,8 @@ using Applada.Modules.Matches.Domain;
 namespace Applada.Modules.Matches.Application.Queries;
 
 /// <summary>
-/// "Minhas partidas" (spec §7): como organizador (<c>role=organizer</c>) ou com inscrição ativa
-/// (<c>role=participant</c>), só as que começam em <c>now</c> ou depois, por <c>(starts_at, id)</c>. O filtro é sempre o
-/// usuário autenticado: um cursor de outra pessoa só posiciona a leitura. Partidas canceladas continuam aparecendo,
-/// com <c>status = cancelled</c>, para que quem organiza ou joga saiba do cancelamento.
+/// Lista por <c>(starts_at, id)</c> as próximas partidas do usuário autenticado, inclusive as canceladas.
+/// Quem organiza também vê as partidas com a chamada aberta. O cursor só posiciona a leitura.
 /// </summary>
 public sealed class MyMatchesQuery(IMatchQueries queries)
 {

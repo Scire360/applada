@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Routing;
 namespace Applada.Modules.Matches.Api;
 
 /// <summary>
-/// <c>GET /api/v1/me/matches?role=organizer|participant&amp;cursor&amp;limit</c>: partidas do usuário autenticado (nunca de
-/// outro), futuras, por cursor. "Futuras" é <c>starts_at &gt;= agora</c> pelo <see cref="TimeProvider"/>.
+/// <c>GET /api/v1/me/matches?role=organizer|participant&amp;cursor&amp;limit</c> lista as próximas partidas do usuário
+/// autenticado por cursor. Para o organizador, inclui também as partidas com a chamada aberta.
 /// </summary>
 internal static class MyMatchesEndpoints
 {

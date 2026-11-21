@@ -62,14 +62,14 @@ public static class MatchesApi
         return body.RootElement.GetProperty("userId").GetGuid();
     }
 
-    public static async Task<Guid> CreateMatchAsync(HttpClient organizer, DateTimeOffset startsAt, int capacity)
+    public static async Task<Guid> CreateMatchAsync(HttpClient organizer, DateTimeOffset startsAt, int capacity, int durationMinutes = 60)
     {
         ArgumentNullException.ThrowIfNull(organizer);
         var start = startsAt.ToString("O", CultureInfo.InvariantCulture);
         using var request = new HttpRequestMessage(HttpMethod.Post, MatchesPath)
         {
             Content = new StringContent(
-                $$"""{"title":"Pelada","startsAt":"{{start}}","timeZone":"America/Sao_Paulo","durationMinutes":60,"capacity":{{capacity}},"visibility":"public"}""",
+                $$"""{"title":"Pelada","startsAt":"{{start}}","timeZone":"America/Sao_Paulo","durationMinutes":{{durationMinutes}},"capacity":{{capacity}},"visibility":"public"}""",
                 Encoding.UTF8,
                 "application/json"),
         };

@@ -139,9 +139,14 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
         return listing.CanRead ? listing.Rows : MatchErrors.NotOrganizer;
     }
 
-    public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
+    public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset now, MyMatchesKey? after, int take, CancellationToken ct)
     {
-        var matches = db.Matches.AsNoTracking().Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart);
+        // Limite inferior para o índice (organizer_id, starts_at). O fechamento usa a duração de cada partida.
+        var earliestStart = now.AddHours(-MatchLimits.AttendanceWindowHoursAfterEnd).AddMinutes(-MatchLimits.DurationMax);
+        var matches = db.Matches.AsNoTracking()
+            .Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart
+                && (m.StartsAt >= now || (m.Status == MatchStatus.Scheduled
+                    && now < m.StartsAt.AddMinutes(m.DurationMinutes).AddHours(MatchLimits.AttendanceWindowHoursAfterEnd))));
         if (after is { } key)
         {
             matches = matches.Where(m => EF.Functions.GreaterThan(ValueTuple.Create(m.StartsAt, m.Id), ValueTuple.Create(key.StartsAt, key.Id)));

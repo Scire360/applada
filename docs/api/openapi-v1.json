@@ -211,7 +211,7 @@
           {
             "name": "role",
             "in": "query",
-            "description": "Obrigat\u00F3rio: organizer (partidas que organizo) ou participant (inscri\u00E7\u00E3o ativa).",
+            "description": "Obrigat\u00F3rio: organizer (partidas que organizo, futuras ou com chamada aberta) ou participant (pr\u00F3ximas partidas com inscri\u00E7\u00E3o ativa).",
             "required": true,
             "schema": {
               "enum": [

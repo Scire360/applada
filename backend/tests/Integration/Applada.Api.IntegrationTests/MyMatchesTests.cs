@@ -6,18 +6,18 @@ using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
 
 namespace Applada.Api.IntegrationTests;
 
-/// <summary><c>GET /me/matches?role=organizer|participant</c>: só partidas do próprio usuário, futuras, por cursor.</summary>
+/// <summary><c>GET /me/matches?role=organizer|participant</c>: partidas do próprio usuário por papel e cursor.</summary>
 [Collection("api")]
 public class MyMatchesTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Organizer_role_lists_only_own_future_matches_ordered()
+    public async Task Organizer_cursor_pages_from_started_match_to_ordered_future_matches()
     {
         var subject = NewSubject("mine");
         var now = factory.Clock.GetUtcNow();
-        Guid day1, day2a, day2b, day3, cancelled;
+        Guid started, day1, day2a, day2b, day3, cancelled;
         using (var organizer = factory.CreateClientFor(subject))
         using (var other = await NewUserAsync(factory, "mine"))
         {
@@ -26,7 +26,7 @@ public class MyMatchesTests(ApiFactory factory)
             day1 = await CreateMatchAsync(organizer, now.AddDays(1), capacity: 4);
             day2b = await CreateMatchAsync(organizer, now.AddDays(2), capacity: 6);
             cancelled = await CreateMatchAsync(organizer, now.AddDays(4), capacity: 4);
-            await CreateMatchAsync(organizer, now.AddMinutes(10), capacity: 4); // vira passado
+            started = await CreateMatchAsync(organizer, now.AddMinutes(10), capacity: 4);
             await CreateMatchAsync(other.Client, now.AddDays(1), capacity: 4); // de outro organizador
             using (var cancel = await organizer.PostAsync(new Uri($"{MatchesPath}/{cancelled}/cancellation", UriKind.Relative), null, Ct))
             {
@@ -38,18 +38,17 @@ public class MyMatchesTests(ApiFactory factory)
             await RegisterExpectingAsync(other.Client, day2b, HttpStatusCode.Created);
         }
 
-        var delta = TimeSpan.FromMinutes(20);
+        var delta = TimeSpan.FromMinutes(70);
         factory.Clock.Advance(delta);
         try
         {
             using var organizer = factory.CreateClientFor(subject);
-            var pages = await WalkAsync(organizer, "role=organizer", limit: 2);
+            var pages = await WalkAsync(organizer, "role=organizer", limit: 1);
 
             // Mesmo startsAt: desempate pelo id, na ordem do PostgreSQL (bytes do uuid = texto hexadecimal).
             var sameDay = new[] { day2a, day2b }.OrderBy(id => id.ToString("N"), StringComparer.Ordinal).ToArray();
-            Guid[] expected = [day1, sameDay[0], sameDay[1], day3, cancelled];
-            Assert.Equal([2, 2, 1], pages.Select(p => p.Items.Count));
-            var all = pages.SelectMany(p => p.Items).ToArray();
+            Guid[] expected = [started, day1, sameDay[0], sameDay[1], day3, cancelled];
+            var all = pages.Select(p => Assert.Single(p.Items)).ToArray();
             Assert.Equal(expected, all.Select(i => i.Id));
 
             var withPlayers = all.Single(i => i.Id == day2b);
@@ -57,11 +56,61 @@ public class MyMatchesTests(ApiFactory factory)
             var cancelledItem = all.Single(i => i.Id == cancelled);
             Assert.Equal(("cancelled", (string?)null), (cancelledItem.Status, cancelledItem.MyStatus));
             Assert.Equal("Pelada", all[0].Title);
-            Assert.Equal(now.AddDays(1).UtcTicks / 10, all[0].StartsAt.UtcTicks / 10);
+            Assert.Equal(now.AddMinutes(10).UtcTicks / 10, all[0].StartsAt.UtcTicks / 10);
         }
         finally
         {
             factory.Clock.Advance(-delta);
+        }
+    }
+
+    [Fact]
+    public async Task Started_match_is_visible_only_to_its_organizer_until_attendance_closes()
+    {
+        var organizerSubject = NewSubject("mine");
+        var playerSubject = NewSubject("mine");
+        using var organizer = factory.CreateClientFor(organizerSubject);
+        using var player = factory.CreateClientFor(playerSubject);
+        var now = factory.Clock.GetUtcNow();
+        var startsAt = DateTimeOffset.FromUnixTimeSeconds(now.AddHours(1).ToUnixTimeSeconds());
+        const int durationMinutes = 600;
+        var scheduled = await CreateMatchAsync(organizer, startsAt, capacity: 4, durationMinutes: durationMinutes);
+        var cancelled = await CreateMatchAsync(organizer, startsAt, capacity: 4);
+        await CreateMatchAsync(player, startsAt, capacity: 4);
+        await RegisterExpectingAsync(player, scheduled, HttpStatusCode.Created);
+        using var cancel = await organizer.PostAsync(new Uri($"{MatchesPath}/{cancelled}/cancellation", UriKind.Relative), null, Ct);
+        Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+
+        try
+        {
+            factory.Clock.SetUtcNow(startsAt);
+            using var atStart = factory.CreateClientFor(organizerSubject);
+            var upcoming = Assert.Single(await WalkAsync(atStart, "role=organizer", limit: 20));
+            Assert.Contains(upcoming.Items, i => i.Id == cancelled);
+
+            factory.Clock.SetUtcNow(startsAt.AddHours(1));
+            using var participant = factory.CreateClientFor(playerSubject);
+            var participating = Assert.Single(await WalkAsync(participant, "role=participant", limit: 20));
+            Assert.Empty(participating.Items);
+            using var duringMatch = factory.CreateClientFor(organizerSubject);
+            var organized = Assert.Single(await WalkAsync(duringMatch, "role=organizer", limit: 20));
+            Assert.Equal(scheduled, Assert.Single(organized.Items).Id);
+
+            var closesAt = startsAt.AddMinutes(durationMinutes).AddHours(24);
+            factory.Clock.SetUtcNow(closesAt.AddTicks(-1));
+            using var nearClose = factory.CreateClientFor(organizerSubject);
+            var lastOpen = Assert.Single(await WalkAsync(nearClose, "role=organizer", limit: 20));
+            Assert.Equal(scheduled, Assert.Single(lastOpen.Items).Id);
+            foreach (var instant in new[] { closesAt, closesAt.AddTicks(1) })
+            {
+                factory.Clock.SetUtcNow(instant);
+                var closed = Assert.Single(await WalkAsync(nearClose, "role=organizer", limit: 20));
+                Assert.Empty(closed.Items);
+            }
+        }
+        finally
+        {
+            factory.Clock.SetUtcNow(now);
         }
     }
 
