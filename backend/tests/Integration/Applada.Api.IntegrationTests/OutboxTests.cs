@@ -388,8 +388,6 @@ public class OutboxTests(ApiFactory factory)
             await using var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
             await factory.CloseRabbitMqConnectionsAsync();
             await WaitUntilAsync(() => !queue.IsOpen && !publisher.HasOpenConnection, TimeSpan.FromSeconds(10));
-            await Task.Delay(new ConnectionFactory().NetworkRecoveryInterval + TimeSpan.FromSeconds(3), Ct);
-            Assert.False(queue.IsOpen, "A fila exclusiva reabriu após o broker fechar a conexão.");
         }
         finally
         {

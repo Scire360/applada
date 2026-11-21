@@ -202,6 +202,7 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
             using var response = await _organizer.GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}", Ct);
             var raw = await response.Content.ReadAsStringAsync(Ct);
             Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {(int)response.StatusCode} {raw}");
+            Assert.True(raw.Contains("urn:applada:problem:invalid-cursor"), $"cursor '{cursor[..Math.Min(cursor.Length, 60)]}': {raw}");
             (await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor")).Dispose();
         }
     }
