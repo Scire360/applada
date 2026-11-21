@@ -51,7 +51,7 @@
         "post.logout.redirect.uris": "http://localhost:5080/scalar/*",
         "oauth2.device.authorization.grant.enabled": "false",
         "oidc.ciba.grant.enabled": "false",
-        "use.refresh.tokens": "true"
+        "use.refresh.tokens": "false"
       },
       "defaultClientScopes": [
         "basic",
