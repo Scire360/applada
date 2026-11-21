@@ -55,3 +55,8 @@ export function registrationLabel(status: RegistrationStatus, position?: number 
   if (status === "waitlisted") return position ? `${position}º na lista de espera` : "Lista de espera";
   return "Inscrição retirada";
 }
+
+export function discoveryResultMessage(count: number) {
+  if (count === 0) return "Nenhuma pelada encontrada neste raio. Experimente aumentar a distância.";
+  return count === 1 ? "1 pelada encontrada" : `${count} peladas encontradas`;
+}

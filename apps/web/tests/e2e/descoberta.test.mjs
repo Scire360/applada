@@ -87,11 +87,14 @@ test("organizador cadastra uma quadra e jogador encontra a pelada e entra", { ti
     await player.page.getByRole("status").filter({ hasText: "Carregando partidas" }).waitFor({ state: "hidden" });
   }
   await match.getByText(venueName, { exact: true }).waitFor();
-  await match.getByRole("button", { name: "Entrar", exact: true }).click();
+  const search = player.page.getByRole("region", { name: "Partidas perto de mim" });
+  const titles = await search.getByRole("list").getByRole("heading").allTextContents();
+  const count = titles.length;
+  assert.equal(await search.getByRole("status").innerText(), count === 1 ? "1 pelada encontrada" : `${count} peladas encontradas`);
+  await match.getByRole("button", { name: `Entrar em ${title}, resultado ${titles.indexOf(title) + 1}`, exact: true }).click();
   const registration = match.getByText("Confirmado", { exact: true });
   await registration.waitFor();
   assert.equal(await registration.evaluate((el) => el === document.activeElement), true);
-  const search = player.page.getByRole("region", { name: "Partidas perto de mim" });
   await search.getByRole("button", { name: "Usar minha localização", disabled: false }).waitFor();
   const announcement = search.getByRole("status");
   assert.match(await announcement.innerText(), /Confirmado/);

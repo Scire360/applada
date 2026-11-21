@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ApiError, appApi } from "@/lib/api-client";
-import { matchDate, registrationLabel, type MatchDetails, type Page } from "@/lib/connected-matches";
+import { discoveryResultMessage, matchDate, registrationLabel, type MatchDetails, type Page } from "@/lib/connected-matches";
 import { deniedMessage, positionHeaders, readBrowserPosition, type BrowserPosition } from "@/lib/geo";
 import { SignInAgain } from "../groups/sign-in-again";
 import { useAction } from "../groups/use-action";
@@ -99,7 +99,7 @@ export function OpenMatches() {
         </label>
         <button className="button button-primary" disabled={busy || signedOut} onClick={locate} type="button">Usar minha localização</button>
       </div>
-      <p role="status">{notice || (busy ? progress : page?.items.length === 0 ? "Nenhuma pelada encontrada neste raio. Experimente aumentar a distância." : "")}</p>
+      <p role="status">{notice || (busy ? progress : page && discoveryResultMessage(page.items.length))}</p>
       {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
       {signedOut && <SignInAgain />}
       {error && !signedOut && position && !page && (
@@ -107,7 +107,7 @@ export function OpenMatches() {
       )}
       {page && page.items.length > 0 && (
         <ul aria-label="Partidas encontradas" className="connected-list">
-          {page.items.map((match) => {
+          {page.items.map((match, index) => {
             const registration = registrations[match.matchId];
             return (
               <li className="connected-card" key={match.matchId}>
@@ -124,7 +124,7 @@ export function OpenMatches() {
                     }
                   }}>{registrationLabel(registration.status, registration.position)}</p>
                 ) : (
-                  <button className="button button-primary" disabled={signedOut} aria-disabled={busy || signedOut}
+                  <button className="button button-primary" aria-label={`Entrar em ${match.title}, resultado ${index + 1}`} disabled={signedOut} aria-disabled={busy || signedOut}
                     onClick={(event) => { if (!busy) join(match, event.currentTarget); }} type="button">Entrar</button>
                 )}
               </li>
