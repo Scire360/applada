@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { appApi } from "@/lib/api-client";
+import { ApiError, appApi } from "@/lib/api-client";
 import { matchDate, registrationLabel, type MatchDetails, type Page } from "@/lib/connected-matches";
 import { deniedMessage, positionHeaders, readBrowserPosition, type BrowserPosition } from "@/lib/geo";
 import { SignInAgain } from "../groups/sign-in-again";
@@ -68,12 +68,17 @@ export function OpenMatches() {
       setRegistrations((current) => ({ ...current, [id]: registration }));
       setNotice(`${registrationLabel(registration.status, registration.position)} em ${title}.`);
       // A inscrição é idempotente. A contagem atual vem da API mesmo quando já havia inscrição.
-      const match = await appApi<MatchDetails>(path, { signal: lifetime.current?.signal });
-      setPage((current) => current && ({
-        ...current,
-        items: current.items.map((item) => item.matchId === id
-          ? { ...item, spotsLeft: Math.max(0, match.capacity - match.confirmedCount) } : item),
-      }));
+      try {
+        const match = await appApi<MatchDetails>(path, { signal: lifetime.current?.signal });
+        setPage((current) => current && ({
+          ...current,
+          items: current.items.map((item) => item.matchId === id
+            ? { ...item, spotsLeft: Math.max(0, match.capacity - match.confirmedCount) } : item),
+        }));
+      } catch (failure) {
+        if (failure instanceof ApiError && failure.status === 401) throw failure;
+        setError("Não foi possível atualizar as vagas desta partida.");
+      }
     });
   }
 

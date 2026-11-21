@@ -92,7 +92,7 @@ export function CreateConnectedMatch({ busy, create, groups, initialGroupId }: {
               </label>
             )}
           </div>
-          <p className="connected-hint">Quem tem o link pode acessar a partida com sua conta. Com um local cadastrado, ela também aparece na busca por distância.</p>
+          <p className="connected-hint">Qualquer pessoa com conta no Applada e o link pode acessar a partida. Com um local cadastrado, ela também aparece na busca por distância.</p>
           <button className="button button-primary" type="submit">Criar partida</button>
         </fieldset>
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}

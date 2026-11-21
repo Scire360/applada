@@ -63,7 +63,7 @@ export function VenuePicker({ value, onChange, editing, onEdit, disabled }: Prop
       }
       setLatitude(String(point.lat));
       setLongitude(String(point.lon));
-      setNotice("Coordenadas preenchidas. Confira a posição do local antes de salvar.");
+      setNotice("A posição atual é aproximada (cerca de 1 km). Você pode ajustá-la nos campos de latitude e longitude antes de salvar.");
     });
   }
 
