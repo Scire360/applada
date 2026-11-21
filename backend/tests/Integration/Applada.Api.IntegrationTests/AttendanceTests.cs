@@ -299,10 +299,13 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         OpenAttendance();
         var pending = PutAsync(_organizer, _player.Id);
         // Libera a alteração pré-jogo somente quando o banco confirmar que o PUT a está aguardando.
+        // pg_locks inclui esperas de conexões abertas após a primeira consulta da transação.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(4));
         while (!await db.Database.SqlQuery<bool>($"""
-            SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid))) AS "Value"
+            SELECT EXISTS (
+                SELECT 1 FROM pg_locks WHERE NOT granted AND pg_backend_pid() = ANY(pg_blocking_pids(pid))
+            ) AS "Value"
             """).SingleAsync(timeout.Token))
         {
             await Task.Delay(10, timeout.Token);
