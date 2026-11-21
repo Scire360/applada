@@ -9,13 +9,15 @@ const paging = ["cursor", "limit"];
 test("só a busca traduz os cabeçalhos de posição para a query da API", () => {
   const search = resolveOperation(["discover", "matches"], "GET")!;
   const myVenues = resolveOperation(["me", "venues"], "GET")!;
-  const query = new URLSearchParams("radiusKm=10&cursor=a%2Bb&outro=x");
+  const query = new URLSearchParams("lat=1&lon=2&radiusKm=10&cursor=a%2Bb&limit=5&outro=x");
   const headers = new Headers({ "X-Applada-Lat": "-20.47", "X-Applada-Lon": "-54.62" });
   assert.deepEqual(Object.fromEntries(operationQuery(search, query, headers)), {
-    lat: "-20.47", lon: "-54.62", radiusKm: "10", cursor: "a+b",
+    lat: "-20.47", lon: "-54.62", radiusKm: "10", cursor: "a+b", limit: "5",
   });
-  assert.deepEqual(Object.fromEntries(operationQuery(myVenues, query, headers)), { cursor: "a+b" });
-  assert.equal(operationQuery(search, new URLSearchParams("lat=1&lon=2"), new Headers()).toString(), "lat=1&lon=2");
+  assert.deepEqual(Object.fromEntries(operationQuery(myVenues, query, headers)), { cursor: "a+b", limit: "5" });
+  assert.deepEqual(Object.fromEntries(operationQuery(search, query, new Headers())), {
+    radiusKm: "10", cursor: "a+b", limit: "5",
+  });
 });
 
 test("descoberta: somente os caminhos, métodos e parâmetros do contrato", () => {
@@ -23,7 +25,7 @@ test("descoberta: somente os caminhos, métodos e parâmetros do contrato", () =
     { segments: ["venues"], method: "POST", body: "json", query: [] },
     { segments: ["venues", G], method: "GET", body: "none", query: [] },
     { segments: ["me", "venues"], method: "GET", body: "none", query: paging },
-    { segments: ["discover", "matches"], method: "GET", body: "none", query: ["lat", "lon", "radiusKm", ...paging] },
+    { segments: ["discover", "matches"], method: "GET", body: "none", query: ["radiusKm", ...paging] },
   ];
   for (const { segments, method, body, query } of cases) {
     assert.deepEqual(resolveOperation(segments, method), { path: "/" + segments.join("/"), body, query, forward: [] });

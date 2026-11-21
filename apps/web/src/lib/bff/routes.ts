@@ -28,7 +28,7 @@ const rules: readonly Rule[] = [
   { pattern: ["venues"], methods: { POST: json } },
   { pattern: ["venues", "{}"], methods: { GET: none } },
   { pattern: ["me", "venues"], methods: { GET: page } },
-  { pattern: ["discover", "matches"], methods: { GET: { ...none, query: ["lat", "lon", "radiusKm", ...paging] } } },
+  { pattern: ["discover", "matches"], methods: { GET: { ...none, query: ["radiusKm", ...paging] } } },
   { pattern: ["profile"], api: "/me/profile", methods: { GET: none, PUT: json } },
   { pattern: ["me", "matches"], methods: { GET: { query: ["role", ...paging], body: "none", forward: [] } } },
   { pattern: ["matches"], methods: { POST: { query: [], body: "json", forward: ["Idempotency-Key"] } } },
@@ -63,11 +63,14 @@ export function resolveOperation(segments: readonly string[], method: string): O
 export function operationQuery(operation: Operation, query: URLSearchParams, headers: Headers): URLSearchParams {
   const result = new URLSearchParams();
   for (const key of operation.query) {
-    // A tela evita coordenadas na URL que aparece nos logs de acesso do Next.
-    const position = operation.path === "/discover/matches" && (key === "lat" || key === "lon")
-      ? headers.get(positionHeaders[key]) : null;
-    const value = position ?? query.get(key);
+    const value = query.get(key);
     if (value !== null) result.set(key, value);
+  }
+  if (operation.path === "/discover/matches") {
+    for (const [key, header] of Object.entries(positionHeaders)) {
+      const value = headers.get(header);
+      if (value !== null) result.set(key, value);
+    }
   }
   return result;
 }
