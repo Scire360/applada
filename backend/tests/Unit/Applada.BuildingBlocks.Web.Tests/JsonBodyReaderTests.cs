@@ -15,6 +15,7 @@ public class JsonBodyReaderTests
     [InlineData(false, Limit)]
     [InlineData(true, Limit + 1)]
     [InlineData(false, Limit + 1)]
+    [InlineData(false, Limit * 4)]
     public async Task Enforces_byte_limit_with_and_without_content_length(bool declaredLength, int length)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"name":"Arena"}""".PadRight(length)));
@@ -49,6 +50,13 @@ public class JsonBodyReaderTests
         var (value, failure) = await JsonBodyReader.ReadJsonBodyAsync<Body>(request, bytes.Length, JsonSerializerOptions.Web, Ct);
         Assert.Null(failure);
         Assert.Equal("Praça", value!.Name);
+
+        stream.Position = 0;
+        var (tooLarge, rejected) = await JsonBodyReader.ReadJsonBodyAsync<Body>(request, bytes.Length - 1, JsonSerializerOptions.Web, Ct);
+        Assert.Null(tooLarge);
+        var problem = Assert.IsType<ProblemHttpResult>(rejected);
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, problem.StatusCode);
+        Assert.Equal("urn:applada:problem:payload-too-large", problem.ProblemDetails.Type);
     }
 
     [Theory]
