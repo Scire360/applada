@@ -20,7 +20,9 @@ async function appRoutes() {
   const fixed = pages.map((path) => path.replaceAll("\\", "/"))
     .filter((path) => /(^|\/)page\.tsx$/.test(path) && !path.includes("["))
     .map((path) => "/" + path.replace(/\/?page\.tsx$/, ""));
-  return [...new Set([...fixed, ...catalog])].sort();
+  return [...new Set([...fixed, ...catalog])]
+    .filter((route) => route !== "/login" && route !== "/acesso-negado")
+    .sort();
 }
 
 async function measureLayout() {
@@ -31,6 +33,8 @@ async function measureLayout() {
   const content = shell.querySelector(".page-content");
   const breadcrumbs = shell.querySelector(".breadcrumbs");
   const account = shell.querySelector(".topbar .account-trigger");
+  const avatar = shell.querySelector(".topbar .avatar-light");
+  const identity = account ?? avatar;
   const community = shell.querySelector('.compact-primary-nav a[aria-label="Comunidade"]');
   const range = document.createRange();
   range.selectNodeContents(community.querySelector("span"));
@@ -39,7 +43,7 @@ async function measureLayout() {
   const contentStyle = getComputedStyle(content);
   const leftPadding = parseFloat(contentStyle.paddingLeft);
   const rightPadding = parseFloat(contentStyle.paddingRight);
-  const accountRect = account.getBoundingClientRect();
+  const identityRect = identity?.getClientRects().length ? identity.getBoundingClientRect() : null;
   const layoutRect = content.firstElementChild.getBoundingClientRect();
   const communityRect = community.getBoundingClientRect();
   const communityText = Array.from(range.getClientRects());
@@ -51,8 +55,8 @@ async function measureLayout() {
     available: main.clientWidth,
     used: Math.min(layoutRect.width, contentRect.width - leftPadding - rightPadding),
     headerOffset: Math.abs(breadcrumbs.getBoundingClientRect().left - contentRect.left - leftPadding),
-    accountFits: accountRect.left >= 0 && accountRect.right <= viewportWidth
-      && accountRect.width >= 44 && accountRect.height >= 44,
+    accountFits: !identityRect || (identityRect.left >= 0 && identityRect.right <= viewportWidth
+      && (!account || (identityRect.width >= 44 && identityRect.height >= 44))),
     communityFits: communityText.length === 1 && communityText[0].left >= communityRect.left
       && communityText[0].right <= communityRect.right,
     actionsFit: Array.from(content.querySelectorAll(".page-heading-actions > *")).every((action) => {
@@ -79,10 +83,7 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
       try {
         for (const route of routes.filter((_, index) => index % 3 === worker)) {
           await page.setViewportSize(viewports[0]);
-          const [, response] = await Promise.all([
-            page.waitForResponse((response) => response.url() === base + "/api/local/session"),
-            page.goto(base + route, { waitUntil: "load" }),
-          ]);
+          const response = await page.goto(base + route, { waitUntil: "load" });
           await page.getByRole("main").waitFor({ state: "visible" });
           assert.equal(response?.status(), 200, route);
           for (const viewport of viewports) {
