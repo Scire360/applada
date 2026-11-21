@@ -47,7 +47,7 @@ internal static class DiscoverEndpoints
             return Invalid("radiusKm", $"O raio deve ser um inteiro entre 1 e {MaxRadiusKm}.");
         }
 
-        if (!TryPositiveInteger(limit == string.Empty ? null : limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
+        if (!TryPositiveInteger(limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
         {
             return InvalidLimit();
         }
@@ -102,7 +102,7 @@ internal static class DiscoverEndpoints
     private static bool TryPositiveInteger(string? input, int defaultValue, int max, out int value)
     {
         value = defaultValue;
-        return input is null || (int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 1 && value <= max);
+        return string.IsNullOrEmpty(input) || (int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 1 && value <= max);
     }
 
     private static ValidationProblem InvalidCursor() => Invalid("cursor", "Cursor inválido.");

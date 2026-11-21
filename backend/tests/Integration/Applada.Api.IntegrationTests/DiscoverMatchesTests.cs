@@ -56,6 +56,9 @@ public class DiscoverMatchesTests(ApiFactory factory)
 
         var page = await PageAsync(client, -56, "&radiusKm=10");
         Assert.Equal(inside.Id, Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("matchId").GetGuid());
+        var omitted = await PageAsync(client, -56);
+        Assert.True(JsonElement.DeepEquals(page, omitted));
+        Assert.True(JsonElement.DeepEquals(omitted, await PageAsync(client, -56, "&radiusKm=")));
     }
 
     [Fact]
