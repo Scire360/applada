@@ -1,7 +1,9 @@
+using System.Buffers.Text;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
+using Applada.Modules.Matches.Application.Queries;
 using Applada.Modules.Matches.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -179,6 +181,27 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         using var get = await anonymous.GetAsync(Path, Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, put.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, get.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invalid_cursor_returns_400()
+    {
+        string[] cursors =
+        [
+            Cursor.Encode("attendance", 0),
+            Cursor.Encode("attendance", 1, 2),
+            Cursor.Encode("attendance"),
+            // O encoder só emite chaves de tipos suportados. Estes envelopes preservam os tipos JSON adulterados.
+            Base64Url.EncodeToString("""{"k":"attendance","v":["1"]}"""u8),
+            Base64Url.EncodeToString("""{"k":"attendance","v":[9223372036854775808]}"""u8),
+            "%%%",
+        ];
+
+        foreach (var cursor in cursors)
+        {
+            using var response = await _organizer.GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}", Ct);
+            using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
+        }
     }
 
     [Fact]
