@@ -103,6 +103,14 @@ JSON de até 16 KB e só voltam respostas JSON. Sem sessão, ou com o access tok
 responde 401 e a tela pede para entrar de novo. Sair usa o logout do Auth.js, que também encerra a
 sessão SSO no Keycloak.
 
+Limitações conhecidas:
+
+- A sessão dura até o access token expirar (15 minutos no realm de desenvolvimento). Não há refresh
+  token: refresh é não objetivo e o Auth.js descarta o refresh token. Depois disso as telas mostram
+  "Entrar novamente", que volta para a mesma tela depois do login.
+- Risco aceito: o convite pendente fica num cookie `HttpOnly` por 10 minutos. Em um perfil de navegador
+  compartilhado, outra pessoa que entrar ali nesse intervalo pode aceitar o convite guardado.
+
 Ao criar uma partida, o seletor opcional **Grupo** lista os grupos em que você é dono ou administrador.
 `/peladas/conectadas?grupo=<id>` abre a criação com o grupo já escolhido.
 
