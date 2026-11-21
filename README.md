@@ -14,29 +14,31 @@ Plataforma de organização de futebol amador e rede social esportiva.
 
 ## Estado parcial — ampliar antes da conclusão
 
-- **Identity, Profiles, Communities e Matches:** Identity e Profiles cobrem funções básicas; Matches cobre partidas,
-  inscrições e promoção automática da lista de espera. Communities ainda não foi implementado.
-- **Schemas e migrations:** existem para Identity, Profiles e Matches. Communities e os demais módulos ainda não
-  possuem schemas e migrations.
-- **Autorização e IDOR/BOLA:** existem regras e testes para as operações atuais de Matches. A cobertura ainda não
-  alcança os módulos e endpoints que ainda não foram implementados.
+- **Identity, Profiles, Communities, Discovery e Matches:** Identity e Profiles cobrem funções básicas; Communities
+  cobre grupos, membros e convites; Discovery cobre locais (PostGIS) e a busca de peladas abertas por raio; Matches
+  cobre partidas, inscrições, promoção automática da lista de espera e a chamada de presença pelo organizador.
+- **Schemas e migrations:** existem para Identity, Profiles, Communities, Discovery e Matches. Os demais módulos
+  ainda não possuem schemas e migrations.
+- **Autorização e IDOR/BOLA:** existem regras e testes para as operações atuais desses cinco módulos. A cobertura
+  ainda não alcança os módulos e endpoints que ainda não foram implementados.
 - **Testes:** há testes unitários de domínio, regras de arquitetura e testes de contrato da API atual. O E2E web
   cobre fluxos existentes, mas não há app mobile nem E2E mobile; a cobertura geral ainda é incompleta.
-- **Frontend conectado:** o Next.js integra partidas e perfil em fluxos específicos. As demais telas continuam
+- **Frontend conectado:** o Next.js integra partidas, presença, descoberta, grupos e perfil em fluxos específicos. As demais telas continuam
   demonstrativas e sem integração persistida.
 - **Infraestrutura:** RabbitMQ está configurado e o Aspire fornece ambiente local e health checks. Redis ainda não
   está configurado como serviço da aplicação. Object storage aparece apenas no fluxo local/documentado de avatar
   via Supabase; não há configuração S3 completa para produção.
-- **Observabilidade e CI:** há OpenTelemetry, métricas e health checks, além do pipeline backend. Ainda faltam a
-  operação completa da observabilidade, CI web e evidência no repositório de secret scanning.
+- **Observabilidade e CI:** há OpenTelemetry, métricas e health checks, além dos pipelines backend, web e CodeQL.
+  Ainda faltam a operação completa da observabilidade e evidência no repositório de secret scanning.
 - **Testes de carga:** existem testes de concorrência contra PostgreSQL, mas não há teste de carga ou benchmark
   da última vaga no repositório.
 
 ### Ainda pendente ou não verificável pelo repositório
 
 - Menores de idade, consentimentos e fluxos completos de LGPD.
-- Consumidores de eventos idempotentes e implementação dos módulos Communities, Teams, Social, Media, Statistics,
-  Payments, Notifications, Discovery e Trust.
+- Consumidores de eventos idempotentes e implementação dos módulos Teams, Social, Media, Statistics, Payments,
+  Notifications e Trust.
+- Retenção da falta registrada na presença (LGPD), a decidir em ADR antes do primeiro consumidor do evento.
 - Backup e restauração reais, além de deploy, reverse proxy e health checks de produção.
 - Validação da conexão com o projeto Supabase do ambiente. A integração está documentada, mas o repositório não
   demonstra acesso ou validação desse projeto.
