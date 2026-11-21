@@ -47,5 +47,10 @@ internal sealed class MatchConfiguration : IEntityTypeConfiguration<Match>
         match.Ignore(m => m.DomainEvents);
 
         match.HasIndex(m => new { m.OrganizerId, m.StartsAt });
+
+        // Próximas partidas de um grupo (só as agendadas), por (starts_at, id).
+        match.HasIndex(m => new { m.GroupId, m.StartsAt, m.Id })
+            .HasDatabaseName("ix_matches_group_upcoming")
+            .HasFilter("status = 'scheduled'");
     }
 }

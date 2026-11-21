@@ -21,6 +21,12 @@ public interface IMatchQueries
     Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);
 
     /// <summary>
+    /// Partidas agendadas do grupo <paramref name="groupId"/> com <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>;
+    /// <c>MyStatus</c> é a inscrição ativa de <paramref name="userId"/>. Não verifica a associação ao grupo.
+    /// </summary>
+    Task<IReadOnlyList<MyMatchRow>> ListGroupUpcomingAsync(Guid groupId, Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);
+
+    /// <summary>
     /// Partidas com inscrição ativa de <paramref name="userId"/> e <c>starts_at &gt;= earliestStart</c>, por <c>(starts_at, id)</c>.
     /// </summary>
     Task<IReadOnlyList<MyMatchRow>> ListParticipatingAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct);

@@ -14,6 +14,7 @@ public static class Cursor
 {
     public const string ParticipantsKind = "participants";
     public const string MyMatchesKind = "my-matches";
+    public const string GroupMatchesKind = "group-matches";
 
     /// <summary>Um cursor legítimo tem menos de 150 caracteres; acima disso nem é decodificado.</summary>
     private const int MaxLength = 256;

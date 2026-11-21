@@ -13,6 +13,7 @@ namespace Applada.Modules.Matches.Infrastructure;
 /// <item>participantes: índice <c>(match_id, status, queue_seq)</c>; a posição na espera é uma subconsulta no mesmo
 /// índice, na mesma instrução (mesmo snapshot);</item>
 /// <item>organizador: índice <c>(organizer_id, starts_at)</c>;</item>
+/// <item>grupo: índice parcial <c>(group_id, starts_at, id) WHERE status = 'scheduled'</c>;</item>
 /// <item>participante: índice <c>(user_id, status)</c>, com junção pela chave primária da partida.</item>
 /// </list>
 /// </summary>
@@ -107,6 +108,35 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
     public async Task<IReadOnlyList<MyMatchRow>> ListOrganizedAsync(Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
     {
         var matches = db.Matches.AsNoTracking().Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart);
+        if (after is { } key)
+        {
+            matches = matches.Where(m => EF.Functions.GreaterThan(ValueTuple.Create(m.StartsAt, m.Id), ValueTuple.Create(key.StartsAt, key.Id)));
+        }
+
+        return await matches
+            .OrderBy(m => m.StartsAt)
+            .ThenBy(m => m.Id)
+            .Take(take)
+            .Select(m => new MyMatchRow(
+                m.Id,
+                m.Title,
+                m.StartsAt,
+                m.Status,
+                m.ConfirmedCount,
+                m.Capacity,
+                db.Registrations
+                    .Where(r => r.MatchId == m.Id
+                        && r.UserId == userId
+                        && (r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.Waitlisted))
+                    .Select(r => (RegistrationStatus?)r.Status)
+                    .FirstOrDefault()))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MyMatchRow>> ListGroupUpcomingAsync(Guid groupId, Guid userId, DateTimeOffset earliestStart, MyMatchesKey? after, int take, CancellationToken ct)
+    {
+        var matches = db.Matches.AsNoTracking()
+            .Where(m => m.GroupId == groupId && m.Status == MatchStatus.Scheduled && m.StartsAt >= earliestStart);
         if (after is { } key)
         {
             matches = matches.Where(m => EF.Functions.GreaterThan(ValueTuple.Create(m.StartsAt, m.Id), ValueTuple.Create(key.StartsAt, key.Id)));

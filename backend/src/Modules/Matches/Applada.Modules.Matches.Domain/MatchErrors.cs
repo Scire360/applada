@@ -23,6 +23,10 @@ public static class MatchErrors
     public static Error MatchNotFound { get; } =
         new("match-not-found", ErrorKind.NotFound, "Partida não encontrada.");
 
+    /// <summary>Grupo inexistente ou o usuário não é membro dele: a mesma resposta, para não revelar o grupo.</summary>
+    public static Error GroupNotFound { get; } =
+        new("group-not-found", ErrorKind.NotFound, "Grupo não encontrado.");
+
     public static Error RegistrationNotFound { get; } =
         new("registration-not-found", ErrorKind.NotFound, "Não há inscrição ativa nesta partida.");
 
