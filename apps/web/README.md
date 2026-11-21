@@ -175,7 +175,8 @@ banco local.
 
 Com o app rodando em `http://localhost:3000` e o Chrome instalado, execute
 `npm run test:layout` para verificar as páginas estáticas e as rotas do
-catálogo em tamanhos de tela entre 320 px e 4K. O teste usa a prévia sem login.
+catálogo em tamanhos de tela entre 320 px e 4K. O teste entra com `jogador1.dev` pelo login do site e exige
+`APPLADA_E2E_TEST_PASSWORD`, como o E2E de partida.
 
 ```powershell
 npm run lint

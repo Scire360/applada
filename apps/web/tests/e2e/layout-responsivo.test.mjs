@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import { chromium } from "playwright";
+import { launchChrome, requirePassword, signIn, webOrigin } from "./sessao.mjs";
 
-const base = "http://localhost:" + (process.env.APPLADA_LAYOUT_TEST_PORT ?? "3000");
+// O login do Keycloak só redireciona de volta para a porta 3000.
+const base = webOrigin;
 
 const viewports = [
   [320, 568], [360, 800], [390, 844], [430, 932], [568, 320],
@@ -20,7 +21,9 @@ async function appRoutes() {
   const fixed = pages.map((path) => path.replaceAll("\\", "/"))
     .filter((path) => /(^|\/)page\.tsx$/.test(path) && !path.includes("["))
     .map((path) => "/" + path.replace(/\/?page\.tsx$/, ""));
-  return [...new Set([...fixed, ...catalog])].sort();
+  // Páginas sem o shell do app (login, convite público e acesso negado) não entram na medição.
+  const withoutShell = new Set(["/login", "/convite", "/acesso-negado"]);
+  return [...new Set([...fixed, ...catalog])].filter((route) => !withoutShell.has(route)).sort();
 }
 
 async function measureLayout() {
@@ -65,12 +68,13 @@ async function measureLayout() {
 
 test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas", { timeout: 240_000 }, async (t) => {
   const routes = await appRoutes();
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
+  const { context } = await signIn(browser, "jogador1.dev", requirePassword());
   const failures = [];
   let checked = 0;
   try {
     await Promise.all(Array.from({ length: 3 }, async (_, worker) => {
-      const page = await browser.newPage({ viewport: viewports[0], reducedMotion: "reduce" });
+      const page = await context.newPage();
       page.on("pageerror", (error) => {
         const { width, height } = page.viewportSize();
         failures.push(new URL(page.url()).pathname + " em " + width + "×" + height
@@ -79,8 +83,9 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
       try {
         for (const route of routes.filter((_, index) => index % 3 === worker)) {
           await page.setViewportSize(viewports[0]);
+          await page.emulateMedia({ reducedMotion: "reduce" });
           const [, response] = await Promise.all([
-            page.waitForResponse((response) => response.url() === base + "/api/local/session"),
+            page.waitForResponse((response) => response.url() === base + "/api/app/me"),
             page.goto(base + route, { waitUntil: "load" }),
           ]);
           await page.getByRole("main").waitFor({ state: "visible" });
@@ -116,9 +121,11 @@ test("todas as páginas cabem nos tamanhos suportados e aproveitam telas largas"
 });
 
 test("seções do sidebar começam fechadas e os atalhos compactos ficam acessíveis", async () => {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await launchChrome();
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const { context } = await signIn(browser, "jogador1.dev", requirePassword());
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + "/peladas");
     const nav = page.getByRole("navigation", { name: "Navegação principal" });
     const groups = nav.locator("details");
