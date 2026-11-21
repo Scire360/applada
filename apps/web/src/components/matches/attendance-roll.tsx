@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, appApi } from "@/lib/api-client";
-import { attendanceMessage } from "@/lib/attendance";
+import { accessDenied, attendanceMessage, attendanceProblem, readAttendance } from "@/lib/attendance";
 import type { MatchDetails, Page } from "@/lib/connected-matches";
 import { useAttendanceWindow } from "./use-attendance-window";
 import { SignInAgain } from "../groups/sign-in-again";
@@ -34,15 +34,16 @@ export function AttendanceRoll({ matchId }: { matchId: string }) {
     async function load() {
       try {
         const requestedAt = Date.now();
-        const [next, details] = await Promise.all([
+        const [next, details] = await readAttendance(
           appApi<Page<Entry>>(path, options),
           appApi<MatchDetails>(`matches/${matchId}`, options),
-        ]);
+        );
         if (!controller.signal.aborted) {
           setFailure(undefined);
           setReadBeforeStart(requestedAt < Date.parse(details.startsAt));
           setMatch(details);
           setPage(next);
+          if (readBeforeStart) setNotice("Lista atualizada no início da partida.");
         }
       } catch (error) {
         if (!controller.signal.aborted) setLoadFailure(asApiError(error));
@@ -50,7 +51,7 @@ export function AttendanceRoll({ matchId }: { matchId: string }) {
     }
     void load();
     return () => controller.abort();
-  }, [matchId, path, needsLoad, loadFailure, busy, readBeforeStart]);
+  }, [matchId, path, needsLoad, loadFailure, busy, readBeforeStart, setNotice]);
 
   useEffect(() => {
     let current: AbortController | undefined;
@@ -115,7 +116,7 @@ export function AttendanceRoll({ matchId }: { matchId: string }) {
     });
   }
 
-  const problem = accessDenied(failure) ? failure : loadFailure ?? failure;
+  const problem = attendanceProblem(loadFailure, failure);
   const loading = needsLoad && !loadFailure;
   const windowMessage = closedMessage || (match?.status === "cancelled" ? "A partida foi cancelada."
     : phase === "not-open" ? "A chamada abre no início da partida." : phase === "closed" ? "A chamada fechou." : "");
@@ -160,8 +161,4 @@ export function AttendanceRoll({ matchId }: { matchId: string }) {
 
 function asApiError(error: unknown) {
   return error instanceof ApiError ? error : new ApiError(0, "Não foi possível carregar ou atualizar a chamada.");
-}
-
-function accessDenied(error?: ApiError) {
-  return error?.status === 401 || error?.status === 403;
 }

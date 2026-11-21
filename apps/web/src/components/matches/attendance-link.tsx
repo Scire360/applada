@@ -12,8 +12,8 @@ export function AttendanceLink({ match, userId }: { match: MatchSummary | MatchD
   const phase = useAttendanceWindow(current ?? match);
   const started = match.status === "scheduled" && (phase === "started" || phase === "open");
 
-  // O resumo não traz organizador nem duração. Busca o detalhe após o início,
-  // quando já não é possível outro usuário editar ou cancelar a partida.
+  // Usa a própria partida quando ela já traz organizerId e durationMinutes.
+  // Caso contrário, busca o detalhe após o início, quando edição e cancelamento já fecharam.
   useEffect(() => {
     if (!started || current) return;
     const controller = new AbortController();
@@ -22,6 +22,7 @@ export function AttendanceLink({ match, userId }: { match: MatchSummary | MatchD
         const next = await appApi<MatchDetails>(`matches/${match.id}`, { signal: controller.signal });
         if (!controller.signal.aborted) setDetails(next);
       } catch {
+        // Inclusive em 4xx, só tentamos de novo no evento online para evitar requisições repetidas.
         if (!controller.signal.aborted) window.addEventListener("online", check, { once: true });
       }
     }
