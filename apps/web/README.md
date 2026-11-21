@@ -177,6 +177,24 @@ npm run build
 O mapa em `/modulos` reúne as 43 vistas identificadas no frontend legado e permite buscar por
 nome, caminho ou área do produto. Nas telas demonstrativas, formulários e listas simulam a interação em memória no navegador.
 
+## Autenticação web
+
+O acesso inicial usa Supabase Auth com e-mail e senha por uma integração server-side do Next.js.
+O navegador recebe somente um cookie de sessão `HttpOnly`; tokens não são armazenados em
+`localStorage` ou `sessionStorage`. As rotas do aplicativo falham fechadas e redirecionam para
+`/login` quando a sessão não pode ser verificada.
+
+Copie `.env.example` para `.env.local` e configure `SUPABASE_URL` e `SUPABASE_ANON_KEY` com os
+valores do projeto Supabase. Essas variáveis são lidas somente pelo servidor Next.js. Não use
+uma chave `service_role` e nunca versione `.env.local`.
+
+Ative o provedor de e-mail/senha e crie os usuários pelo fluxo administrativo do Supabase. O
+cadastro público e a recuperação de senha ainda não estão implementados. Antes de produção,
+configure e valide os limites de autenticação e CAPTCHA disponíveis no projeto Supabase;
+esta etapa ainda não adiciona um limitador distribuído próprio.
+
+O runtime do Next.js 16 exige Node.js 20.9 ou superior.
+
 ## Demonstração da jornada de peladas
 
 Em `/eventos/novo`, crie uma pelada de demonstração com data de hoje ou futura; para hoje, o horário também precisa estar no futuro. Continue pela agenda em `/peladas`.
