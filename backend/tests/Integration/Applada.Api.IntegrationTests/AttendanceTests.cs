@@ -301,12 +301,17 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         OpenAttendance();
         var pending = PutAsync(_organizer, _player.Id);
         // Libera a alteração pré-jogo somente quando o banco confirmar que o PUT a está aguardando.
-        // pg_locks inclui esperas de conexões abertas após a primeira consulta da transação.
+        // pg_stat_activity copia o estado das sessões na primeira leitura e o mantém até o fim da transação
+        // (PostgreSQL 17, §27.2.2). pg_locks é lido ao vivo: o INSERT já tem o lock da tabela ao esperar pela FK.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(4));
         while (!await db.Database.SqlQuery<bool>($"""
             SELECT EXISTS (
-                SELECT 1 FROM pg_locks WHERE NOT granted AND pg_backend_pid() = ANY(pg_blocking_pids(pid))
+                SELECT 1 FROM pg_locks waiting
+                JOIN pg_locks attendance ON attendance.pid = waiting.pid
+                WHERE NOT waiting.granted AND pg_backend_pid() = ANY(pg_blocking_pids(waiting.pid))
+                  AND attendance.locktype = 'relation' AND attendance.relation = 'matches.attendance'::regclass
+                  AND attendance.mode = 'RowExclusiveLock' AND attendance.granted
             ) AS "Value"
             """).SingleAsync(timeout.Token))
         {
