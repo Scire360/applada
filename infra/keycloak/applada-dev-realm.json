@@ -51,7 +51,7 @@
         "post.logout.redirect.uris": "http://localhost:5080/scalar/*",
         "oauth2.device.authorization.grant.enabled": "false",
         "oidc.ciba.grant.enabled": "false",
-        "use.refresh.tokens": "false"
+        "use.refresh.tokens": "true"
       },
       "defaultClientScopes": [
         "basic",
@@ -109,7 +109,7 @@
         "post.logout.redirect.uris": "http://localhost:3000/login",
         "oauth2.device.authorization.grant.enabled": "false",
         "oidc.ciba.grant.enabled": "false",
-        "use.refresh.tokens": "true"
+        "use.refresh.tokens": "false"
       },
       "defaultClientScopes": ["basic", "web-origins", "acr", "profile", "email"],
       "optionalClientScopes": [],
