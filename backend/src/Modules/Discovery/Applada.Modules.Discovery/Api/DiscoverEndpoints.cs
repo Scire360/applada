@@ -47,11 +47,12 @@ internal static class DiscoverEndpoints
             return Invalid("radiusKm", $"O raio deve ser um inteiro entre 1 e {MaxRadiusKm}.");
         }
 
-        if (!TryPositiveInteger(limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
+        if (!TryPositiveInteger(limit == string.Empty ? null : limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
         {
             return InvalidLimit();
         }
 
+        cursor = cursor == string.Empty ? null : cursor;
         if (cursor is not null && !catalog.IsValidCursor(cursor))
         {
             return InvalidCursor();

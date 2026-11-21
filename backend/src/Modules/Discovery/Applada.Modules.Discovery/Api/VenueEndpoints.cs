@@ -76,6 +76,7 @@ internal static class VenueEndpoints
     private static async Task<IResult> ListMineAsync(
         string? cursor, string? limit, HttpResponse response, ICurrentUser user, VenueStore store, CancellationToken ct)
     {
+        response.Headers.CacheControl = "private, no-store";
         var pageSize = DefaultLimit;
         if (!string.IsNullOrEmpty(limit) && (!int.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out pageSize)
             || pageSize is < 1 or > MaxLimit))
@@ -90,7 +91,6 @@ internal static class VenueEndpoints
 
         var venues = await store.ListMineAsync(user.UserId, after, pageSize, ct);
         var nextCursor = venues.Count > pageSize ? VenueCursor.Encode(venues[pageSize - 1]) : null;
-        response.Headers.CacheControl = "private, no-store";
         return TypedResults.Ok(new Page<VenueResponse>([.. venues.Take(pageSize).Select(ToResponse)], nextCursor));
     }
 

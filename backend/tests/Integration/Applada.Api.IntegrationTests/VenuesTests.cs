@@ -162,6 +162,21 @@ public class VenuesTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Empty_pagination_uses_the_same_first_page_as_omitted_parameters()
+    {
+        using var owner = NewClient();
+        var id = await CreateAsync(owner);
+        const string path = "/api/v1/me/venues";
+        var expected = await owner.GetFromJsonAsync<JsonElement>(new Uri(path, UriKind.Relative), Ct);
+        Assert.Equal(id, Assert.Single(expected.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+        foreach (var query in new[] { "?limit=", "?cursor=" })
+        {
+            var page = await owner.GetFromJsonAsync<JsonElement>(new Uri(path + query, UriKind.Relative), Ct);
+            Assert.True(JsonElement.DeepEquals(expected, page));
+        }
+    }
+
+    [Fact]
     public async Task My_venues_is_isolated_per_user_and_paginates()
     {
         using var owner = NewClient();
@@ -204,6 +219,8 @@ public class VenuesTests(ApiFactory factory)
         using var response = await client.GetAsync(new Uri($"/api/v1/me/venues?{query}", UriKind.Relative), Ct);
         using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
         Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty(field, out _));
+        Assert.True(response.Headers.CacheControl?.Private);
+        Assert.True(response.Headers.CacheControl?.NoStore);
     }
 
     [Fact]

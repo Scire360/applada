@@ -106,6 +106,17 @@ public class DiscoverMatchesTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Empty_pagination_uses_the_same_first_page_as_omitted_parameters()
+    {
+        using var client = NewClient();
+        var match = await AddMatchAsync(await CreateVenueAsync(client, -67, 0), 1);
+        var expected = await PageAsync(client, -67);
+        Assert.Equal(match.Id, Assert.Single(expected.GetProperty("items").EnumerateArray()).GetProperty("matchId").GetGuid());
+        Assert.True(JsonElement.DeepEquals(expected, await PageAsync(client, -67, "&limit=")));
+        Assert.True(JsonElement.DeepEquals(expected, await PageAsync(client, -67, "&cursor=")));
+    }
+
+    [Fact]
     public async Task Pagination_by_cursor()
     {
         using var client = NewClient();
