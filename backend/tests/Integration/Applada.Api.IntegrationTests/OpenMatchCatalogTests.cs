@@ -87,6 +87,7 @@ public class OpenMatchCatalogTests(ApiFactory factory)
         string[] invalid =
         [
             "???",
+            CursorSamples.WithInvalidUtf8Key(Cursor.OpenMatchesKind),
             Cursor.Encode(Cursor.GroupMatchesKind, now, Guid.NewGuid()),
             Cursor.Encode(Cursor.OpenMatchesKind, now),
             Cursor.Encode(Cursor.OpenMatchesKind, 1, Guid.NewGuid()),

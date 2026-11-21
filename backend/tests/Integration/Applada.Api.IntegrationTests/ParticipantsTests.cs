@@ -256,6 +256,7 @@ public class ParticipantsTests(ApiFactory factory)
                 Base64Url("{}"),
                 Base64Url("""{"k":"x","v":[]}"""),
                 myMatchesCursor,
+                CursorSamples.WithInvalidUtf8Key("participants"),
                 Base64Url("""{"k":"participants","v":[]}"""),
                 Base64Url("""{"k":"participants","v":[0]}"""),
                 Base64Url("""{"k":"participants","v":[0,1,2]}"""),

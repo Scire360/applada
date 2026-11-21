@@ -215,6 +215,7 @@ public class MyMatchesTests(ApiFactory factory)
         [
             "%%%",
             participantsCursor,
+            CursorSamples.WithInvalidUtf8Key("my-matches"),
             Base64Url("{}"),
             Base64Url("""{"k":"my-matches","v":[]}"""),
             Base64Url("""{"k":"my-matches","v":["2026-01-01T00:00:00+00:00"]}"""),

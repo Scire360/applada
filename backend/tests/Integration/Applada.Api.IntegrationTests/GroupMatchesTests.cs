@@ -126,6 +126,17 @@ public class GroupMatchesTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Invalid_cursor_returns_400()
+    {
+        using var owner = await NewUserAsync(factory, "gm");
+        var groupId = await CreateGroupAsync(owner.Client);
+        var cursor = CursorSamples.WithInvalidUtf8Key("group-matches");
+
+        using var response = await owner.Client.GetAsync(new Uri($"{GroupsPath}/{groupId}/matches?cursor={cursor}", UriKind.Relative), Ct);
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "invalid-cursor");
+    }
+
+    [Fact]
     public async Task Response_is_private_no_store()
     {
         using var owner = await NewUserAsync(factory, "gm");

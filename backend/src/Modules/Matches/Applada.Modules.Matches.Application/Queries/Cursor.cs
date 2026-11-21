@@ -65,7 +65,8 @@ public static class Cursor
 
     /// <summary>
     /// Decodifica <paramref name="cursor"/> se ele for exatamente um objeto com <c>k</c> igual a
-    /// <paramref name="expectedKind"/> e <c>v</c> array. Nunca lança por causa do conteúdo.
+    /// <paramref name="expectedKind"/> e <c>v</c> um array de números ou textos Unicode válidos.
+    /// Nunca lança por causa do conteúdo.
     /// </summary>
     public static bool TryDecode(string? cursor, string expectedKind, out JsonElement[] keys)
     {
@@ -118,10 +119,31 @@ public static class Cursor
                 return false;
             }
 
-            keys = [.. v.EnumerateArray().Select(e => e.Clone())];
+            var decoded = new JsonElement[v.GetArrayLength()];
+            var index = 0;
+            foreach (var value in v.EnumerateArray())
+            {
+                if (value.ValueKind == JsonValueKind.String)
+                {
+                    // JsonDocument valida o texto UTF-8 e os escapes Unicode ao materializar a string.
+                    _ = value.GetString();
+                }
+                else if (value.ValueKind != JsonValueKind.Number)
+                {
+                    return false;
+                }
+
+                decoded[index++] = value.Clone();
+            }
+
+            keys = decoded;
             return true;
         }
         catch (JsonException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }

@@ -205,6 +205,7 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         string[] cursors =
         [
             Cursor.Encode("attendance", 0),
+            CursorSamples.WithInvalidUtf8Key(Cursor.AttendanceKind),
             Cursor.Encode("attendance", 1, 2),
             Cursor.Encode("attendance"),
             // O encoder só emite chaves de tipos suportados. Estes envelopes preservam os tipos JSON adulterados.
