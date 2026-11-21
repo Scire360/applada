@@ -72,6 +72,23 @@ public class JsonBodyReaderTests
         Assert.Equal(0, stream.Position);
     }
 
+    [Fact]
+    public async Task Unpaired_surrogate_in_utf16_returns_validation_error_for_body()
+    {
+        // D800 em little-endian, sem o segundo surrogate do par.
+        byte[] bytes = [.. Encoding.Unicode.GetBytes("{\"name\":\""), 0x00, 0xD8, .. Encoding.Unicode.GetBytes("\"}")];
+        using var stream = new MemoryStream(bytes);
+        var request = Request(stream, "application/json; charset=utf-16");
+
+        var (value, failure) = await JsonBodyReader.ReadJsonBodyAsync<Body>(request, Limit, JsonSerializerOptions.Web, Ct);
+
+        var problem = Assert.IsType<ValidationProblem>(failure);
+        Assert.Null(value);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal("urn:applada:problem:validation", problem.ProblemDetails.Type);
+        Assert.Equal("body", Assert.Single(problem.ProblemDetails.Errors).Key);
+    }
+
     [Theory]
     [InlineData("""{"NAME":!}""", "name")]
     [InlineData("""{"unknown":!}""", "body")]

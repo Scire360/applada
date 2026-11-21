@@ -38,7 +38,7 @@ public static class JsonBodyReader
         try
         {
             using var stream = new MemoryStream(buffer, 0, length, writable: false);
-            using var utf8 = !encoding.Equals(Encoding.UTF8)
+            using var utf8 = encoding.CodePage != Encoding.UTF8.CodePage
                 ? Encoding.CreateTranscodingStream(stream, encoding, Encoding.UTF8) : null;
             var value = await JsonSerializer.DeserializeAsync<T>(utf8 ?? stream, options, ct);
             return value is null ? (null, Invalid("body")) : (value, null);
@@ -46,6 +46,10 @@ public static class JsonBodyReader
         catch (JsonException ex)
         {
             return (null, Invalid(FieldFromPath<T>(ex.Path, options)));
+        }
+        catch (DecoderFallbackException)
+        {
+            return (null, Invalid("body"));
         }
     }
 
@@ -59,7 +63,8 @@ public static class JsonBodyReader
 
         try
         {
-            return Encoding.GetEncoding(HeaderUtilities.RemoveQuotes(charset).Value!);
+            return Encoding.GetEncoding(HeaderUtilities.RemoveQuotes(charset).Value!,
+                EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
         {
