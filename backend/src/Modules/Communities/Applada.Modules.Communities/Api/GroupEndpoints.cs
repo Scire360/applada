@@ -1,5 +1,5 @@
-using System.Text.Json;
 using Applada.BuildingBlocks.Contracts;
+using Applada.BuildingBlocks.Web;
 using Applada.Modules.Communities.Contracts;
 using Applada.Modules.Communities.Domain;
 using Applada.Modules.Communities.Infrastructure;
@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Applada.Modules.Communities.Api;
@@ -123,9 +122,10 @@ internal static class GroupEndpoints
     }
 
     private static async Task<IResult> CreateAsync(
-        HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time, CancellationToken ct)
+        HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time,
+        IOptions<JsonOptions> json, CancellationToken ct)
     {
-        var (body, failure) = await ReadAsync<CreateGroupRequest>(context.Request, ct);
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<CreateGroupRequest>(context.Request, MaxBodyBytes, json.Value.SerializerOptions, ct);
         if (failure is not null)
         {
             return failure;
@@ -228,9 +228,10 @@ internal static class GroupEndpoints
     }
 
     private static async Task<IResult> InviteAsync(
-        Guid id, HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time, CancellationToken ct)
+        Guid id, HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time,
+        IOptions<JsonOptions> json, CancellationToken ct)
     {
-        var (body, failure) = await ReadAsync<CreateInvitationRequest>(context.Request, ct);
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<CreateInvitationRequest>(context.Request, MaxBodyBytes, json.Value.SerializerOptions, ct);
         if (failure is not null)
         {
             return failure;
@@ -262,9 +263,10 @@ internal static class GroupEndpoints
     }
 
     private static async Task<IResult> AcceptAsync(
-        HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time, CancellationToken ct)
+        HttpContext context, ICurrentUser currentUser, GroupStore store, TimeProvider time,
+        IOptions<JsonOptions> json, CancellationToken ct)
     {
-        var (body, failure) = await ReadAsync<AcceptInvitationRequest>(context.Request, ct);
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<AcceptInvitationRequest>(context.Request, MaxBodyBytes, json.Value.SerializerOptions, ct);
         if (failure is not null)
         {
             return failure;
@@ -288,9 +290,10 @@ internal static class GroupEndpoints
     }
 
     private static async Task<IResult> ChangeRoleAsync(
-        Guid id, Guid userId, HttpContext context, ICurrentUser currentUser, GroupStore store, IProfileNames profiles, CancellationToken ct)
+        Guid id, Guid userId, HttpContext context, ICurrentUser currentUser, GroupStore store, IProfileNames profiles,
+        IOptions<JsonOptions> json, CancellationToken ct)
     {
-        var (body, failure) = await ReadAsync<ChangeRoleRequest>(context.Request, ct);
+        var (body, failure) = await JsonBodyReader.ReadJsonBodyAsync<ChangeRoleRequest>(context.Request, MaxBodyBytes, json.Value.SerializerOptions, ct);
         if (failure is not null)
         {
             return failure;
@@ -327,53 +330,4 @@ internal static class GroupEndpoints
 
     private static GroupResponse ToResponse(GroupView group) =>
         new(group.Id, group.Name, group.Description, group.MemberCount, GroupRules.ToText(group.MyRole), group.CreatedAt);
-
-    /// <summary>
-    /// JSON pequeno e bem formado: 413 acima do limite, 415 sem JSON, 400 com corpo ilegível ou vazio. O limite vale
-    /// também sem <c>Content-Length</c> (<c>Transfer-Encoding: chunked</c>): o corpo é lido com teto, nunca inteiro.
-    /// </summary>
-    private static async Task<(T? Value, IResult? Failure)> ReadAsync<T>(HttpRequest request, CancellationToken ct)
-        where T : class
-    {
-        if (!request.HasJsonContentType() || request.GetTypedHeaders().ContentType is { Charset.HasValue: true, Encoding: null })
-        {
-            return (null, Problems.UnsupportedMediaType());
-        }
-
-        if (request.ContentLength > MaxBodyBytes)
-        {
-            return (null, PayloadTooLarge());
-        }
-
-        var buffer = new byte[MaxBodyBytes + 1];
-        var length = 0;
-        int read;
-        while (length < buffer.Length && (read = await request.Body.ReadAsync(buffer.AsMemory(length), ct)) > 0)
-        {
-            length += read;
-        }
-
-        if (length > MaxBodyBytes)
-        {
-            return (null, PayloadTooLarge());
-        }
-
-        try
-        {
-            var options = request.HttpContext.RequestServices.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions;
-            var value = JsonSerializer.Deserialize<T>(buffer.AsSpan(0, length), options);
-            return value is null
-                ? (null, Problems.From(CommunityErrors.Validation("body", "Envie um objeto JSON.")))
-                : (value, null);
-        }
-        catch (JsonException)
-        {
-            return (null, Problems.From(CommunityErrors.Validation("body", "JSON inválido.")));
-        }
-    }
-
-    private static Microsoft.AspNetCore.Http.HttpResults.ProblemHttpResult PayloadTooLarge() => TypedResults.Problem(
-        statusCode: StatusCodes.Status413PayloadTooLarge,
-        title: "Corpo da requisição grande demais.",
-        type: "urn:applada:problem:payload-too-large");
 }

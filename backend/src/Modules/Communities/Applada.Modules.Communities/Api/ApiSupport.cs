@@ -118,11 +118,6 @@ internal static class Problems
         return TypedResults.Problem(problem);
     }
 
-    public static IResult UnsupportedMediaType() => TypedResults.Problem(
-        statusCode: StatusCodes.Status415UnsupportedMediaType,
-        title: "O corpo deve ser JSON com uma codificação reconhecida.",
-        type: TypePrefix + "unsupported-media-type");
-
     /// <summary>JSON com <c>Cache-Control: private, no-store</c>: o corpo depende de quem pergunta.</summary>
     public static IResult Private<T>(T value, int status = StatusCodes.Status200OK) => new PrivateJson<T>(value, status);
 

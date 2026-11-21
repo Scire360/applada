@@ -51,6 +51,17 @@ public class CommunitiesTests(ApiFactory factory)
         Assert.Equal("owner", evt.GetProperty("role").GetString());
     }
 
+    [Fact]
+    public async Task Create_group_reads_json_with_declared_utf16_encoding()
+    {
+        using var owner = await NewUserAsync(factory, "grp");
+        using var content = new StringContent("""{"name":"Pelada da praça"}""", Encoding.Unicode, "application/json");
+        using var response = await owner.Client.PostAsync(new Uri(GroupsPath, UriKind.Relative), content, Ct);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var body = await ReadJsonAsync(response);
+        Assert.Equal("Pelada da praça", body.RootElement.GetProperty("name").GetString());
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("   ")]
