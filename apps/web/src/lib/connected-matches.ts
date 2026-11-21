@@ -30,6 +30,7 @@ export type MatchCreation = MatchEdit & {
   durationMinutes: number;
   visibility: "public";
   groupId?: string;
+  venueId?: string;
 };
 
 export type GroupRole = "owner" | "admin" | "member";

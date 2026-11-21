@@ -114,6 +114,15 @@ Limitações conhecidas:
 Ao criar uma partida, o seletor opcional **Grupo** lista os grupos em que você é dono ou administrador.
 `/peladas/conectadas?grupo=<id>` abre a criação com o grupo já escolhido.
 
+Em **Meus locais**, selecione uma quadra ou um campo público para que a partida apareça em
+`/peladas/abertas`. **Cadastrar local** aceita coordenadas digitadas ou permite preencher os
+campos com a localização aproximada do dispositivo. Confira os valores antes de salvar o local.
+
+Em **Peladas abertas**, clique em **Usar minha localização** e escolha um raio de 5, 10, 25 ou 50 km.
+A posição de busca fica em memória. A tela envia ao BFF apenas a latitude e a longitude arredondadas a
+duas casas, nos cabeçalhos `X-Applada-Lat` e `X-Applada-Lon`. O BFF monta a query da API.
+O botão **Entrar** confirma a inscrição ou inclui o jogador na lista de espera, conforme a resposta da API.
+
 O contrato de Matches oferece partidas que o usuário organiza ou das quais participa. O fluxo usa links para abrir outras partidas por ID. Check-in, placar e votação seguem na demonstração.
 
 Em **Meu perfil**, o jogador salva seu próprio nome de exibição. O nome aparece na lista de participantes.
@@ -153,6 +162,7 @@ $env:APPLADA_E2E_TEST_PASSWORD = Read-Host 'Senha local das três contas de test
 try {
   npm run test:e2e
   npm run test:e2e:grupos
+  npm run test:e2e:descoberta
 } finally {
   Remove-Item Env:APPLADA_E2E_TEST_PASSWORD
 }
@@ -180,6 +190,11 @@ O teste cancela a partida e restaura os nomes de exibição ao final. A API não
 `E2E grupo <sufixo>` e o dono permanecem no banco local.
 Se o perfil estava vazio, o nome sintético fica na conta de teste. O registro da partida cancelada fica no
 banco local.
+
+`npm run test:e2e:descoberta` usa duas sessões. O organizador cadastra um local e cria uma partida.
+O jogador tenta buscar com a permissão negada, libera a localização simulada, encontra a partida e
+entra. O teste cancela a partida ao final. O local público sintético permanece cadastrado porque a
+API ainda não oferece exclusão de locais.
 
 ## Verificações
 
@@ -216,7 +231,7 @@ nome, caminho ou área do produto. Nas telas demonstrativas, formulários e list
 ## Demonstração da jornada de peladas
 
 Em `/eventos/novo`, crie uma pelada de demonstração com data de hoje ou futura; para hoje, o horário também precisa estar no futuro. Continue pela agenda em `/peladas`.
-Em `/peladas/abertas`, `/presenca` e `/presenca/check-in`, é possível simular confirmações e
+Em `/presenca` e `/presenca/check-in`, é possível simular confirmações e
 check-in. A prévia também simula lista de espera e promoção para uma vaga liberada. O estado
 existe apenas em memória durante a sessão no navegador: atualizar a página ou abrir outra sessão
 reinicia a demonstração. Em `/partidas/ao-vivo`, registre gols e acompanhe o placar; em

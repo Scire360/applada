@@ -1,5 +1,6 @@
 // Tabela de operações que o BFF repassa para a API (/api/v1). Sem alias nem server-only: roda em node --test.
 import { guidPattern } from "../guid.ts";
+import { positionHeaders } from "../geo.ts";
 
 export type Operation = {
   path: string;
@@ -24,6 +25,10 @@ const page = { query: paging, body: "none", forward: [] } as const;
 
 const rules: readonly Rule[] = [
   { pattern: ["me"], methods: { GET: none } },
+  { pattern: ["venues"], methods: { POST: json } },
+  { pattern: ["venues", "{}"], methods: { GET: none } },
+  { pattern: ["me", "venues"], methods: { GET: page } },
+  { pattern: ["discover", "matches"], methods: { GET: { ...none, query: ["lat", "lon", "radiusKm", ...paging] } } },
   { pattern: ["profile"], api: "/me/profile", methods: { GET: none, PUT: json } },
   { pattern: ["me", "matches"], methods: { GET: { query: ["role", ...paging], body: "none", forward: [] } } },
   { pattern: ["matches"], methods: { POST: { query: [], body: "json", forward: ["Idempotency-Key"] } } },
@@ -53,4 +58,16 @@ export function resolveOperation(segments: readonly string[], method: string): O
     return config ? { path: rule.api ?? `/${segments.join("/")}`, ...config } : null;
   }
   return null;
+}
+
+export function operationQuery(operation: Operation, query: URLSearchParams, headers: Headers): URLSearchParams {
+  const result = new URLSearchParams();
+  for (const key of operation.query) {
+    // A tela evita coordenadas na URL que aparece nos logs de acesso do Next.
+    const position = operation.path === "/discover/matches" && (key === "lat" || key === "lon")
+      ? headers.get(positionHeaders[key]) : null;
+    const value = position ?? query.get(key);
+    if (value !== null) result.set(key, value);
+  }
+  return result;
 }

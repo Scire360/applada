@@ -1,10 +1,38 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { resolveOperation } from "../../src/lib/bff/routes.ts";
+import { operationQuery, resolveOperation } from "../../src/lib/bff/routes.ts";
 
 const G = "123e4567-e89b-12d3-a456-426614174000";
 const H = "223e4567-e89b-12d3-a456-426614174001";
 const paging = ["cursor", "limit"];
+
+test("só a busca traduz os cabeçalhos de posição para a query da API", () => {
+  const search = resolveOperation(["discover", "matches"], "GET")!;
+  const myVenues = resolveOperation(["me", "venues"], "GET")!;
+  const query = new URLSearchParams("radiusKm=10&cursor=a%2Bb&outro=x");
+  const headers = new Headers({ "X-Applada-Lat": "-20.47", "X-Applada-Lon": "-54.62" });
+  assert.deepEqual(Object.fromEntries(operationQuery(search, query, headers)), {
+    lat: "-20.47", lon: "-54.62", radiusKm: "10", cursor: "a+b",
+  });
+  assert.deepEqual(Object.fromEntries(operationQuery(myVenues, query, headers)), { cursor: "a+b" });
+  assert.equal(operationQuery(search, new URLSearchParams("lat=1&lon=2"), new Headers()).toString(), "lat=1&lon=2");
+});
+
+test("descoberta: somente os caminhos, métodos e parâmetros do contrato", () => {
+  const cases = [
+    { segments: ["venues"], method: "POST", body: "json", query: [] },
+    { segments: ["venues", G], method: "GET", body: "none", query: [] },
+    { segments: ["me", "venues"], method: "GET", body: "none", query: paging },
+    { segments: ["discover", "matches"], method: "GET", body: "none", query: ["lat", "lon", "radiusKm", ...paging] },
+  ];
+  for (const { segments, method, body, query } of cases) {
+    assert.deepEqual(resolveOperation(segments, method), { path: "/" + segments.join("/"), body, query, forward: [] });
+    for (const other of ["GET", "POST", "PUT", "PATCH", "DELETE"].filter((verb) => verb !== method)) {
+      assert.equal(resolveOperation(segments, other), null);
+    }
+  }
+  assert.equal(resolveOperation(["venues", "inválido"], "GET"), null);
+});
 
 test("chamada: lista por cursor e grava o status em JSON", () => {
   assert.deepEqual(resolveOperation(["matches", G, "attendance"], "GET"), {

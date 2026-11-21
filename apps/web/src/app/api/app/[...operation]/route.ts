@@ -4,7 +4,7 @@ import { handleAvatar } from "@/lib/avatar-storage";
 import { isAllowedResponseType, isJsonRequest, isSameOrigin, maxJsonBytes, readBoundedBody } from "@/lib/bff/guards";
 import { shouldClearInvitationCookie } from "@/lib/bff/invitation";
 import { problem, secureResponse } from "@/lib/bff/http";
-import { resolveOperation, type Operation } from "@/lib/bff/routes";
+import { operationQuery, resolveOperation, type Operation } from "@/lib/bff/routes";
 import { apiOrigin, getAccessToken, publicOrigin } from "@/lib/bff/session";
 
 type Context = { params: Promise<{ operation: string[] }> };
@@ -75,10 +75,7 @@ async function accountChanged(request: NextRequest, accessToken: string, origin:
 async function forward(request: NextRequest, operation: Operation, accessToken: string) {
   const origin = apiOrigin();
   const upstream = new URL(`/api/v1${operation.path}`, origin);
-  for (const key of operation.query) {
-    const value = request.nextUrl.searchParams.get(key);
-    if (value !== null) upstream.searchParams.set(key, value);
-  }
+  upstream.search = operationQuery(operation, request.nextUrl.searchParams, request.headers).toString();
 
   const headers = new Headers({ Accept: "application/json, application/problem+json", Authorization: `Bearer ${accessToken}` });
   let body: Uint8Array<ArrayBuffer> | undefined;

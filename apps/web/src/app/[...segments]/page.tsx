@@ -160,7 +160,7 @@ function getScreenCatalogItems(): ScreenCatalogItem[] {
 const screenCatalogItems = getScreenCatalogItems();
 
 export function generateStaticParams() {
-  return screens.map(({ path }) => ({
+  return screens.filter(({ path }) => path !== "/peladas/abertas").map(({ path }) => ({
     segments: path.split("/").filter(Boolean),
   }));
 }

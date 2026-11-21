@@ -35,6 +35,7 @@ O backend tem solution, módulos Identity, Profiles, Communities, Discovery e Ma
   e `APPLADA_E2E_TEST_PASSWORD` (senha das contas de teste do realm local, nunca versionada).
 - Responsividade web: `npm run test:layout` em `apps/web`.
 - E2E da partida de uma vaga: `npm run test:e2e`; E2E de grupos e convites: `npm run test:e2e:grupos`.
+  O E2E da descoberta de peladas usa `npm run test:e2e:descoberta`.
   A preparação das três contas de teste está em [`apps/web/README.md`](apps/web/README.md#e2e-de-partida-com-uma-vaga).
 
 Mantenha aqui os comandos reais de build, teste, lint e ambiente local.

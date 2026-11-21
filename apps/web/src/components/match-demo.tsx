@@ -322,7 +322,7 @@ export function MatchSchedule({ matches }: { matches: ScheduledMatch[] }) {
             {item.isDemo ? (
               <>
                 <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
-                <Link className="demo-match-link" href="/peladas/abertas">Ver encontro</Link>
+                <Link className="demo-match-link" href="/presenca">Ver encontro</Link>
               </>
             ) : (
               <span className={`mini-pill ${item.status === "open" ? "pill-green" : "pill-neutral"}`}>{item.state}</span>
