@@ -3814,6 +3814,20 @@ svg {
 }
 
 @media (max-width: 380px) {
+  /* Seis atalhos na barra inferior: folga para o rótulo "Comunidade" caber em 320 px. */
+  .sidebar {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .primary-nav {
+    gap: 0;
+  }
+
+  .nav-link > span {
+    font-size: .625rem;
+  }
+
   .preview-status {
     max-width: 105px;
   }
