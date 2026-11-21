@@ -49,7 +49,8 @@ test("grupo: convite sem sessão e já logado, promoção, partida do grupo e re
   const groupName = `E2E grupo ${suffix}`;
   await owner.page.goto("/grupos");
   await owner.page.getByRole("heading", { name: "Meus grupos", exact: true }).waitFor();
-  await owner.page.getByLabel("Nome do grupo", { exact: true }).fill(groupName);
+  // Por papel: durante o streaming do Suspense o React mantém uma cópia oculta (#S:0) do formulário, que getByLabel também encontra.
+  await owner.page.getByRole("textbox", { name: "Nome do grupo", exact: true }).fill(groupName);
   const groupUrl = new RegExp(`/grupos/(${guid})$`, "i");
   await Promise.all([
     owner.page.waitForURL(groupUrl),
