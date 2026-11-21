@@ -53,6 +53,10 @@ public class OpenMatchCatalogTests(ApiFactory factory)
             Assert.Equal(match.Id, Assert.Single(page.Items).MatchId);
             cursor = page.NextCursor;
             Assert.Equal(match == later, cursor is null);
+            if (cursor is not null)
+            {
+                Assert.True(catalog.IsValidCursor(cursor));
+            }
         }
     }
 
@@ -90,6 +94,7 @@ public class OpenMatchCatalogTests(ApiFactory factory)
         ];
         foreach (var cursor in invalid)
         {
+            Assert.False(catalog.IsValidCursor(cursor));
             await Assert.ThrowsAsync<ArgumentException>("cursor",
                 () => catalog.ListUpcomingAtVenuesAsync([Guid.NewGuid()], now, cursor, 10, Ct));
         }

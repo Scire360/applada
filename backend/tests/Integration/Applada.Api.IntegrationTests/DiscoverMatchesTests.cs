@@ -142,6 +142,16 @@ public class DiscoverMatchesTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Malformed_cursor_returns_validation_problem_even_without_nearby_venues()
+    {
+        using var client = NewClient();
+        using var response = await client.GetAsync(new Uri($"{Path}?lat=0&lon=-80&cursor=adulterado", UriKind.Relative), Ct);
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        var error = Assert.Single(problem.RootElement.GetProperty("errors").GetProperty("cursor").EnumerateArray());
+        Assert.Equal("Cursor inválido.", error.GetString());
+    }
+
+    [Fact]
     public async Task Only_the_nearest_200_venues_are_considered()
     {
         using var client = NewClient();
@@ -292,6 +302,8 @@ public class DiscoverMatchesTests(ApiFactory factory)
 
     private sealed class UnexpectedCatalog : IOpenMatchCatalog
     {
+        public bool IsValidCursor(string cursor) => throw new InvalidOperationException("Busca sem cursor tentou validá-lo.");
+
         public Task<OpenMatchPage> ListUpcomingAtVenuesAsync(
             IReadOnlyCollection<Guid> venueIds, DateTimeOffset now, string? cursor, int limit, CancellationToken ct) =>
             throw new InvalidOperationException("Busca sem locais chamou o Matches.");

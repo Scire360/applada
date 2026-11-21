@@ -49,6 +49,11 @@ internal static class DiscoverEndpoints
             return Invalid("limit", "O limite deve ser um inteiro entre 1 e 50.");
         }
 
+        if (cursor is not null && !catalog.IsValidCursor(cursor))
+        {
+            return Invalid("cursor", "Cursor inválido.");
+        }
+
         var venues = await nearby.FindAsync(latitude, longitude, radius, ct);
         if (venues.Count == 0)
         {

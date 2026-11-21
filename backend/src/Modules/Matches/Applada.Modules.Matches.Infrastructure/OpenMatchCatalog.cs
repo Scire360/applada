@@ -8,6 +8,8 @@ namespace Applada.Modules.Matches.Infrastructure;
 
 internal sealed class OpenMatchCatalog(MatchesDbContext db) : IOpenMatchCatalog
 {
+    public bool IsValidCursor(string cursor) => TryDecodeCursor(cursor, out _, out _);
+
     public async Task<OpenMatchPage> ListUpcomingAtVenuesAsync(
         IReadOnlyCollection<Guid> venueIds, DateTimeOffset now, string? cursor, int limit, CancellationToken ct)
     {
@@ -24,9 +26,7 @@ internal sealed class OpenMatchCatalog(MatchesDbContext db) : IOpenMatchCatalog
             && m.VenueId.HasValue && ids.Contains(m.VenueId.Value));
         if (cursor is not null)
         {
-            if (!Cursor.TryDecode(cursor, Cursor.OpenMatchesKind, out var keys) || keys.Length != 2
-                || keys[0].ValueKind != JsonValueKind.String || !keys[0].TryGetDateTimeOffset(out var start)
-                || keys[1].ValueKind != JsonValueKind.String || !keys[1].TryGetGuid(out var id))
+            if (!TryDecodeCursor(cursor, out var start, out var id))
             {
                 throw new ArgumentException("O cursor de paginação é inválido.", nameof(cursor));
             }
@@ -52,5 +52,14 @@ internal sealed class OpenMatchCatalog(MatchesDbContext db) : IOpenMatchCatalog
         items.RemoveAt(limit);
         var last = items[^1];
         return new OpenMatchPage(items, Cursor.Encode(Cursor.OpenMatchesKind, last.StartsAt, last.MatchId));
+    }
+
+    private static bool TryDecodeCursor(string cursor, out DateTimeOffset start, out Guid id)
+    {
+        start = default;
+        id = default;
+        return Cursor.TryDecode(cursor, Cursor.OpenMatchesKind, out var keys) && keys.Length == 2
+            && keys[0].ValueKind == JsonValueKind.String && keys[0].TryGetDateTimeOffset(out start)
+            && keys[1].ValueKind == JsonValueKind.String && keys[1].TryGetGuid(out id);
     }
 }
