@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Matches.Application.Queries;
+using Applada.Modules.Matches.Domain;
 using Applada.Modules.Matches.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,18 @@ public sealed class AttendanceTests(ApiFactory factory) : IAsyncLifetime
         var item = Assert.Single(page.RootElement.GetProperty("items").EnumerateArray());
         Assert.Equal("absent", item.GetProperty("status").GetString());
         Assert.Equal(absent, item.GetProperty("recordedAt").GetDateTimeOffset());
+    }
+
+    [Fact]
+    public async Task Attendance_query_reads_recorded_status_as_domain_value()
+    {
+        OpenAttendance();
+        await MarkAsync("present");
+        await using var scope = factory.Services.CreateAsyncScope();
+        var queries = scope.ServiceProvider.GetRequiredService<IMatchQueries>();
+        var result = await queries.ListAttendanceAsync(_match, await GetUserIdAsync(_organizer), null, 1, Ct);
+        var row = Assert.Single(result.Value);
+        Assert.Equal(AttendanceStatus.Present, row.Status);
     }
 
     [Fact]

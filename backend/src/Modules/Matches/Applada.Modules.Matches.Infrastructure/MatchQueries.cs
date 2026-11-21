@@ -126,7 +126,7 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
                 Rows = page.Where(r => m.OrganizerId == viewerId && r.MatchId == m.Id)
                     .OrderBy(r => r.QueueSeq)
                     .Take(take)
-                    .Select(r => new AttendanceRow(r.UserId, r.QueueSeq, r.Status, r.RecordedAt))
+                    .Select(r => new AttendanceRow(r.UserId, r.QueueSeq, AttendanceStatusText.Parse(r.Status), r.RecordedAt))
                     .ToList(),
             })
             .SingleOrDefaultAsync(ct);

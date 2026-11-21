@@ -7,7 +7,7 @@ namespace Applada.Modules.Matches.Application.Queries;
 
 public sealed record AttendanceEntry(Guid UserId, string? DisplayName, string? Status, DateTimeOffset? RecordedAt);
 
-public sealed record AttendanceRow(Guid UserId, long QueueSeq, string? Status, DateTimeOffset? RecordedAt);
+public sealed record AttendanceRow(Guid UserId, long QueueSeq, AttendanceStatus? Status, DateTimeOffset? RecordedAt);
 
 public sealed class AttendanceQuery(IMatchQueries queries, IProfileNames profiles)
 {
@@ -45,7 +45,7 @@ public sealed class AttendanceQuery(IMatchQueries queries, IProfileNames profile
 
         var page = rows.Take(limit).ToArray();
         var names = await profiles.ListAsync(page.Select(r => r.UserId).ToArray(), ct);
-        var items = page.Select(r => new AttendanceEntry(r.UserId, names.GetValueOrDefault(r.UserId), r.Status, r.RecordedAt)).ToArray();
+        var items = page.Select(r => new AttendanceEntry(r.UserId, names.GetValueOrDefault(r.UserId), r.Status?.ToContractText(), r.RecordedAt)).ToArray();
         var next = rows.Count > limit ? Cursor.Encode(Cursor.AttendanceKind, page[^1].QueueSeq) : null;
         return new Page<AttendanceEntry>(items, next);
     }
