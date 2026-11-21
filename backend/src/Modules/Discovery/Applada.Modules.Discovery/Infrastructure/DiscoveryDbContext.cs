@@ -34,8 +34,7 @@ public sealed class DiscoveryDbContext(DbContextOptions<DiscoveryDbContext> opti
             venue.Property(v => v.AddressText).HasMaxLength(Venue.MaxAddressLength);
             venue.Property(v => v.CreatedAt).HasColumnType("timestamptz");
             venue.HasIndex(v => new { v.CreatedBy, v.CreatedAt, v.Id }).IsDescending(false, true, true);
-            // Coluna geography gerada pelo PostGIS na migration, fora do modelo EF.
-            venue.Ignore("location");
+            // A coluna gerada location existe só no banco. Sem membro CLR em Venue, ela fica fora do modelo EF.
         });
     }
 }

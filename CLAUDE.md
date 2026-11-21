@@ -25,7 +25,7 @@ manutenibilidade > escalabilidade > desempenho > UX > simplicidade operacional >
 
 ## 3. Estado atual e comandos
 
-O backend tem solution, módulos Identity, Profiles, Communities e Matches, testes e pipelines
+O backend tem solution, módulos Identity, Profiles, Communities, Discovery e Matches, testes e pipelines
 (`.github/workflows/backend.yml` e `.github/workflows/web.yml`). O frontend em `apps/web` usa Next.js, React e TypeScript estrito.
 
 - Ambiente local web: em `apps/web`, rode `npm ci` e `npm run dev`.
