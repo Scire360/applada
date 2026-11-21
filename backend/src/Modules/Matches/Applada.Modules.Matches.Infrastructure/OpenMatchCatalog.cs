@@ -58,8 +58,16 @@ internal sealed class OpenMatchCatalog(MatchesDbContext db) : IOpenMatchCatalog
     {
         start = default;
         id = default;
-        return Cursor.TryDecode(cursor, Cursor.OpenMatchesKind, out var keys) && keys.Length == 2
-            && keys[0].ValueKind == JsonValueKind.String && keys[0].TryGetDateTimeOffset(out start)
-            && keys[1].ValueKind == JsonValueKind.String && keys[1].TryGetGuid(out id);
+        try
+        {
+            return Cursor.TryDecode(cursor, Cursor.OpenMatchesKind, out var keys) && keys.Length == 2
+                && keys[0].ValueKind == JsonValueKind.String && keys[0].TryGetDateTimeOffset(out start)
+                && keys[1].ValueKind == JsonValueKind.String && keys[1].TryGetGuid(out id);
+        }
+        catch (InvalidOperationException)
+        {
+            // JsonDocument pode detectar texto Unicode inválido só ao comparar nomes ou ler as chaves.
+            return false;
+        }
     }
 }
