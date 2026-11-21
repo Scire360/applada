@@ -151,6 +151,26 @@ public class DiscoverMatchesTests(ApiFactory factory)
         Assert.Equal("Cursor inválido.", error.GetString());
     }
 
+    [Theory]
+    [InlineData("", 20)]
+    [InlineData("&limit=50", 50)]
+    public async Task Catalog_limit_out_of_range_returns_validation_problem_on_limit(string query, int expectedLimit)
+    {
+        using var user = NewClient();
+        await CreateVenueAsync(user, -66, 0);
+        var catalog = new LimitRejectingCatalog();
+        await using var host = factory.WithWebHostBuilder(b => b.ConfigureServices(services =>
+            services.AddSingleton<IOpenMatchCatalog>(catalog)));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = user.DefaultRequestHeaders.Authorization;
+
+        using var response = await client.GetAsync(new Uri($"{Path}?lat=-20.47&lon=-66{query}", UriKind.Relative), Ct);
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        var error = Assert.Single(problem.RootElement.GetProperty("errors").GetProperty("limit").EnumerateArray());
+        Assert.Equal("O limite deve ser um inteiro entre 1 e 50.", error.GetString());
+        Assert.Equal(expectedLimit, catalog.RequestedLimit);
+    }
+
     [Fact]
     public async Task Only_the_nearest_200_venues_are_considered()
     {
@@ -297,6 +317,20 @@ public class DiscoverMatchesTests(ApiFactory factory)
             {
                 Completed.TrySetResult(data);
             }
+        }
+    }
+
+    private sealed class LimitRejectingCatalog : IOpenMatchCatalog
+    {
+        public int? RequestedLimit { get; private set; }
+
+        public bool IsValidCursor(string cursor) => throw new InvalidOperationException("Busca sem cursor tentou validá-lo.");
+
+        public Task<OpenMatchPage> ListUpcomingAtVenuesAsync(
+            IReadOnlyCollection<Guid> venueIds, DateTimeOffset now, string? cursor, int limit, CancellationToken ct)
+        {
+            RequestedLimit = limit;
+            throw new ArgumentOutOfRangeException(nameof(limit));
         }
     }
 

@@ -39,14 +39,14 @@ internal static class DiscoverEndpoints
             return Invalid("lon", "Informe uma longitude entre -180 e 180.");
         }
 
-        if (!TryPositiveInteger(radiusKm, 10, out var radius))
+        if (!TryPositiveInteger(radiusKm, 10, 50, out var radius))
         {
             return Invalid("radiusKm", "O raio deve ser um inteiro entre 1 e 50.");
         }
 
-        if (!TryPositiveInteger(limit, 20, out var pageSize))
+        if (!TryPositiveInteger(limit, MatchPageLimits.Default, MatchPageLimits.Max, out var pageSize))
         {
-            return Invalid("limit", "O limite deve ser um inteiro entre 1 e 50.");
+            return InvalidLimit();
         }
 
         if (cursor is not null && !catalog.IsValidCursor(cursor))
@@ -68,6 +68,10 @@ internal static class DiscoverEndpoints
         catch (ArgumentException ex) when (ex.ParamName == nameof(cursor))
         {
             return Invalid("cursor", "Cursor inválido.");
+        }
+        catch (ArgumentOutOfRangeException ex) when (ex.ParamName == nameof(limit))
+        {
+            return InvalidLimit();
         }
 
         return TypedResults.Ok(new Page<DiscoveredMatchResponse>(
@@ -91,11 +95,14 @@ internal static class DiscoverEndpoints
         return true;
     }
 
-    private static bool TryPositiveInteger(string? input, int defaultValue, out int value)
+    private static bool TryPositiveInteger(string? input, int defaultValue, int max, out int value)
     {
         value = defaultValue;
-        return input is null || (int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value is >= 1 and <= 50);
+        return input is null || (int.TryParse(input, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 1 && value <= max);
     }
+
+    private static ValidationProblem InvalidLimit() =>
+        Invalid("limit", $"O limite deve ser um inteiro entre 1 e {MatchPageLimits.Max}.");
 
     private static ValidationProblem Invalid(string field, string message) =>
         TypedResults.ValidationProblem(new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [message] },
