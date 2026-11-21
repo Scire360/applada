@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 

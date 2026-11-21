@@ -66,7 +66,7 @@ public class VenuesTests(ApiFactory factory)
         using var response = await client.SendAsync(request, Ct);
         if (expected == HttpStatusCode.RequestEntityTooLarge)
         {
-            using var problem = await MatchesApi.AssertProblemAsync(response, expected, "payload-too-large");
+            using var problem = await ProblemAssertions.AssertProblemAsync(response, expected, "payload-too-large");
         }
         else
         {
@@ -88,7 +88,7 @@ public class VenuesTests(ApiFactory factory)
         using var client = NewClient();
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
         using var response = await client.PostAsync(Venues, content, Ct);
-        using var problem = await MatchesApi.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
         Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty(field, out _));
     }
 
@@ -98,7 +98,7 @@ public class VenuesTests(ApiFactory factory)
         using var client = NewClient();
         using var content = new StringContent(ValidBody().ToJsonString(), Encoding.UTF8, "text/plain");
         using var response = await client.PostAsync(Venues, content, Ct);
-        using var problem = await MatchesApi.AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.UnsupportedMediaType, "unsupported-media-type");
     }
 
     [Fact]
@@ -144,10 +144,8 @@ public class VenuesTests(ApiFactory factory)
 
         using var client = NewClient();
         using var response = await client.PostAsJsonAsync(Venues, body, Ct);
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _));
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty(field, out _));
     }
 
     [Fact]
@@ -165,9 +163,7 @@ public class VenuesTests(ApiFactory factory)
     {
         using var client = NewClient();
         using var response = await client.GetAsync(new Uri($"/api/v1/venues/{Guid.NewGuid()}", UriKind.Relative), Ct);
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.Equal("urn:applada:problem:venue-not-found", problem.GetProperty("type").GetString());
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.NotFound, "venue-not-found");
     }
 
     [Fact]
@@ -211,9 +207,8 @@ public class VenuesTests(ApiFactory factory)
     {
         using var client = NewClient();
         using var response = await client.GetAsync(new Uri($"/api/v1/me/venues?{query}", UriKind.Relative), Ct);
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _));
+        using var problem = await ProblemAssertions.AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        Assert.True(problem.RootElement.GetProperty("errors").TryGetProperty(field, out _));
     }
 
     [Fact]

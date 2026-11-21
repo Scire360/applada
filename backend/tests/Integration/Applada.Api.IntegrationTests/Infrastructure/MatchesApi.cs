@@ -171,18 +171,6 @@ public static class MatchesApi
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
     }
 
-    public static async Task<JsonDocument> AssertProblemAsync(HttpResponseMessage response, HttpStatusCode status, string code)
-    {
-        ArgumentNullException.ThrowIfNull(response);
-        var raw = await response.Content.ReadAsStringAsync(Ct);
-        Assert.True(status == response.StatusCode, $"Esperado {(int)status}, veio {(int)response.StatusCode}: {raw}");
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var problem = JsonDocument.Parse(raw);
-        Assert.Equal($"urn:applada:problem:{code}", problem.RootElement.GetProperty("type").GetString());
-        Assert.Equal((int)status, problem.RootElement.GetProperty("status").GetInt32());
-        return problem;
-    }
-
     private static async Task<HttpResponseMessage> SendAndDisposeAsync(HttpClient client, HttpRequestMessage request)
     {
         using (request)

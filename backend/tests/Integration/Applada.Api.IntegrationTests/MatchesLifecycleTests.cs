@@ -9,6 +9,7 @@ using Applada.Modules.Matches.Domain;
 using Applada.Modules.Matches.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 
@@ -817,15 +818,4 @@ public class MatchesLifecycleTests(ApiFactory factory)
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
-
-    private static async Task<JsonDocument> AssertProblemAsync(HttpResponseMessage response, HttpStatusCode status, string code)
-    {
-        var raw = await response.Content.ReadAsStringAsync(Ct);
-        Assert.True(status == response.StatusCode, $"Esperado {(int)status}, veio {(int)response.StatusCode}: {raw}");
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var problem = JsonDocument.Parse(raw);
-        Assert.Equal($"urn:applada:problem:{code}", problem.RootElement.GetProperty("type").GetString());
-        Assert.Equal((int)status, problem.RootElement.GetProperty("status").GetInt32());
-        return problem;
-    }
 }

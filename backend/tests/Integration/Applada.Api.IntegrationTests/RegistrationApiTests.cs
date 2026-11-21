@@ -2,6 +2,7 @@ using System.Net;
 using Applada.Api.IntegrationTests.Infrastructure;
 using Applada.Modules.Matches.Domain;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 

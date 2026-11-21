@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Applada.Api.IntegrationTests.Infrastructure;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 

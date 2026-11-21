@@ -8,6 +8,7 @@ using Applada.Modules.Communities.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static Applada.Api.IntegrationTests.Infrastructure.MatchesApi;
+using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
 
 namespace Applada.Api.IntegrationTests;
 
