@@ -361,6 +361,23 @@ public class OutboxTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Disposing_a_test_queue_allows_the_next_identity_event_to_be_published()
+    {
+        var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
+        Assert.True(await publisher.IsConnectedAsync(Ct));
+
+        // Repetir cobre a corrida entre a remoção da fila no broker e a publicação pelo canal já aberto.
+        for (var i = 0; i < 12; i++)
+        {
+            var message = OutboxMessage.From(new UserRegisteredV1(Guid.CreateVersion7()), "test-disposal", factory.Clock.GetUtcNow());
+            var queue = await TestQueue.CreateAsync(factory.RabbitMqConnectionString, "identity.#");
+            await queue.DisposeAsync();
+
+            await publisher.PublishAsync(message, Ct);
+        }
+    }
+
+    [Fact]
     public async Task Publisher_reconnects_after_broker_closes_its_connection()
     {
         var publisher = factory.Services.GetRequiredService<RabbitMqEventPublisher>();
@@ -736,10 +753,14 @@ public class OutboxTests(ApiFactory factory)
 
         public async ValueTask DisposeAsync()
         {
-            await _channel.CloseAsync();
-            await _channel.DisposeAsync();
-            await _connection.CloseAsync();
-            await _connection.DisposeAsync();
+            await using var connection = _connection;
+            await using (var channel = _channel)
+            {
+                await channel.QueueDeleteAsync(_queue, cancellationToken: CancellationToken.None);
+                await channel.CloseAsync();
+            }
+
+            await connection.CloseAsync();
         }
     }
 }
