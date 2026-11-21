@@ -266,7 +266,7 @@ export function ConnectedMatches() {
           <p>{match.confirmedCount} de {match.capacity} vagas ocupadas · {match.waitlistCount} na lista de espera</p>
           {match.myRegistration && <p><strong>{registrationLabel(match.myRegistration.status, match.myRegistration.position)}</strong></p>}
           <div className="connected-actions">
-            {organizer && session && <AttendanceLink match={match} userId={session.userId} />}
+            {organizer && session && <AttendanceLink match={match} userId={session.userId} rowTargetId="partida-selecionada" />}
             {isOpen && (
               <button className={`button button-${activeRegistration ? "secondary" : "primary"}`} disabled={busy} onClick={() => changeRegistration(match.id, activeRegistration)} type="button">
                 {activeRegistration ? "Retirar inscrição" : match.confirmedCount >= match.capacity ? "Entrar na lista de espera" : "Confirmar presença"}
@@ -321,12 +321,12 @@ export function ConnectedMatches() {
           {page.items.length ? (
             <ul className="connected-list">
               {page.items.map((item) => (
-                <li key={item.id}>
+                <li key={item.id} id={`minha-partida-${item.id}`} tabIndex={-1}>
                   <button className="connected-match-item" aria-pressed={match?.id === item.id} disabled={busy} onClick={() => void refresh(item.id)} type="button">
                     <strong>{item.title}</strong>
                     <span>{matchDate(item.startsAt)} · {item.status === "cancelled" ? "Cancelada" : `${item.confirmedCount}/${item.capacity} vagas`}</span>
                   </button>
-                  {session && match?.id !== item.id && <AttendanceLink match={item} userId={session.userId} knownOrganizer={role === "organizer"} />}
+                  {session && match?.id !== item.id && <AttendanceLink match={item} userId={session.userId} knownOrganizer={role === "organizer"} rowTargetId={`minha-partida-${item.id}`} />}
                 </li>
               ))}
             </ul>

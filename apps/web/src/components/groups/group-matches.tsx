@@ -49,11 +49,11 @@ export function GroupMatches({ groupId, myRole, myUserId }: { groupId: string; m
         <ul className="connected-list">
           {page.items.map((match) => (
             <li key={match.id}>
-              <Link className="connected-match-item group-link" href={`/peladas/conectadas?partida=${match.id}`}>
+              <Link className="connected-match-item group-link" id={`partida-do-grupo-${match.id}`} href={`/peladas/conectadas?partida=${match.id}`}>
                 <strong>{match.title}</strong>
                 <span>{matchDate(match.startsAt)} · {match.status === "cancelled" ? "Cancelada" : `${match.confirmedCount}/${match.capacity} vagas`}</span>
               </Link>
-              <AttendanceLink match={match} userId={myUserId} />
+              <AttendanceLink match={match} userId={myUserId} rowTargetId={`partida-do-grupo-${match.id}`} />
             </li>
           ))}
         </ul>

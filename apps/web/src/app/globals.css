@@ -5878,6 +5878,11 @@ body {
   border: 0;
 }
 
+.attendance-link-feedback button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 .attendance-link-feedback:not(:empty) {
   display: flex;
   flex-wrap: wrap;

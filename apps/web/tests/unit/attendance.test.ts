@@ -1,9 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { attendanceLinkAction, attendanceMessage, attendanceProblem, canTakeAttendance, readAttendance } from "../../src/lib/attendance.ts";
+import { attendanceFocusTarget, attendanceLinkAction, attendanceMessage, attendanceProblem, canTakeAttendance, isAttendanceRecheck, readAttendance } from "../../src/lib/attendance.ts";
 import { ApiError, appApi } from "../../src/lib/api-client.ts";
 
 const match = { startsAt: "2026-11-21T19:00:00-03:00", durationMinutes: 90, status: "scheduled" };
+
+test("nova verificação exige falha da mesma partida em outra tentativa", () => {
+  const failure = { matchId: "partida-a", attempt: 1 };
+  assert.equal(isAttendanceRecheck("partida-a", 2, failure), true);
+  assert.equal(isAttendanceRecheck("partida-a", 1, failure), false);
+  assert.equal(isAttendanceRecheck("partida-b", 2, failure), false);
+  assert.equal(isAttendanceRecheck("partida-a", 0), false);
+});
+
+test("botão focado passa o foco ao link ou à linha e o mantém se puder tentar de novo", () => {
+  assert.equal(attendanceFocusTarget(true, "link"), "link");
+  assert.equal(attendanceFocusTarget(true, "hidden"), "row");
+  assert.equal(attendanceFocusTarget(true, "retry"), "none");
+  assert.equal(attendanceFocusTarget(true, "load"), "none");
+});
+
+test("resultado da nova tentativa preserva o foco de quem saiu do botão", () => {
+  for (const action of ["link", "hidden", "retry", "load"] as const) {
+    assert.equal(attendanceFocusTarget(false, action), "none");
+  }
+});
 
 test("organizador conhecido vê o link na janela aberta sem consultar detalhes", () => {
   assert.equal(attendanceLinkAction("open", true), "link");

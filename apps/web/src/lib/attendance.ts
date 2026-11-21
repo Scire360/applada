@@ -25,6 +25,16 @@ export function attendanceLinkAction(phase: ReturnType<typeof canTakeAttendance>
   return "hidden";
 }
 
+export function isAttendanceRecheck(matchId: string, attempt: number, failure?: { matchId: string; attempt: number }): boolean {
+  return failure?.matchId === matchId && failure.attempt !== attempt;
+}
+
+export function attendanceFocusTarget(buttonFocused: boolean, action: ReturnType<typeof attendanceLinkAction>) {
+  if (buttonFocused && action === "link") return "link";
+  if (buttonFocused && action === "hidden") return "row";
+  return "none";
+}
+
 export function attendanceProblem(loadFailure?: ApiError, actionFailure?: ApiError): ApiError | undefined {
   return accessDenied(actionFailure) ? actionFailure : loadFailure ?? actionFailure;
 }
