@@ -52,5 +52,9 @@ internal sealed class MatchConfiguration : IEntityTypeConfiguration<Match>
         match.HasIndex(m => new { m.GroupId, m.StartsAt, m.Id })
             .HasDatabaseName("ix_matches_group_upcoming")
             .HasFilter("status = 'scheduled'");
+
+        match.HasIndex(m => new { m.VenueId, m.StartsAt, m.Id })
+            .HasDatabaseName("ix_matches_venue_upcoming")
+            .HasFilter("status = 'scheduled' AND venue_id IS NOT NULL");
     }
 }

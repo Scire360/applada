@@ -1,5 +1,6 @@
 using Applada.BuildingBlocks.Domain;
 using Applada.Modules.Communities.Contracts;
+using Applada.Modules.Discovery.Contracts;
 using Applada.Modules.Matches.Application.Events;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
@@ -21,8 +22,13 @@ namespace Applada.Modules.Matches.Application.CreateMatch;
 /// Communities). A consulta acontece antes da transação, em outro módulo: perder o papel entre a consulta e o commit é
 /// uma janela aceita (a partida fica no grupo e o organizador continua dono dela).</para>
 /// </remarks>
-public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider, IGroupMembership groups)
+public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvider timeProvider, IGroupMembership groups, IVenueDirectory venues)
 {
+    private static readonly Error UnknownVenue = MatchErrors.Validation(new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        ["venueId"] = ["Local não encontrado."],
+    });
+
     public async Task<Result<(int Status, string Body)>> HandleAsync(
         NewMatch data,
         Guid userId,
@@ -40,6 +46,21 @@ public sealed class CreateMatchHandler(IMatchesUnitOfWork unitOfWork, TimeProvid
             && await groups.GetRoleAsync(groupId, userId, ct) is not (GroupRole.Owner or GroupRole.Admin))
         {
             return MatchErrors.GroupNotAllowed;
+        }
+
+        if (data.VenueId is { } venueId)
+        {
+            // O replay independe de Discovery. A criação confere a chave novamente dentro da transação.
+            var previous = await unitOfWork.FindActiveIdempotencyAsync(userId, idempotencyKey, ct);
+            if (previous is not null)
+            {
+                return Replay(previous, requestHash);
+            }
+
+            if (!await venues.ExistsAsync(venueId, ct))
+            {
+                return UnknownVenue;
+            }
         }
 
         try

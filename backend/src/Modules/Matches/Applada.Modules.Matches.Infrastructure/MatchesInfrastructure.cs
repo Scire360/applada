@@ -3,6 +3,7 @@ using Applada.BuildingBlocks.Persistence;
 using Applada.Modules.Matches.Application;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Application.Queries;
+using Applada.Modules.Matches.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +42,7 @@ public static class MatchesInfrastructure
         services.TryAddSingleton<MatchesMetrics>();
         services.AddScoped<IMatchesUnitOfWork, MatchesUnitOfWork>();
         services.AddScoped<IMatchQueries, MatchQueries>();
+        services.AddScoped<IOpenMatchCatalog, OpenMatchCatalog>();
         services.AddScoped<IdempotencyRetentionCleanup>();
         services.AddHostedService<IdempotencyCleanupService>();
         services.AddMigrationsOnStartup<MatchesDbContext>();

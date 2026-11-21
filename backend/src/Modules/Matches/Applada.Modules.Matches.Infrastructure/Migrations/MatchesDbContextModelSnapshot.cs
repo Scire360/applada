@@ -215,6 +215,10 @@ namespace Applada.Modules.Matches.Infrastructure.Migrations
                         .HasDatabaseName("ix_matches_group_upcoming")
                         .HasFilter("status = 'scheduled'");
 
+                    b.HasIndex("VenueId", "StartsAt", "Id")
+                        .HasDatabaseName("ix_matches_venue_upcoming")
+                        .HasFilter("status = 'scheduled' AND venue_id IS NOT NULL");
+
                     b.ToTable("matches", "matches", t =>
                         {
                             t.HasCheckConstraint("ck_matches_capacity_range", "capacity BETWEEN 1 AND 200");

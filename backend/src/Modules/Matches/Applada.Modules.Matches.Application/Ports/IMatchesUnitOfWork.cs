@@ -8,6 +8,9 @@ namespace Applada.Modules.Matches.Application.Ports;
 /// </summary>
 public interface IMatchesUnitOfWork
 {
+    /// <summary>Consulta uma resposta vigente antes de depender de outro módulo. Não remove chaves vencidas.</summary>
+    Task<IdempotencyEntry?> FindActiveIdempotencyAsync(Guid userId, string key, CancellationToken ct);
+
     /// <summary>
     /// Roda <paramref name="work"/> numa transação com <c>lock_timeout</c>. Lock não obtido no prazo vira o erro
     /// <c>lock-timeout</c>; chave de idempotência gravada antes por outra requisição lança

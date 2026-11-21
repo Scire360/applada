@@ -1,12 +1,15 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Applada.Api.IntegrationTests.Infrastructure;
+using Applada.Modules.Discovery.Contracts;
 using Applada.Modules.Matches.Application.Ports;
 using Applada.Modules.Matches.Domain;
 using Applada.Modules.Matches.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static Applada.Api.IntegrationTests.Infrastructure.ProblemAssertions;
@@ -21,6 +24,63 @@ public class MatchesLifecycleTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     // ---------- Criação ----------
+
+    [Fact]
+    public async Task Create_match_with_unknown_venue_returns_400_on_venueId()
+    {
+        using var client = factory.CreateClientFor(NewSubject());
+        var organizer = await GetUserIdAsync(client);
+        var request = JsonNode.Parse(ValidBody())!.AsObject();
+        request["venueId"] = Guid.NewGuid();
+        var key = NewKey();
+        using var response = await PostMatchAsync(client, key, request.ToJsonString());
+
+        using var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest, "validation");
+        Assert.Equal("Dados inválidos.", problem.RootElement.GetProperty("title").GetString());
+        var errors = problem.RootElement.GetProperty("errors").GetProperty("venueId");
+        Assert.Equal("Local não encontrado.", Assert.Single(errors.EnumerateArray()).GetString());
+        Assert.Equal(0, await CountMatchesOfAsync(organizer));
+
+        request.Remove("venueId");
+        using var corrected = await PostMatchAsync(client, key, request.ToJsonString());
+        Assert.Equal(HttpStatusCode.Created, corrected.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_match_with_existing_venue_returns_201()
+    {
+        using var owner = factory.CreateClientFor(NewSubject());
+        using var venue = await owner.PostAsJsonAsync(new Uri("/api/v1/venues", UriKind.Relative),
+            new { name = "Arena pública", latitude = 0, longitude = 0 }, Ct);
+        Assert.Equal(HttpStatusCode.Created, venue.StatusCode);
+        using var venueBody = await ReadJsonAsync(venue);
+        var venueId = venueBody.RootElement.GetProperty("id").GetGuid();
+
+        using var organizer = factory.CreateClientFor(NewSubject());
+        var request = JsonNode.Parse(ValidBody())!.AsObject();
+        request["venueId"] = venueId;
+        var key = NewKey();
+        var json = request.ToJsonString();
+        using var response = await PostMatchAsync(organizer, key, json);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var body = await ReadJsonAsync(response);
+        Assert.Equal(venueId, body.RootElement.GetProperty("venueId").GetGuid());
+
+        await using var host = factory.WithWebHostBuilder(b => b.ConfigureServices(services =>
+            services.AddScoped<IVenueDirectory, UnavailableVenueDirectory>()));
+        using var retry = host.CreateClient();
+        retry.DefaultRequestHeaders.Authorization = organizer.DefaultRequestHeaders.Authorization;
+        using var replay = await PostMatchAsync(retry, key, json);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.Equal(await response.Content.ReadAsStringAsync(Ct), await replay.Content.ReadAsStringAsync(Ct));
+    }
+
+    private sealed class UnavailableVenueDirectory : IVenueDirectory
+    {
+        public Task<bool> ExistsAsync(Guid venueId, CancellationToken ct) =>
+            throw new InvalidOperationException("O replay não deve consultar o local.");
+    }
 
     [Fact]
     public async Task Create_returns_201_with_location_and_body()
