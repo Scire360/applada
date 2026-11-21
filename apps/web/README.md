@@ -142,6 +142,7 @@ npm ci
 $env:APPLADA_E2E_TEST_PASSWORD = Read-Host 'Senha local das três contas de teste' -MaskInput
 try {
   npm run test:e2e
+  npm run test:e2e:grupos
 } finally {
   Remove-Item Env:APPLADA_E2E_TEST_PASSWORD
 }
@@ -151,13 +152,22 @@ Com um bucket de teste configurado e a conta `jogador2.dev` sem foto, defina
 `APPLADA_E2E_AVATAR_STORAGE=1` para o E2E verificar o limite de tamanho, salvar o avatar, conferi-lo
 em outra sessão e removê-lo ao final.
 
-O Playwright abre três sessões independentes no Chrome. O segundo jogador salva um nome de exibição
+O Playwright abre três sessões independentes no Chrome. Cada uma entra pelo login do site: abre `/login`,
+clica em "Entrar com minha conta", preenche o formulário do Keycloak (client `applada-web`) e confere a sessão
+com `GET /api/app/me`. As chamadas à API passam por `/api/app/*`. O segundo jogador salva um nome de exibição
 e o teste confirma que o nome persiste após recarregar a página. O organizador cria uma partida com uma vaga.
 O teste verifica a confirmação do primeiro jogador, o nome do segundo na lista de espera e sua promoção
 após a saída do primeiro. A conta que saiu perde a lista na interface e recebe
 `403 participants-forbidden` pela API do frontend.
 
 Ao final, o teste cancela sua partida e restaura o nome anterior do segundo jogador, se havia um.
+
+`npm run test:e2e:grupos` cobre grupos e convites com as mesmas três contas: `jogador3.dev` cria o grupo e o
+convite; `jogador1.dev` abre o link `/convite#<token>` sem sessão, entra pelo Keycloak e aceita ao voltar;
+`jogador2.dev` aceita já logado; o dono promove `jogador1.dev` a administrador, que cria uma partida do grupo;
+`jogador2.dev` a vê em "Próximas partidas" e, depois de removido pelo dono, vê "Grupo não encontrado.".
+O teste cancela a partida e restaura os nomes de exibição ao final. A API não tem exclusão de grupo: o grupo
+`E2E grupo <sufixo>` e o dono permanecem no banco local.
 Se o perfil estava vazio, o nome sintético fica na conta de teste. O registro da partida cancelada fica no
 banco local.
 

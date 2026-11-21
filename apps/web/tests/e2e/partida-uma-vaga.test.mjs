@@ -1,48 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { chromium } from "playwright";
+import { launchChrome, requirePassword, runCleanups, signIn as signInWithKeycloak, waitTimeout, webOrigin } from "./sessao.mjs";
 
-const webOrigin = "http://localhost:3000";
-const keycloakOrigin = "http://localhost:8080";
 const connectedPath = "/peladas/conectadas";
-const waitTimeout = 15_000;
 
-async function signIn(browser, username, password) {
-  const context = await browser.newContext({
-    baseURL: webOrigin,
-    locale: "pt-BR",
-    timezoneId: "America/Sao_Paulo",
-  });
-  context.setDefaultTimeout(waitTimeout);
-
-  const page = await context.newPage();
-  await page.goto(connectedPath);
-  await Promise.all([
-    page.waitForURL((url) => url.origin === keycloakOrigin && url.pathname.startsWith("/realms/applada/")),
-    page.getByRole("button", { name: "Entrar com conta de teste", exact: true }).click(),
-  ]);
-  await page.locator("#username").fill(username);
-  await page.locator("#password").focus();
-  try {
-    await page.keyboard.insertText(password);
-  } catch {
-    throw new Error(`Não foi possível digitar a senha da conta de teste ${username}.`);
-  }
-  await page.locator("#kc-login").click();
-
-  const signedIn = page.getByRole("button", { name: "Sair da sessão", exact: true });
-  const keycloakNotice = page.locator("#kc-passwd-update-form, #input-error");
-  await signedIn.or(keycloakNotice).first().waitFor({ state: "visible" });
-  assert.ok(await signedIn.isVisible(), `Prepare a conta local ${username} e confira a senha dos testes.`);
-  assert.equal(new URL(page.url()).origin, webOrigin);
-
-  const session = await context.request.get("/api/local/session", { timeout: waitTimeout });
-  assert.equal(session.status(), 200, `Sessão do Applada para ${username}`);
-  const { userId } = await session.json();
-  assert.ok(userId, `Identidade do Applada para ${username}`);
-  return { page, userId };
-}
+// Cada jogador entra pelo login do site (Keycloak) e termina na página de partidas conectadas.
+const signIn = (browser, username, password) => signInWithKeycloak(browser, username, password, connectedPath);
 
 async function clickAndCheck(page, button, method, path, status) {
   const [response] = await Promise.all([
@@ -54,7 +18,7 @@ async function clickAndCheck(page, button, method, path, status) {
 }
 
 async function checkAvatar(browser, first, second, password, cleanups) {
-  const path = "/api/local/avatar";
+  const path = "/api/app/avatar";
   const initial = await second.page.request.get(path, { timeout: waitTimeout });
   assert.equal(initial.status(), 204, "O jogador2.dev precisa começar sem foto para o teste de Storage.");
 
@@ -116,36 +80,23 @@ async function checkAvatar(browser, first, second, password, cleanups) {
 }
 
 test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", { timeout: 120_000 }, async (t) => {
-  const password = process.env.APPLADA_E2E_TEST_PASSWORD;
-  assert.ok(password, "Defina APPLADA_E2E_TEST_PASSWORD com a senha das três contas locais de teste.");
-
-  const browserEnv = { ...process.env };
-  delete browserEnv.APPLADA_E2E_TEST_PASSWORD;
-  const browser = await chromium.launch({ channel: "chrome", headless: true, env: browserEnv });
+  const password = requirePassword();
+  const browser = await launchChrome();
   const cleanups = [];
 
-  t.after(async () => {
-    try {
-      const results = await Promise.allSettled(cleanups.map((cleanup) => cleanup()));
-      const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
-      if (failures.length > 0) {
-        throw new AggregateError(failures, "Falha na limpeza dos dados do E2E.");
-      }
-    } finally {
-      await browser.close();
-    }
-  });
+  t.after(() => runCleanups(cleanups, browser));
 
   const organizer = await signIn(browser, "jogador3.dev", password);
   const first = await signIn(browser, "jogador1.dev", password);
   const second = await signIn(browser, "jogador2.dev", password);
   assert.equal(new Set([organizer.userId, first.userId, second.userId]).size, 3);
 
-  const profilePath = "/api/local/profile";
+  const profilePath = "/api/app/profile";
   const profileBefore = await second.page.request.get(profilePath, { timeout: waitTimeout });
   assert.equal(profileBefore.status(), 200);
-  const mismatchedAccount = await second.page.request.get(profilePath, {
-    headers: { "X-Applada-Account": first.userId },
+  const mismatchedAccount = await second.page.request.put(profilePath, {
+    headers: { Origin: webOrigin, "X-Applada-Account": first.userId },
+    data: { displayName: "Nome que não deve ser gravado" },
     timeout: waitTimeout,
   });
   assert.equal(mismatchedAccount.status(), 409, "O perfil não troca de conta dentro de uma aba já aberta.");
@@ -206,13 +157,13 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   await form.getByLabel("Início no horário local do seu dispositivo").fill(startsAt);
 
   const created = await clickAndCheck(
-    organizer.page, form.getByRole("button", { name: "Criar partida", exact: true }), "POST", "/api/local/matches", 201,
+    organizer.page, form.getByRole("button", { name: "Criar partida", exact: true }), "POST", "/api/app/matches", 201,
   );
   const match = await created.json();
   assert.match(match.id, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i);
   const matchId = match.id;
   cleanups.push(async () => {
-    const response = await organizer.page.request.post(`/api/local/matches/${matchId}/cancellation`, {
+    const response = await organizer.page.request.post(`/api/app/matches/${matchId}/cancellation`, {
       headers: { Origin: webOrigin },
       timeout: waitTimeout,
     });
@@ -221,7 +172,7 @@ test("uma vaga: entra na fila, promove o próximo e revoga acesso de quem sai", 
   });
   assert.equal(match.capacity, 1);
 
-  const details = `/api/local/matches/${matchId}`;
+  const details = `/api/app/matches/${matchId}`;
   const registrations = details + "/registrations";
   const matchPage = `${connectedPath}?partida=${matchId}`;
 
