@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { appApi } from "@/lib/api-client";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ApiError, appApi } from "@/lib/api-client";
 import type { GroupMember, GroupRole, Page } from "@/lib/connected-matches";
 import { canLeave, memberActions } from "@/lib/groups";
+import { SignInAgain } from "./sign-in-again";
 import { roleLabel, useAction } from "./use-action";
 
 function listPath(groupId: string, cursor?: string | null) {
@@ -19,17 +20,26 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
 }) {
   const [page, setPage] = useState<Page<GroupMember>>();
   const [loadError, setLoadError] = useState("");
-  const { busy, error, notice, run, setNotice } = useAction();
+  const { busy, error, notice, signedOut, run, setNotice, setSignedOut } = useAction();
+  // Confirmação em dois passos: guarda quem está para ser removido ("leave" = eu saio do grupo).
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const confirmButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (confirming) confirmButton.current?.focus();
+  }, [confirming]);
 
   useEffect(() => {
     const controller = new AbortController();
     appApi<Page<GroupMember>>(listPath(groupId), { signal: controller.signal })
       .then(setPage)
       .catch((failure: unknown) => {
-        if (!controller.signal.aborted) setLoadError(failure instanceof Error ? failure.message : "Não foi possível carregar os membros.");
+        if (controller.signal.aborted) return;
+        if (failure instanceof ApiError && failure.status === 401) setSignedOut(true);
+        setLoadError(failure instanceof ApiError ? failure.message : "Não foi possível carregar os membros.");
       });
     return () => controller.abort();
-  }, [groupId]);
+  }, [groupId, setSignedOut]);
 
   async function reload() {
     setPage(await appApi<Page<GroupMember>>(listPath(groupId)));
@@ -58,6 +68,7 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
   }
 
   function remove(member: GroupMember) {
+    setConfirming(null);
     void run(async () => {
       await appApi<void>(`groups/${groupId}/members/${member.userId}`, { method: "DELETE" });
       await reload();
@@ -66,10 +77,15 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
   }
 
   function leave() {
+    setConfirming(null);
     void run(async () => {
       await appApi<void>(`groups/${groupId}/members/${myUserId}`, { method: "DELETE" });
       onLeft();
     });
+  }
+
+  function cancelOnEscape(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") setConfirming(null);
   }
 
   return (
@@ -78,6 +94,7 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
       <div className="connected-feedback">
         <p role="status">{busy ? "Aguarde…" : notice}</p>
         {(error || loadError) && <p className="form-feedback form-feedback-error" role="alert">{error || loadError}</p>}
+        {signedOut && <SignInAgain />}
       </div>
       {!page && !loadError && <p role="status">Carregando membros…</p>}
       {page && (
@@ -98,9 +115,14 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
                         {actions.role === "admin" ? "Promover a administrador" : "Rebaixar a membro"}
                       </button>
                     )}
-                    {actions.remove && (
-                      <button aria-label={`Remover ${name}`} className="button button-secondary" disabled={busy} onClick={() => remove(member)} type="button">Remover</button>
-                    )}
+                    {actions.remove && (confirming === member.userId ? (
+                      <span className="connected-actions" onKeyDown={cancelOnEscape}>
+                        <button className="button connected-danger" disabled={busy} onClick={() => remove(member)} ref={confirmButton} type="button">Confirmar remoção de {name}</button>
+                        <button className="button button-secondary" onClick={() => setConfirming(null)} type="button">Cancelar</button>
+                      </span>
+                    ) : (
+                      <button aria-label={`Remover ${name}`} className="button button-secondary" disabled={busy} onClick={() => setConfirming(member.userId)} type="button">Remover</button>
+                    ))}
                   </span>
                 )}
               </li>
@@ -109,7 +131,14 @@ export function GroupMembers({ groupId, myRole, myUserId, onChanged, onLeft }: {
         </ul>
       )}
       {page?.nextCursor && <button className="button button-secondary" disabled={busy} onClick={more} type="button">Mais membros</button>}
-      {canLeave(myRole) && <button className="button connected-danger" disabled={busy} onClick={leave} type="button">Sair do grupo</button>}
+      {canLeave(myRole) && (confirming === "leave" ? (
+        <div className="connected-actions" onKeyDown={cancelOnEscape}>
+          <button className="button connected-danger" disabled={busy} onClick={leave} ref={confirmButton} type="button">Confirmar saída</button>
+          <button className="button button-secondary" onClick={() => setConfirming(null)} type="button">Cancelar</button>
+        </div>
+      ) : (
+        <button className="button connected-danger" disabled={busy} onClick={() => setConfirming("leave")} type="button">Sair do grupo</button>
+      ))}
     </section>
   );
 }

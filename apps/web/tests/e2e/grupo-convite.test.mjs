@@ -45,6 +45,12 @@ test("grupo: convite sem sessão e já logado, promoção, partida do grupo e re
   await setDisplayName(first, firstName, cleanups);
   await setDisplayName(second, secondName, cleanups);
 
+  // 0. O BFF recusa escrita com Origin de outro site ou sem Origin.
+  for (const headers of [{ Origin: "https://evil.example" }, {}]) {
+    const refused = await owner.page.request.post("/api/app/groups", { headers, data: { name: "Origem recusada" }, timeout: waitTimeout });
+    assert.equal(refused.status(), 403, `POST /api/app/groups com Origin ${headers.Origin ?? "ausente"}`);
+  }
+
   // 1. O dono cria o grupo.
   const groupName = `E2E grupo ${suffix}`;
   await owner.page.goto("/grupos");
@@ -140,6 +146,12 @@ test("grupo: convite sem sessão e já logado, promoção, partida do grupo e re
   // 8. O dono remove jogador2, que deixa de enxergar o grupo.
   await owner.page.reload();
   await members.getByRole("button", { name: `Remover ${secondName}`, exact: true }).click();
+  const confirmRemoval = members.getByRole("button", { name: `Confirmar remoção de ${secondName}`, exact: true });
+  await confirmRemoval.waitFor();
+  assert.equal(await confirmRemoval.evaluate((element) => element === document.activeElement), true, "O foco vai para o botão de confirmação.");
+  await members.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await members.getByRole("button", { name: `Remover ${secondName}`, exact: true }).click();
+  await confirmRemoval.click();
   await members.getByText("Membro removido.", { exact: true }).waitFor();
   await second.page.reload();
   await second.page.getByRole("heading", { name: "Grupo não encontrado.", exact: true }).waitFor();
