@@ -16,7 +16,7 @@ export function AcceptInvitation() {
   // O token sai da barra de endereço, então fica só em memória. Com ?retomar=1 ele está no cookie do BFF.
   const token = useRef<string | null>(null);
   const resuming = useRef(false);
-  const { busy, error, run, setError } = useAction();
+  const { busy, error, run } = useAction();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,7 +35,7 @@ export function AcceptInvitation() {
         if (failure instanceof ApiError && failure.status === 401) {
           setPhase("signed-out");
         } else {
-          setLoadError(failure instanceof Error ? failure.message : "Não foi possível conectar agora.");
+          setLoadError(failure instanceof ApiError ? failure.message : "Não foi possível conectar agora.");
           setPhase("error");
         }
       });
@@ -52,6 +52,8 @@ export function AcceptInvitation() {
         });
         router.push(`/grupos/${result.groupId}`);
       } catch (failure) {
+        // Sessão expirada no meio do aceite: volta para a tela de entrada, que guarda o convite e inicia o login.
+        if (failure instanceof ApiError && failure.status === 401) setPhase("signed-out");
         if (failure instanceof ApiError && (failure.status === 400 || failure.status === 404)) throw new ApiError(failure.status, "Convite inválido ou expirado.");
         if (failure instanceof ApiError && failure.status === 409) throw new ApiError(409, "Este grupo está cheio.");
         throw failure;
@@ -97,7 +99,7 @@ export function AcceptInvitation() {
       )}
       <div className="connected-feedback">
         <p role="status">{busy ? "Aguarde…" : ""}</p>
-        {error && <p className="form-feedback form-feedback-error" role="alert" onClick={() => setError("")}>{error}</p>}
+        {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
       </div>
     </section>
   );

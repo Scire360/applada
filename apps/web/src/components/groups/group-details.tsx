@@ -9,6 +9,7 @@ import { canManageInvitations } from "@/lib/groups";
 import { GroupInvitation } from "./group-invitation";
 import { GroupMatches } from "./group-matches";
 import { GroupMembers } from "./group-members";
+import { SignInAgain } from "./sign-in-again";
 import { idPattern, roleLabel } from "./use-action";
 
 type State =
@@ -40,7 +41,7 @@ export function GroupDetails({ id }: { id: string }) {
         if (controller.signal.aborted) return;
         if (failure instanceof ApiError && failure.status === 401) setState({ phase: "signed-out" });
         else if (failure instanceof ApiError && failure.status === 404) setState({ phase: "not-found" });
-        else setState({ phase: "error", message: failure instanceof Error ? failure.message : "Não foi possível carregar o grupo." });
+        else setState({ phase: "error", message: failure instanceof ApiError ? failure.message : "Não foi possível carregar o grupo." });
       });
     return () => controller.abort();
   }, [loadGroup, valid]);
@@ -65,7 +66,7 @@ export function GroupDetails({ id }: { id: string }) {
       <section className="surface-card connected-card" aria-labelledby="grupo-entrar">
         <h1 id="grupo-entrar">Entre para continuar</h1>
         <p>Entre na sua conta do Applada para ver este grupo.</p>
-        <Link className="button button-primary" href="/login">Entrar</Link>
+        <SignInAgain />
       </section>
     );
   }

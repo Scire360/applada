@@ -1,9 +1,11 @@
 "use server";
 
 import { signIn, signOut } from "@/auth";
+import { safeCallbackPath } from "@/lib/callback-url";
 
-export async function signInWithKeycloak() {
-  await signIn("keycloak", { redirectTo: "/" }, { kc_locale: "pt-BR" });
+// callbackUrl vem do formulário do /login; só caminho relativo da própria origem é aceito.
+export async function signInWithKeycloak(formData: FormData) {
+  await signIn("keycloak", { redirectTo: safeCallbackPath(formData.get("callbackUrl")) }, { kc_locale: "pt-BR" });
 }
 
 export async function registerWithKeycloak() {

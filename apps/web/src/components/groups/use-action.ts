@@ -21,14 +21,14 @@ export function useAction() {
       await action();
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) setSignedOut(true);
-      setError(failure instanceof Error ? failure.message : "Não foi possível concluir a ação.");
+      setError(failure instanceof ApiError ? failure.message : "Não foi possível concluir a ação.");
     } finally {
       setBusy(false);
       inFlight.current = false;
     }
   }
 
-  return { busy, error, notice, signedOut, run, setNotice, setError };
+  return { busy, error, notice, signedOut, run, setNotice, setError, setSignedOut };
 }
 
 export const roleLabel = { owner: "Dono", admin: "Administrador", member: "Membro" } as const;

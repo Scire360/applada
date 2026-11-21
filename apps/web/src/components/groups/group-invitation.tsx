@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { appApi } from "@/lib/api-client";
+import { ApiError, appApi } from "@/lib/api-client";
 import type { CreatedInvitation } from "@/lib/connected-matches";
+import { SignInAgain } from "./sign-in-again";
 import { useAction } from "./use-action";
 
 export function GroupInvitation({ groupId }: { groupId: string }) {
   const [invitation, setInvitation] = useState<CreatedInvitation>();
-  const { busy, error, notice, run, setNotice } = useAction();
+  const { busy, error, notice, signedOut, run, setNotice } = useAction();
 
   function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +25,11 @@ export function GroupInvitation({ groupId }: { groupId: string }) {
 
   function copy(link: string) {
     void run(async () => {
-      await navigator.clipboard.writeText(link);
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        throw new ApiError(0, "Não foi possível copiar. Selecione o link e copie manualmente.");
+      }
       setNotice("Link copiado.");
     });
   }
@@ -60,6 +65,7 @@ export function GroupInvitation({ groupId }: { groupId: string }) {
       <div className="connected-feedback">
         <p role="status">{busy ? "Aguarde…" : notice}</p>
         {error && <p className="form-feedback form-feedback-error" role="alert">{error}</p>}
+        {signedOut && <SignInAgain />}
       </div>
       {invitation && (
         <div className="group-invite-link">

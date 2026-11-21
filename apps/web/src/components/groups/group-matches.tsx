@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { appApi } from "@/lib/api-client";
+import { ApiError, appApi } from "@/lib/api-client";
 import { matchDate, type MatchSummary, type Page } from "@/lib/connected-matches";
 import { canManageInvitations, type Role } from "@/lib/groups";
+import { SignInAgain } from "./sign-in-again";
 import { useAction } from "./use-action";
 
 function listPath(groupId: string, cursor?: string | null) {
@@ -14,17 +15,19 @@ function listPath(groupId: string, cursor?: string | null) {
 export function GroupMatches({ groupId, myRole }: { groupId: string; myRole: Role }) {
   const [page, setPage] = useState<Page<MatchSummary>>();
   const [loadError, setLoadError] = useState("");
-  const { busy, error, run } = useAction();
+  const { busy, error, signedOut, run, setSignedOut } = useAction();
 
   useEffect(() => {
     const controller = new AbortController();
     appApi<Page<MatchSummary>>(listPath(groupId), { signal: controller.signal })
       .then(setPage)
       .catch((failure: unknown) => {
-        if (!controller.signal.aborted) setLoadError(failure instanceof Error ? failure.message : "Não foi possível carregar as partidas.");
+        if (controller.signal.aborted) return;
+        if (failure instanceof ApiError && failure.status === 401) setSignedOut(true);
+        setLoadError(failure instanceof ApiError ? failure.message : "Não foi possível carregar as partidas.");
       });
     return () => controller.abort();
-  }, [groupId]);
+  }, [groupId, setSignedOut]);
 
   function more() {
     if (!page?.nextCursor) return;
@@ -40,6 +43,7 @@ export function GroupMatches({ groupId, myRole }: { groupId: string; myRole: Rol
       <h2 id="proximas-partidas">Próximas partidas</h2>
       {!page && !loadError && <p role="status">Carregando partidas…</p>}
       {(loadError || error) && <p className="form-feedback form-feedback-error" role="alert">{loadError || error}</p>}
+      {signedOut && <SignInAgain />}
       {page && (page.items.length ? (
         <ul className="connected-list">
           {page.items.map((match) => (
