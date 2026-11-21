@@ -163,8 +163,20 @@ function assertProductionAuthConfiguration() {
     throw new Error("AUTH_KEYCLOAK_ISSUER must use HTTPS in production.");
   }
 
-  if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
+  const publicUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  if (!publicUrl) {
     throw new Error("AUTH_URL must be configured in production.");
+  }
+  if (new URL(publicUrl).protocol !== "https:") {
+    throw new Error("AUTH_URL must use HTTPS in production.");
+  }
+
+  // O BFF /api/app precisa da API: falha na subida, não só na primeira chamada.
+  if (!process.env.APPLADA_API_URL) {
+    throw new Error("APPLADA_API_URL must be configured in production.");
+  }
+  if (new URL(process.env.APPLADA_API_URL).protocol !== "https:") {
+    throw new Error("APPLADA_API_URL must use HTTPS in production.");
   }
 }
 

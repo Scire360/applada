@@ -145,7 +145,11 @@ async function forward(request: NextRequest, operation: Operation, accessToken: 
   return response;
 }
 
+// Etapa em andamento, para o log dizer onde falhou sem expor URL, token, corpo ou mensagem.
+type Stage = "config" | "body" | "upstream";
+
 async function handle(request: NextRequest, { params }: Context) {
+  let stage: Stage = "config";
   try {
     if (request.method !== "GET" && !isSameOrigin(request.headers.get("origin"), publicOrigin())) {
       return problem(403, "Esta operação precisa ser iniciada na página do Applada.");
@@ -166,10 +170,11 @@ async function handle(request: NextRequest, { params }: Context) {
 
     const resolved = resolveOperation(operation, request.method);
     if (!resolved) return problem(404, "Operação não encontrada.");
+    stage = "upstream";
     return await forward(request, resolved, accessToken);
   } catch (failure) {
-    // Só o tipo do erro vai para o log: nada de token, corpo ou URL com dados.
-    console.error("BFF /api/app: falha ao atender a operação.", failure instanceof Error ? failure.name : typeof failure);
+    // Só a etapa e o nome do erro vão para o log: nada de token, corpo, URL ou mensagem.
+    console.error("BFF /api/app: falha.", { stage, error: failure instanceof Error ? failure.name : typeof failure });
     return problem(503, "A API do Applada está indisponível. Tente novamente em instantes.");
   }
 }
