@@ -5,8 +5,8 @@ using Applada.Modules.Matches.Domain;
 namespace Applada.Modules.Matches.Application.Queries;
 
 /// <summary>
-/// Lista por <c>(starts_at, id)</c> as próximas partidas do usuário autenticado, inclusive as canceladas.
-/// Quem organiza também vê as partidas com a chamada aberta. O cursor só posiciona a leitura.
+/// Lista as partidas do usuário por <c>(starts_at, id)</c>. Canceladas aparecem só enquanto <c>starts_at &gt;= now</c>.
+/// Quem organiza também vê as partidas agendadas já iniciadas com a chamada aberta. O cursor só posiciona a leitura.
 /// </summary>
 public sealed class MyMatchesQuery(IMatchQueries queries)
 {
@@ -48,10 +48,10 @@ public sealed class MyMatchesQuery(IMatchQueries queries)
             after = key;
         }
 
-        var from = now.ToUniversalTime();
+        var nowUtc = now.ToUniversalTime();
         var rows = organizer
-            ? await queries.ListOrganizedAsync(userId, from, after, limit + 1, ct)
-            : await queries.ListParticipatingAsync(userId, from, after, limit + 1, ct);
+            ? await queries.ListOrganizedAsync(userId, nowUtc, after, limit + 1, ct)
+            : await queries.ListParticipatingAsync(userId, nowUtc, after, limit + 1, ct);
 
         var items = rows.Take(limit)
             .Select(r => new MyMatchSummary(

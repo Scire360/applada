@@ -40,6 +40,7 @@ public sealed class AttendanceTests
         var match = CreateMatch();
         var close = match.StartsAt.AddMinutes(match.DurationMinutes).AddHours(24);
 
+        Assert.Equal(close, match.AttendanceClosesAt);
         var result = match.CanRecordAttendance(OrganizerId, null, close);
 
         AssertError(result, "attendance-closed", ErrorKind.Conflict);
@@ -70,7 +71,7 @@ public sealed class AttendanceTests
     }
 
     [Fact]
-    public void Non_organizer_is_rejected()
+    public void Non_organizer_is_rejected_even_when_cancelled()
     {
         var match = CreateMatch();
         Assert.True(match.Cancel(OrganizerId, Now).IsSuccess);
@@ -78,6 +79,20 @@ public sealed class AttendanceTests
         var result = match.CanRecordAttendance(Guid.NewGuid(), null, Now);
 
         AssertError(result, "not-organizer", ErrorKind.Forbidden);
+    }
+
+    [Fact]
+    public void Non_organizer_is_rejected_outside_attendance_window()
+    {
+        var match = CreateMatch();
+        var player = Guid.NewGuid();
+        var registration = Register(match, player);
+
+        foreach (var instant in new[] { match.StartsAt.AddTicks(-1), match.AttendanceClosesAt })
+        {
+            var result = match.CanRecordAttendance(player, registration, instant);
+            AssertError(result, "not-organizer", ErrorKind.Forbidden);
+        }
     }
 
     [Fact]

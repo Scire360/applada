@@ -42,6 +42,8 @@ public sealed class Match
 
     public int DurationMinutes { get; private set; }
 
+    public DateTimeOffset AttendanceClosesAt => StartsAt.AddMinutes(DurationMinutes).AddHours(MatchLimits.AttendanceWindowHoursAfterEnd);
+
     public int Capacity { get; private set; }
 
     public MatchVisibility Visibility { get; private set; }
@@ -224,8 +226,7 @@ public sealed class Match
             return MatchErrors.AttendanceNotOpen;
         }
 
-        var windowDuration = TimeSpan.FromMinutes(DurationMinutes) + TimeSpan.FromHours(MatchLimits.AttendanceWindowHoursAfterEnd);
-        if (now - StartsAt >= windowDuration)
+        if (now >= AttendanceClosesAt)
         {
             return MatchErrors.AttendanceClosed;
         }

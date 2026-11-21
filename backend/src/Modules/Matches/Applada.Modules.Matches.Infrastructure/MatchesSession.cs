@@ -16,6 +16,7 @@ internal sealed class MatchesSession(MatchesDbContext db, TimeProvider timeProvi
     /// <summary>Última partida cujo lock esta sessão pediu (para o log de lock-timeout).</summary>
     public Guid? LockedMatchId { get; private set; }
 
+    /// <inheritdoc/>
     public Task<Match?> GetMatchForUpdateAsync(Guid matchId, CancellationToken ct)
     {
         LockedMatchId = matchId;

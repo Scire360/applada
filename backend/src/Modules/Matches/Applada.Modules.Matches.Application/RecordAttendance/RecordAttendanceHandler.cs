@@ -32,7 +32,8 @@ public sealed class RecordAttendanceHandler(IMatchesUnitOfWork unitOfWork, TimeP
             if (changed)
             {
                 // No primeiro INSERT, a FK espera por saídas/cancelamentos iniciados antes da abertura.
-                // Releia o estado que comitou durante a espera antes de publicar; erro desfaz o upsert.
+                // No PostgreSQL 17, RETURNING não identifica o ramo do upsert e xmax é metadado de MVCC.
+                // Revalidamos toda mudança para que um INSERT nunca publique presença inelegível.
                 allowed = await CheckEligibilityAsync(session, matchId, userId, actorId, now, token);
                 if (!allowed.IsSuccess)
                 {

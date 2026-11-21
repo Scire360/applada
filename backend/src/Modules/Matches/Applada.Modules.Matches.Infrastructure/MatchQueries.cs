@@ -143,6 +143,7 @@ internal sealed class MatchQueries(MatchesDbContext db) : IMatchQueries
     {
         // Limite inferior para o índice (organizer_id, starts_at). O fechamento usa a duração de cada partida.
         var earliestStart = now.AddHours(-MatchLimits.AttendanceWindowHoursAfterEnd).AddMinutes(-MatchLimits.DurationMax);
+        // O EF precisa da expressão de Match.AttendanceClosesAt inline para filtrar no PostgreSQL.
         var matches = db.Matches.AsNoTracking()
             .Where(m => m.OrganizerId == userId && m.StartsAt >= earliestStart
                 && (m.StartsAt >= now || (m.Status == MatchStatus.Scheduled

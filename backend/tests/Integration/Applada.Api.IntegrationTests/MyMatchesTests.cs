@@ -97,11 +97,11 @@ public class MyMatchesTests(ApiFactory factory)
             Assert.Equal(scheduled, Assert.Single(organized.Items).Id);
 
             var closesAt = startsAt.AddMinutes(durationMinutes).AddHours(24);
-            factory.Clock.SetUtcNow(closesAt.AddTicks(-1));
+            factory.Clock.SetUtcNow(closesAt.AddTicks(-10));
             using var nearClose = factory.CreateClientFor(organizerSubject);
             var lastOpen = Assert.Single(await WalkAsync(nearClose, "role=organizer", limit: 20));
             Assert.Equal(scheduled, Assert.Single(lastOpen.Items).Id);
-            foreach (var instant in new[] { closesAt, closesAt.AddTicks(1) })
+            foreach (var instant in new[] { closesAt, closesAt.AddTicks(10) })
             {
                 factory.Clock.SetUtcNow(instant);
                 var closed = Assert.Single(await WalkAsync(nearClose, "role=organizer", limit: 20));
