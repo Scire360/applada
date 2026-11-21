@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { accountHeader } from "@/lib/api-client";
 import { handleAvatar } from "@/lib/avatar-storage";
 import { isAllowedResponseType, isJsonRequest, isSameOrigin, maxJsonBytes, readBoundedBody } from "@/lib/bff/guards";
+import { shouldClearInvitationCookie } from "@/lib/bff/invitation";
 import { problem, secureResponse } from "@/lib/bff/http";
 import { resolveOperation, type Operation } from "@/lib/bff/routes";
 import { apiOrigin, getAccessToken, publicOrigin } from "@/lib/bff/session";
@@ -140,7 +141,7 @@ async function forward(request: NextRequest, operation: Operation, accessToken: 
     if (etag && entityTag.test(etag)) responseHeaders.set("ETag", etag);
     response = secureResponse(new NextResponse(backend.status === 204 ? null : backend.body, { status: backend.status, headers: responseHeaders }));
   }
-  if (consumedInvitation) response.cookies.set(invitationCookie, "", invitationCookieOptions(0));
+  if (consumedInvitation && shouldClearInvitationCookie(backend.status)) response.cookies.set(invitationCookie, "", invitationCookieOptions(0));
   return response;
 }
 

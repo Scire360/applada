@@ -20,6 +20,7 @@ type NavigationItem = {
 const primaryNavigation: NavigationItem[] = [
   { href: "/", label: "Visão geral", icon: "home", key: "overview", primary: true },
   { href: "/peladas", label: "Peladas", icon: "football", key: "matches", primary: true, count: "3" },
+  { href: "/grupos", label: "Grupos", icon: "people", key: "groups", primary: true },
   { href: "/jogadores", label: "Jogadores", icon: "people", key: "players", primary: true },
   { href: "/comunidade", label: "Comunidade", icon: "sparkles", key: "community", primary: true },
   { href: "/financeiro", label: "Financeiro", icon: "wallet", key: "finance", primary: true },
@@ -76,7 +77,7 @@ const navigationSections: { title: string; links: NavigationItem[] }[] = [
 ];
 
 type AppShellProps = {
-  active: "overview" | ScreenGroup;
+  active: "overview" | "groups" | ScreenGroup;
   activePath?: string;
   title?: string;
   children: ReactNode;
@@ -94,6 +95,7 @@ function NavigationSection({ title, children }: { title: string; children: React
 const titlesByNavigation: Record<AppShellProps["active"], string> = {
   overview: "Visão geral",
   matches: "Peladas",
+  groups: "Grupos",
   players: "Jogadores",
   community: "Comunidade",
   finance: "Financeiro",
