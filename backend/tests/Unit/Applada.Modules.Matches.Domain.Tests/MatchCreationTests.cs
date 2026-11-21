@@ -71,6 +71,7 @@ public sealed class MatchCreationTests
         var result = Match.Create(data, OrganizerId, Now);
 
         Assert.False(result.IsSuccess);
+        Assert.Equal("Dados inválidos.", result.Error.Message);
         Assert.Equal(["capacity", "timeZone", "title"], result.Error.Fields!.Keys.Order(StringComparer.Ordinal));
     }
 

@@ -71,6 +71,6 @@ public static class MatchErrors
     public static Error Validation(IReadOnlyDictionary<string, string[]> fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
-        return new Error("validation", ErrorKind.Validation, "Um ou mais campos são inválidos.", fields);
+        return new Error("validation", ErrorKind.Validation, "Dados inválidos.", fields);
     }
 }
