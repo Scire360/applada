@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, appApi } from "@/lib/api-client";
+import { guidPattern } from "@/lib/guid";
 import {
   matchDate, registrationLabel,
   type GroupSummary, type MatchCreation, type MatchDetails, type MatchEdit, type MatchRole, type MatchSummary, type Page, type Participant,
@@ -18,7 +19,6 @@ const blankPage = { items: [], nextCursor: null };
 const roles: MatchRole[] = ["organizer", "participant"];
 const roleLabel = { organizer: "Organizo", participant: "Participo" };
 const connectedPath = "/peladas/conectadas";
-const idPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const maxGroupPages = 10;
 
 function mine(role: MatchRole, cursor?: string) {
@@ -67,9 +67,9 @@ export function ConnectedMatches() {
     const controller = new AbortController();
     const url = new URL(window.location.href);
     const rawId = url.searchParams.get("partida") ?? "";
-    const id = idPattern.test(rawId) ? rawId : "";
+    const id = guidPattern.test(rawId) ? rawId : "";
     const rawGroup = url.searchParams.get("grupo") ?? "";
-    const groupId = idPattern.test(rawGroup) ? rawGroup.toLowerCase() : "";
+    const groupId = guidPattern.test(rawGroup) ? rawGroup.toLowerCase() : "";
 
     async function load() {
       let authenticated = false;

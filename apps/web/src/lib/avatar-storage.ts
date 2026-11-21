@@ -7,9 +7,9 @@ import { avatarPixelBytes, avatarSide } from "./avatar-photo";
 import { readBoundedBody } from "./bff/guards";
 import { problem, secureResponse } from "./bff/http";
 import { apiOrigin } from "./bff/session";
+import { guidPattern } from "./guid";
 
 const bucket = "applada-avatars";
-const userIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function pngChunk(type: string, payload: Buffer) {
@@ -156,7 +156,7 @@ export async function handleAvatar(
     }
     await requireStorageSuccess(session);
     const { userId } = await session.json() as { userId: string };
-    if (!userIdPattern.test(userId)) throw new Error("Identificador de usuário inválido.");
+    if (!guidPattern.test(userId)) throw new Error("Identificador de usuário inválido.");
     // A aba pode ter carregado outra conta antes de um novo login: não grava na conta errada.
     if (request.method !== "GET" && expectedAccount !== null && expectedAccount.toLowerCase() !== userId.toLowerCase()) {
       return problem(409, "A conta nesta aba mudou. Atualize a página e tente novamente.");

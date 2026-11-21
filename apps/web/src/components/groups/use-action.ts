@@ -32,4 +32,4 @@ export function useAction() {
 }
 
 export const roleLabel = { owner: "Dono", admin: "Administrador", member: "Membro" } as const;
-export const idPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+export { guidPattern as idPattern } from "@/lib/guid";

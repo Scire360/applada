@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AttendanceRoll } from "@/components/matches/attendance-roll";
+import { guidPattern } from "@/lib/guid";
 
 export default async function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) notFound();
+  if (!guidPattern.test(id)) notFound();
   return (
     <AppShell active="matches" activePath="/peladas/conectadas" title="Chamada de presença" dataSource="api">
       <div className="module-page connected-page">

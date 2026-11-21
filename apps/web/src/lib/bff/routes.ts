@@ -1,4 +1,6 @@
 // Tabela de operações que o BFF repassa para a API (/api/v1). Sem alias nem server-only: roda em node --test.
+import { guidPattern } from "../guid.ts";
+
 export type Operation = {
   path: string;
   query: readonly string[];
@@ -6,7 +8,6 @@ export type Operation = {
   forward: readonly ("Idempotency-Key" | "If-Match")[];
 };
 
-const guid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const paging = ["cursor", "limit"] as const;
 
 type Rule = {
@@ -46,7 +47,7 @@ const rules: readonly Rule[] = [
 export function resolveOperation(segments: readonly string[], method: string): Operation | null {
   for (const rule of rules) {
     if (rule.pattern.length !== segments.length) continue;
-    const matches = rule.pattern.every((part, index) => (part === "{}" ? guid.test(segments[index]) : part === segments[index]));
+    const matches = rule.pattern.every((part, index) => (part === "{}" ? guidPattern.test(segments[index]) : part === segments[index]));
     if (!matches) continue;
     const config = Object.hasOwn(rule.methods, method) ? rule.methods[method] : undefined;
     return config ? { path: rule.api ?? `/${segments.join("/")}`, ...config } : null;
