@@ -27,7 +27,7 @@ export function MyGroups() {
       .catch((failure: unknown) => {
         if (controller.signal.aborted) return;
         if (failure instanceof ApiError && failure.status === 401) setLoadSignedOut(true);
-        setLoadError(failure instanceof Error ? failure.message : "Não foi possível carregar seus grupos.");
+        setLoadError(failure instanceof ApiError ? failure.message : "Não foi possível carregar seus grupos.");
       });
     return () => controller.abort();
   }, []);

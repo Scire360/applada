@@ -101,7 +101,7 @@ export function ConnectedMatches() {
           setError(failure.message);
         } else {
           setPhase(authenticated ? "signed-in" : "error");
-          setError(failure instanceof Error ? failure.message : "Não foi possível conectar agora.");
+          setError(failure instanceof ApiError ? failure.message : "Não foi possível conectar agora.");
         }
       }
     }
@@ -130,7 +130,7 @@ export function ConnectedMatches() {
       await action();
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) setPhase("signed-out");
-      setError(failure instanceof Error ? failure.message : "Não foi possível concluir a ação.");
+      setError(failure instanceof ApiError ? failure.message : "Não foi possível concluir a ação.");
     } finally {
       setBusy(false);
       inFlight.current = false;

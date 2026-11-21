@@ -11,7 +11,14 @@ export class ApiError extends Error {
 }
 
 export async function appApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/app/${path}`, { ...options, cache: "no-store" });
+  let response: Response;
+  try {
+    response = await fetch(`/api/app/${path}`, { ...options, cache: "no-store" });
+  } catch (failure) {
+    // Cancelamento pedido pelo próprio componente segue como AbortError: quem cancelou já ignora.
+    if (options?.signal?.aborted) throw failure;
+    throw new ApiError(0, "Não foi possível conectar ao Applada. Verifique sua conexão e tente novamente.");
+  }
   if (!response.ok) {
     if (response.status === 401) {
       await response.body?.cancel();
