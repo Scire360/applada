@@ -2,6 +2,7 @@ export type MatchSummary = {
   id: string;
   title: string;
   startsAt: string;
+  durationMinutes: number;
   status: "scheduled" | "cancelled";
   confirmedCount: number;
   capacity: number;
@@ -13,7 +14,6 @@ type RegistrationStatus = "confirmed" | "waitlisted" | "withdrawn";
 export type MatchDetails = Omit<MatchSummary, "myStatus"> & {
   organizerId: string;
   timeZone: string;
-  durationMinutes: number;
   waitlistCount: number;
   locationText: string | null;
   version: number;

@@ -48,6 +48,7 @@ public sealed class GroupMatchesQuery(IMatchQueries queries, IGroupMembership gr
                 r.Id,
                 r.Title,
                 r.StartsAt,
+                r.DurationMinutes,
                 StatusText.Of(r.Status),
                 r.ConfirmedCount,
                 r.Capacity,

@@ -326,7 +326,7 @@ export function ConnectedMatches() {
                     <strong>{item.title}</strong>
                     <span>{matchDate(item.startsAt)} · {item.status === "cancelled" ? "Cancelada" : `${item.confirmedCount}/${item.capacity} vagas`}</span>
                   </button>
-                  {session && match?.id !== item.id && <AttendanceLink match={item} userId={session.userId} />}
+                  {session && match?.id !== item.id && <AttendanceLink match={item} userId={session.userId} knownOrganizer={role === "organizer"} />}
                 </li>
               ))}
             </ul>

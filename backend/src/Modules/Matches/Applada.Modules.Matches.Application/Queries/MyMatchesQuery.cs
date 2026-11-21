@@ -58,6 +58,7 @@ public sealed class MyMatchesQuery(IMatchQueries queries)
                 r.Id,
                 r.Title,
                 r.StartsAt,
+                r.DurationMinutes,
                 StatusText.Of(r.Status),
                 r.ConfirmedCount,
                 r.Capacity,

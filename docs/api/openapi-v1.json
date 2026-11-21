@@ -2872,6 +2872,7 @@
           "id",
           "title",
           "startsAt",
+          "durationMinutes",
           "status",
           "confirmedCount",
           "capacity",
@@ -2889,6 +2890,14 @@
           "startsAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "durationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "status": {
             "type": "string"

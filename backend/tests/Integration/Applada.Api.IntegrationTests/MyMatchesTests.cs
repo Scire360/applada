@@ -94,7 +94,8 @@ public class MyMatchesTests(ApiFactory factory)
             Assert.Empty(participating.Items);
             using var duringMatch = factory.CreateClientFor(organizerSubject);
             var organized = Assert.Single(await WalkAsync(duringMatch, "role=organizer", limit: 20));
-            Assert.Equal(scheduled, Assert.Single(organized.Items).Id);
+            var item = Assert.Single(organized.Items);
+            Assert.Equal((scheduled, durationMinutes), (item.Id, item.DurationMinutes));
 
             var closesAt = startsAt.AddMinutes(durationMinutes).AddHours(24);
             factory.Clock.SetUtcNow(closesAt.AddTicks(-10));
@@ -273,12 +274,13 @@ public class MyMatchesTests(ApiFactory factory)
 
     private static Item ReadItem(JsonElement item)
     {
-        Assert.Equal(7, item.EnumerateObject().Count());
+        Assert.Equal(8, item.EnumerateObject().Count());
         var myStatus = item.GetProperty("myStatus");
         return new Item(
             item.GetProperty("id").GetGuid(),
             item.GetProperty("title").GetString()!,
             item.GetProperty("startsAt").GetDateTimeOffset(),
+            item.GetProperty("durationMinutes").GetInt32(),
             item.GetProperty("status").GetString()!,
             item.GetProperty("confirmedCount").GetInt32(),
             item.GetProperty("capacity").GetInt32(),
@@ -287,7 +289,7 @@ public class MyMatchesTests(ApiFactory factory)
 
     private static string Base64Url(string json) => System.Buffers.Text.Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json));
 
-    private sealed record Item(Guid Id, string Title, DateTimeOffset StartsAt, string Status, int ConfirmedCount, int Capacity, string? MyStatus);
+    private sealed record Item(Guid Id, string Title, DateTimeOffset StartsAt, int DurationMinutes, string Status, int ConfirmedCount, int Capacity, string? MyStatus);
 
     private sealed record Page(IReadOnlyList<Item> Items, string? NextCursor);
 }

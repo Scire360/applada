@@ -5,11 +5,10 @@ import { attendanceClosesAt, canTakeAttendance } from "@/lib/attendance";
 import type { MatchDetails } from "@/lib/connected-matches";
 
 type Schedule = Pick<MatchDetails, "startsAt" | "status" | "durationMinutes">;
-type Summary = Omit<Schedule, "durationMinutes">;
 
-export function useAttendanceWindow(match?: Schedule | Summary) {
+export function useAttendanceWindow(match?: Schedule) {
   const start = match ? Date.parse(match.startsAt) : NaN;
-  const end = match && "durationMinutes" in match ? attendanceClosesAt(match) : NaN;
+  const end = match ? attendanceClosesAt(match) : NaN;
   const subscribe = useCallback((changed: () => void) => {
     let timer: number;
     function schedule() {
@@ -24,9 +23,5 @@ export function useAttendanceWindow(match?: Schedule | Summary) {
     return () => window.clearTimeout(timer);
   }, [start, end]);
 
-  return useSyncExternalStore(subscribe, () => {
-    if (!match || match.status !== "scheduled") return "closed";
-    if ("durationMinutes" in match) return canTakeAttendance(match, new Date());
-    return Date.now() < start ? "not-open" : "started";
-  }, () => "not-open" as const);
+  return useSyncExternalStore(subscribe, () => match ? canTakeAttendance(match, new Date()) : "closed", () => "not-open" as const);
 }
